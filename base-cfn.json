@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "MoJ DS - AWS CloudFormation stack for base Docker hosts",
+  "Description" : "MoJ DS - AWS CloudFormation stack for BaseHost",
 
   "Parameters" : {
 
@@ -12,7 +12,7 @@
     },
 
     "InstanceType" : {
-      "Description" : "Docker EC2 instance type",
+      "Description" : "BaseHost EC2 instance type",
       "Type" : "String",
       "Default" : "t2.medium",
       "AllowedValues" : [ "t2.micro", "t2.small", "t2.medium", "c3.large"],
@@ -47,7 +47,7 @@
 
   "Resources" : {
 
-    "Docker": {
+    "BaseHost": {
       "Type": "AWS::EC2::Instance",
       "Metadata" : {
         "AWS::CloudFormation::Init" : {
@@ -72,10 +72,10 @@
                 "content": { "Fn::Join" : ["", [
                   "[cfn-auto-reloader-hook]\n",
                   "triggers=post.update\n",
-                  "path=Resources.Docker.Metadata.AWS::CloudFormation::Init\n",
+                  "path=Resources.BaseHost.Metadata.AWS::CloudFormation::Init\n",
                   "action=/usr/local/bin/cfn-init -v ",
                   "         --stack ", { "Ref" : "AWS::StackName" },
-                  "         --resource Docker ",
+                  "         --resource BaseHost ",
                   "         --configsets full_install ",
                   "         --region ", { "Ref" : "AWS::Region" }, "\n",
                   "runas=root\n"
@@ -89,7 +89,7 @@
         "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
                           { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
         "InstanceType"   : { "Ref" : "InstanceType" },
-        "SecurityGroups" : [ {"Ref" : "DockerSecurityGroup"} ],
+        "SecurityGroups" : [ {"Ref" : "BaseHostSecurityGroup"} ],
         "KeyName"        : { "Ref" : "KeyName" },
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
           "#!/bin/bash -xe\n",
@@ -105,7 +105,7 @@
       }
     },
 
-    "DockerSecurityGroup" : {
+    "BaseHostSecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
       "Properties" : {
         "GroupDescription" : "Enable HTTP access via port 80 plus SSH access",
