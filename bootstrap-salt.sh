@@ -14,5 +14,5 @@ chmod 755 /tmp/bootstrap-salt.sh
 /tmp/bootstrap-salt.sh -X git v2014.1.4
 
 /usr/local/bin/cfn-hup -c /etc/cfn/cfn-hup.conf
-/usr/local/bin/cfn-init -v  --stack $STACK_ID --resource Docker --configsets $CONFIG_SETS --region $REGION
-/usr/local/bin/cfn-signal -e $? --stack $STACK_ID --resource Docker --region $REGION
+/usr/local/bin/cfn-init -v  --stack $STACK_ID --resource BaseHost --configsets $CONFIG_SETS --region $REGION
+/usr/local/bin/cfn-signal -e $? --stack $STACK_ID --resource BaseHost --region $REGION
