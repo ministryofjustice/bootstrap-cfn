@@ -1,18 +1,21 @@
-peoplefinder:
-  dev:
-    ec2:
-      docker:
-        qty: 1
-        tags:
-          Role: docker
-          Apps: pf_rails,scs_rails,scs_assets
-          Env: dev
-        repos:
-          salt:
-            url: git@github.com:ministryofjustice/tribunals_deploy.git
-            dir: /opt/
-        security_groups:
-          MoJ-to-SSH:
-            ingress:
-              tcp: 22
-              ip: 81.134.202.29/29
+
+dev:
+  ec2:
+    docker:
+      qty: 1
+      tags:
+        Role: docker
+        Apps: pf_rails
+        Env: dev
+      security_groups:
+        MoJ-to-SSH:
+          ingress:
+            ports:
+              - 22
+            ips:
+              - 0.0.0.0/0
+      repos:
+        salt:
+          url: git@github.com:ministryofjustice/test.git
+          dir: /opt/
+
