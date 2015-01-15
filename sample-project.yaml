@@ -11,3 +11,8 @@ peoplefinder:
           salt:
             url: git@github.com:ministryofjustice/tribunals_deploy.git
             dir: /opt/
+        security_groups:
+          MoJ-to-SSH:
+            ingress:
+              tcp: 22
+              ip: 81.134.202.29/29
