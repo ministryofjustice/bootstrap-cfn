@@ -1,0 +1,13 @@
+peoplefinder:
+  dev:
+    ec2:
+      docker:
+        qty: 1
+        tags:
+          Role: docker
+          Apps: pf_rails,scs_rails,scs_assets
+          Env: dev
+        repos:
+          salt:
+            url: git@github.com:ministryofjustice/tribunals_deploy.git
+            dir: /opt/
