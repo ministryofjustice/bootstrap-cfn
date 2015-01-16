@@ -8,7 +8,7 @@ dev:
         Apps: pf_rails
         Env: dev
       security_groups:
-        MoJ-to-SSH:
+        MoJToSSH:
           rules:
             - IpProtocol: tcp
               FromPort: 22
