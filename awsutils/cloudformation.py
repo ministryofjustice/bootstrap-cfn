@@ -18,5 +18,9 @@ class Cloudformation:
             print "[ERROR] No AWS credentials"
             sys.exit(1)
 
+    def add_security_groups(self):
+        x = 1
+
+
     def create(self, stack_name, template_body):
         return self.conn_cfn.create_stack(stack_name=stack_name, template_body=template_body)
