@@ -67,6 +67,7 @@ def cfn_create():
         stack_data = cfn.modify_sg(base_stack, data['security_groups'])
         stack_name  = '{0}-{1}'.format(host, str(int(time.time())))
         params = data['parameters'].items() if 'parameters' in data else []
+        print params
         stacks.append(cfn.create(stack_name, json.dumps(stack_data), parameters=params))
 
     if  hasattr(env, 'blocking') and env.blocking.lower() == 'false':

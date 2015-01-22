@@ -11,6 +11,18 @@
       "Default": "default"
     },
 
+    "VolumeSize" : {
+      "Description" : "Size of the additional EBS volume in Gigabytes",
+      "Type" : "String",
+      "Default": "40"
+    },
+
+    "VolumeDevice": {
+      "Description" : "Device used to present the additional EBS volume as",
+      "Type" : "String",
+      "Default" : "/dev/sdf"
+    },
+
     "InstanceType" : {
       "Description" : "BaseHost EC2 instance type",
       "Type" : "String",
@@ -99,7 +111,7 @@
     "VolumeData" : {
        "Type" : "AWS::EC2::Volume",
        "Properties" : {
-          "Size" : "63",
+          "Size" : { "Ref" : "VolumeSize" },
           "AvailabilityZone" : { "Fn::GetAtt" : [ "BaseHost", "AvailabilityZone" ] },
           "Tags" : [ {
              "Key" : "EC2",
@@ -113,19 +125,8 @@
        "Properties" : {
           "InstanceId" : { "Ref" : "BaseHost" },
           "VolumeId"  : { "Ref" : "VolumeData" },
-          "Device" : "/dev/sdf"
+          "Device" : { "Ref" : "VolumeDevice" }
        }
-    },
-
-    "BaseHostSecurityGroup" : {
-      "Type" : "AWS::EC2::SecurityGroup",
-      "Properties" : {
-        "GroupDescription" : "Enable HTTP access via port 80 plus SSH access",
-        "SecurityGroupIngress" : [
-          {"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"},
-          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"}
-        ]
-      }
     }
   }
 }

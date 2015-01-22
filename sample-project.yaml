@@ -10,6 +10,8 @@ dev:
       parameters:
         InstanceType: t2.micro
         KeyName: default-provisioning
+        VolumeSize: '25'
+        VolumeDevice: '/dev/sdo'
       security_groups:
         MoJToSSH:
           rules:
