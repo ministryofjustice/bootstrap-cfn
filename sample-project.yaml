@@ -7,6 +7,9 @@ dev:
         Role: docker
         Apps: pf_rails
         Env: dev
+      parameters:
+        InstanceType: t2.micro
+        KeyName: default-provisioning
       security_groups:
         MoJToSSH:
           rules:

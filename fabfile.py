@@ -36,6 +36,10 @@ def config(x):
     env.config = str(x).lower()
 
 @task
+def blocking(x):
+    env.blocking = str(x).lower()
+
+@task
 def cfn_create():
     if env.aws is None:
         print "\n[ERROR] Please specify an AWS account, e.g 'aws:dev'"
@@ -62,7 +66,13 @@ def cfn_create():
     for host, data in cfg['ec2'].items():
         stack_data = cfn.modify_sg(base_stack, data['security_groups'])
         stack_name  = '{0}-{1}'.format(host, str(int(time.time())))
-        stacks.append(cfn.create(stack_name, json.dumps(stack_data)))
+        params = data['parameters'].items() if 'parameters' in data else []
+        stacks.append(cfn.create(stack_name, json.dumps(stack_data), parameters=params))
+
+    if  hasattr(env, 'blocking') and env.blocking.lower() == 'false':
+        print stacks
+        print 'Running in non blocking mode. Exiting.'
+        sys.exit(0) 
 
     # Wait for stacks to complete
     print 'Waiting for stacks to complete.'

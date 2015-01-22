@@ -31,8 +31,8 @@ class Cloudformation:
             stack_data['Resources'][sg] = sg_struct
         return stack_data
 
-    def create(self, stack_name, template_body):
-        return self.conn_cfn.create_stack(stack_name=stack_name, template_body=template_body)
+    def create(self, stack_name, template_body, parameters=[]):
+        return self.conn_cfn.create_stack(stack_name=stack_name, template_body=template_body, parameters=parameters)
 
     def stack_done(self, stack_id):
         stack_events = self.conn_cfn.describe_stack_events(stack_id)
