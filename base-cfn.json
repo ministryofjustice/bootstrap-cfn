@@ -50,6 +50,60 @@
 
   "Resources" : {
 
+    "InstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [ { "Ref": "RootRole" } ]
+      }
+    },
+
+    "RootRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": [ "sts:AssumeRole" ], "Effect": "Allow", "Principal": { "Service": [ "ec2.amazonaws.com" ] }
+            }
+          ]
+        }
+      }
+    },
+
+    "RolePolicies": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": "root",
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                  "ec2:Describe*"
+              ],
+              "Resource": "*",
+              "Effect": "Allow"
+            },
+            {
+              "Action": [
+                  "rds:Describe*"
+              ],
+              "Resource": "*",
+              "Effect": "Allow"
+            }
+          ]
+        },
+        "Roles": [
+          {
+              "Ref": "RootRole"
+          }
+        ]
+      }
+    },
+
+
+
     "BaseHost": {
       "Type": "AWS::EC2::Instance",
       "Metadata" : {
@@ -89,11 +143,17 @@
         }
       },
       "Properties": {
+        "IamInstanceProfile": { "Ref": "InstanceProfile" },
         "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
                           { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
         "InstanceType"   : { "Ref" : "InstanceType" },
         "SecurityGroups" : [ ],
         "KeyName"        : { "Ref" : "KeyName" },
+        "Tags" : [
+          { "Key" : "Name", "Value" : "docker" },
+          { "Key" : "Env", "Value" : "dev" },
+          { "Key" : "App", "Value" : "pf_rails" }
+        ],
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
           "#!/bin/bash -xe\n",
           "wget https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/bootstrap-salt.sh -O /tmp/moj-bootstrap.sh\n",
