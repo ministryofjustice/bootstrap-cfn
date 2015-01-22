@@ -4,6 +4,25 @@ STACK_ID=$1
 REGION=$2
 CONFIG_SETS=$3
 
+# SETUP EBS VOLUME IF IT EXISTS
+hdd="/dev/xvdf"
+if [ -e $hdd ]
+then
+  partition="/dev/xvdf1"
+  echo "n
+  p
+  1
+
+
+  w
+  "|fdisk $hdd
+  mkfs.ext4 $partition
+  mkdir -p /data
+  echo "$partition 		/data    ext4   defaults 		0 0" >> /etc/fstab
+  mount -a
+fi
+
+# SETUP EC2 INSTANCE
 apt-get update
 apt-get -y install python-setuptools git
 
