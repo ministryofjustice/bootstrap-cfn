@@ -1,0 +1,152 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "BaseHost Stack",
+    "Parameters": {
+        "InstanceType": {
+            "Default": "t2.medium",
+            "Type": "String",
+            "AllowedValues": ["t2.micro", "t2.small", "t2.medium", "c3.large", "c4.large"]
+        },
+        "RootVolumeSize" : {
+            "Type" : "String",
+            "Default": "10"
+        },
+        "DataVolumeSize" : {
+            "Type" : "String",
+            "Default": "1"
+        },
+        "VolumeDevice": {
+          "Type" : "String",
+          "Default" : "/dev/sdf"
+        },
+        "MinNumInstances": {
+          "Type": "Number",
+          "Default": "1"
+        },
+        "MaxNumInstances": {
+          "Type": "Number",
+          "Default": "3"
+        },
+        "DesiredNumInstances": {
+          "Type": "Number",
+          "Default": "1"
+        },
+        "TagName": {
+          "Type": "String",
+          "Default": "docker"
+        },
+        "TagEnv": {
+          "Type": "String",
+          "Default": "dev"
+        },
+        "TagApp": {
+          "Type": "String",
+          "Default": "dockerhost"
+        }
+    },
+    "Mappings": {
+        "AWSRegion2AMI": {
+            "eu-west-1": { "AMI": "ami-f0b11187" },
+            "eu-central-1": { "AMI": "ami-b83c0aa5" }
+        }
+    },
+    "Resources": {
+        "BaseHostRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "Path": "/",
+                "AssumeRolePolicyDocument": {
+                    "Statement": [ { "Action": [ "sts:AssumeRole" ], "Effect": "Allow", "Principal": { "Service": [ "ec2.amazonaws.com" ] } } ] } }
+        },
+        "RolePolicies": {
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "BaseHost",
+                "PolicyDocument": {
+                    "Statement": [
+                        { "Action": [ "autoscaling:Describe*" ], "Resource": "*", "Effect": "Allow" },
+                        { "Action": [ "ec2:Describe*" ], "Resource": "*", "Effect": "Allow" },
+                        { "Action": [ "rds:Describe*" ], "Resource": "*", "Effect": "Allow" }
+                    ]
+                },
+                "Roles": [ { "Ref": "BaseHostRole" } ]
+            }
+        },
+        "InstanceProfile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "Properties": {
+                "Path": "/",
+                "Roles": [ { "Ref": "BaseHostRole" } ]
+            }
+        },
+        "BaseHostSG": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "BaseHost Security Group",
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "IpProtocol": "tcp",
+                        "ToPort": 80,
+                        "FromPort": 80
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "IpProtocol": "tcp",
+                        "ToPort": 22,
+                        "FromPort": 22
+                    }
+                ]
+            }
+        },
+        "BaseHostLaunchConfig": {
+            "Type": "AWS::AutoScaling::LaunchConfiguration",
+            "Properties": {
+                "KeyName": "default",
+                "SecurityGroups": [ { "Ref": "BaseHostSG" } ],
+                "InstanceType": { "Ref": "InstanceType" },
+                "IamInstanceProfile": { "Ref": "InstanceProfile" },
+                "ImageId": { "Fn::FindInMap": [ "AWSRegion2AMI", { "Ref": "AWS::Region" }, "AMI" ] },
+                "BlockDeviceMappings" : [
+                    {
+                        "DeviceName" : "/dev/sda1",
+                        "Ebs" : { "VolumeSize" : { "Ref": "RootVolumeSize" } }
+                    },
+                    {
+                        "DeviceName" : { "Ref": "VolumeDevice" },
+                        "Ebs" : { "VolumeSize" : { "Ref": "DataVolumeSize" } }
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                              "#!/bin/bash -xe\n",
+                              "wget https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/bootstrap-salt.sh -O /tmp/moj-bootstrap.sh\n",
+                              "chmod 755 /tmp/moj-bootstrap.sh\n",
+                              "/tmp/moj-bootstrap.sh "
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+        "ScalingGroup": {
+            "Type": "AWS::AutoScaling::AutoScalingGroup",
+            "Properties": {
+                "MinSize": { "Ref": "MinNumInstances"},
+                "MaxSize": { "Ref": "MaxNumInstances"},
+                "DesiredCapacity": { "Ref": "DesiredNumInstances"},
+                "AvailabilityZones": { "Fn::GetAZs": "" },
+                "Tags": [
+                    { "Key": "Name", "Value": { "Ref": "TagName" }, "PropagateAtLaunch": true },
+                    { "Key": "Env", "Value": { "Ref": "TagEnv" }, "PropagateAtLaunch": true },
+                    { "Key": "App", "Value": { "Ref": "TagApp" }, "PropagateAtLaunch": true }
+                ],
+                "LaunchConfigurationName": { "Ref": "BaseHostLaunchConfig" }
+            }
+        }
+    }
+
+}
