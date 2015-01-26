@@ -19,7 +19,6 @@ class Cloudformation:
             sys.exit(1)
 
     def modify_sg(self, stack_data, sg_data):
-        groups = []
         for sg in sg_data:
             sg_struct = {
                     'Type': 'AWS::EC2::SecurityGroup',
@@ -29,6 +28,7 @@ class Cloudformation:
                     }
                 }
             stack_data['Resources'][sg] = sg_struct
+        stack_data['Resources']['BaseHost']['Properties']['SecurityGroups'] = [{'Ref': x} for x in sg_data.keys()]
         return stack_data
 
     def create(self, stack_name, template_body, parameters=[]):
