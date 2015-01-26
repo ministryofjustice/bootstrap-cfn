@@ -1,6 +1,14 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
     "Description": "BaseHost Stack",
+
+    "Mappings": {
+        "AWSRegion2AMI": {
+            "eu-west-1": { "AMI": "ami-f0b11187" },
+            "eu-central-1": { "AMI": "ami-b83c0aa5" }
+        }
+    },
+
     "Parameters": {
         "InstanceType": {
             "Default": "t2.medium",
@@ -16,41 +24,217 @@
             "Default": "1"
         },
         "VolumeDevice": {
-          "Type" : "String",
-          "Default" : "/dev/sdf"
+            "Type" : "String",
+            "Default" : "/dev/sdf"
         },
         "MinNumInstances": {
-          "Type": "Number",
-          "Default": "1"
+            "Type": "Number",
+            "Default": "0"
         },
         "MaxNumInstances": {
-          "Type": "Number",
-          "Default": "3"
+            "Type": "Number",
+            "Default": "3"
         },
         "DesiredNumInstances": {
-          "Type": "Number",
-          "Default": "1"
+            "Type": "Number",
+            "Default": "1"
         },
         "TagName": {
-          "Type": "String",
-          "Default": "docker"
+            "Type": "String",
+            "Default": "docker"
         },
         "TagEnv": {
-          "Type": "String",
-          "Default": "dev"
+            "Type": "String",
+            "Default": "dev"
         },
         "TagApp": {
-          "Type": "String",
-          "Default": "dockerhost"
+            "Type": "String",
+            "Default": "dockerhost"
+        },
+        "S3StaticContent": {
+            "Type": "String",
+            "Default": "testproject-static"
+        },
+        "S3StaticContentARN": {
+            "Type": "String",
+            "Default": "arn:aws:s3:::testproject-static/*"
+        },
+        "DBAllocatedStorage": {
+            "Type": "String",
+            "Default": "8"
+        },
+        "DBIdentifier": {
+            "Type": "String",
+            "Default": "test-project"
+        },
+        "DBName": {
+            "Type": "String",
+            "Default": "testproject"
+        },
+        "DBMasterUsername": {
+            "Type": "String",
+            "Default": "testuser"
+        },
+        "DBMasterUserPassword": {
+            "Type": "String",
+            "Default": "testpassword"
+        },
+        "DBInstanceClass": {
+            "Type": "String",
+            "Default": "db.t2.micro"
+        },
+        "DBMultiAZ": {
+            "Type": "String",
+            "Default": "false"
+        },
+        "DBEngine": {
+            "Type": "String",
+            "Default": "postgres"
+        },
+        "DBEngineVersion": {
+            "Type": "String",
+            "Default": "9.3.5"
+        },
+        "LoadBalancerName": {
+            "Type": "String",
+            "Default": "test-project"
+        },
+        "HostedZoneName": {
+            "Type": "String",
+            "Default": "example.com."
+        },
+        "HostedZoneELB": {
+            "Type": "String",
+            "Default": "test-project.example.com."
         }
     },
-    "Mappings": {
-        "AWSRegion2AMI": {
-            "eu-west-1": { "AMI": "ami-f0b11187" },
-            "eu-central-1": { "AMI": "ami-b83c0aa5" }
-        }
-    },
+
+
+
+
+
+
+
+
+
+
     "Resources": {
+
+
+
+
+
+
+
+
+        "StaticBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+                "BucketName": { "Ref": "S3StaticContent"},
+                "AccessControl": "BucketOwnerFullControl"
+            }
+        },
+
+        "StaticBucketPolicy" : {
+            "Type" : "AWS::S3::BucketPolicy",
+            "Properties" : {
+                "Bucket" : {"Ref" : "StaticBucket"},
+                "PolicyDocument": {
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                 "AWS": "*"
+                            },
+                            "Action": "s3:GetObject",
+                            "Resource": { "Ref": "S3StaticContentARN"}
+                        }
+                    ]
+                }
+            }
+        },
+
+
+
+
+
+
+
+
+
+        "ElasticLoadBalancer" : {
+            "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+            "Properties" : {
+                "LoadBalancerName": { "Ref": "LoadBalancerName" },
+                "AvailabilityZones" : { "Fn::GetAZs" : "" },
+                "Listeners" : [
+                    { "LoadBalancerPort" : "80", "InstancePort" : "80", "Protocol" : "TCP"},
+                    { "LoadBalancerPort" : "443", "InstancePort" : "443", "Protocol" : "TCP"}
+                ]
+            }
+        },
+
+        "DNSRecord" : {
+            "Type" : "AWS::Route53::RecordSetGroup",
+            "Properties" : {
+                "HostedZoneName" : { "Ref": "HostedZoneName"},
+                "Comment" : "Zone apex alias targeted to ElasticLoadBalancer.",
+                "RecordSets" : [
+                    {
+                        "Name" : { "Ref": "HostedZoneELB"},
+                        "Type" : "A",
+                        "AliasTarget" : {
+                            "HostedZoneId" : { "Fn::GetAtt" : ["ElasticLoadBalancer", "CanonicalHostedZoneNameID"] },
+                            "DNSName" : { "Fn::GetAtt" : ["ElasticLoadBalancer","CanonicalHostedZoneName"] }
+                        }
+                    }
+                ]
+            }
+        },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        "RDSInstance": {
+            "Type": "AWS::RDS::DBInstance",
+            "Properties": {
+                "DBInstanceIdentifier": { "Ref": "DBIdentifier"},
+                "DBName": { "Ref": "DBName"},
+                "DBInstanceClass": { "Ref": "DBInstanceClass"},
+                "MasterUsername": { "Ref": "DBMasterUsername"},
+                "MasterUserPassword": { "Ref": "DBMasterUserPassword"},
+                "AllocatedStorage": { "Ref": "DBAllocatedStorage"},
+                "Engine": { "Ref": "DBEngine"},
+                "EngineVersion": { "Ref": "DBEngineVersion"},
+                "MultiAZ": { "Ref": "DBMultiAZ"},
+                "PubliclyAccessible": false,
+                "AllowMajorVersionUpgrade": false,
+                "AutoMinorVersionUpgrade": false
+            }
+        },
+
+
+
+
+
+
+
+
+
+
+
+
+
         "BaseHostRole": {
             "Type": "AWS::IAM::Role",
             "Properties": {
@@ -66,7 +250,9 @@
                     "Statement": [
                         { "Action": [ "autoscaling:Describe*" ], "Resource": "*", "Effect": "Allow" },
                         { "Action": [ "ec2:Describe*" ], "Resource": "*", "Effect": "Allow" },
-                        { "Action": [ "rds:Describe*" ], "Resource": "*", "Effect": "Allow" }
+                        { "Action": [ "rds:Describe*" ], "Resource": "*", "Effect": "Allow" },
+                        { "Action": [ "s3:List*" ], "Resource": "*", "Effect": "Allow" },
+                        { "Action": [ "s3:Get*", "s3:Put*", "s3:List*" ], "Resource": { "Ref": "S3StaticContentARN"}, "Effect": "Allow" }
                     ]
                 },
                 "Roles": [ { "Ref": "BaseHostRole" } ]
@@ -79,16 +265,37 @@
                 "Roles": [ { "Ref": "BaseHostRole" } ]
             }
         },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "BaseHostSG": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
                 "GroupDescription": "BaseHost Security Group",
                 "SecurityGroupIngress": [
                     {
-                        "CidrIp": "0.0.0.0/0",
+                        "CidrIp": "172.31.0.0/16",
                         "IpProtocol": "tcp",
                         "ToPort": 80,
                         "FromPort": 80
+                    },
+                    {
+                        "CidrIp": "172.31.0.0/16",
+                        "IpProtocol": "tcp",
+                        "ToPort": 443,
+                        "FromPort": 443
                     },
                     {
                         "CidrIp": "0.0.0.0/0",
@@ -138,6 +345,7 @@
                 "MinSize": { "Ref": "MinNumInstances"},
                 "MaxSize": { "Ref": "MaxNumInstances"},
                 "DesiredCapacity": { "Ref": "DesiredNumInstances"},
+                "LoadBalancerNames": [ {"Ref": "ElasticLoadBalancer"} ],
                 "AvailabilityZones": { "Fn::GetAZs": "" },
                 "Tags": [
                     { "Key": "Name", "Value": { "Ref": "TagName" }, "PropagateAtLaunch": true },
