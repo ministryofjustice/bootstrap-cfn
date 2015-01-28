@@ -1,0 +1,30 @@
+{
+    "ElasticLoadBalancer" : {
+        "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+        "Properties" : {
+            "LoadBalancerName": "",
+            "AvailabilityZones" : { "Fn::GetAZs" : "" },
+            "Scheme" : "internet-facing",
+            "Listeners" : [
+            ]
+        }
+    },
+
+    "DNSRecord" : {
+        "Type" : "AWS::Route53::RecordSetGroup",
+        "Properties" : {
+            "HostedZoneName" : "",
+            "Comment" : "Zone apex alias targeted to ElasticLoadBalancer.",
+            "RecordSets" : [
+                {
+                    "Name" : "",
+                    "Type" : "A",
+                    "AliasTarget" : {
+                        "HostedZoneId" : { "Fn::GetAtt" : [] },
+                        "DNSName" : { "Fn::GetAtt" : [] }
+                    }
+                }
+            ]
+        }
+    }
+}

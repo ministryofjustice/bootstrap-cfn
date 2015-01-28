@@ -1,0 +1,20 @@
+{
+  "RDSInstance": {
+    "Type": "AWS::RDS::DBInstance",
+    "Properties": {
+      "DBInstanceIdentifier": "",
+      "DBName": "",
+      "DBInstanceClass": "",
+      "MasterUsername": "",
+      "MasterUserPassword": "",
+      "AllocatedStorage": "",
+      "StorageType": "",
+      "Engine": "",
+      "EngineVersion": "",
+      "MultiAZ": "",
+      "PubliclyAccessible": false,
+      "AllowMajorVersionUpgrade": false,
+      "AutoMinorVersionUpgrade": false
+    }
+  }
+}

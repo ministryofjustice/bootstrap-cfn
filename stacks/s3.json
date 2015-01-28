@@ -1,0 +1,28 @@
+{
+    "StaticBucket": {
+        "Type": "AWS::S3::Bucket",
+        "Properties": {
+            "BucketName": "",
+            "AccessControl": "BucketOwnerFullControl"
+        }
+    },
+
+    "StaticBucketPolicy" : {
+        "Type" : "AWS::S3::BucketPolicy",
+        "Properties" : {
+            "Bucket" : {"Ref" : "StaticBucket"},
+            "PolicyDocument": {
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                             "AWS": "*"
+                        },
+                        "Action": "s3:GetObject",
+                        "Resource": "arn:aws:s3:::testproject-static/*"
+                    }
+                ]
+            }
+        }
+    }
+}

@@ -1,0 +1,48 @@
+{
+  "BaseHostSG": {
+    "Type": "AWS::EC2::SecurityGroup",
+    "Properties": {
+        "GroupDescription": "BaseHost Security Group",
+        "SecurityGroupIngress": []
+    }
+  },
+  "BaseHostLaunchConfig": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+          "KeyName": "default",
+          "SecurityGroups": [ { "Ref": "BaseHostSG" } ],
+          "InstanceType": { "Ref": "InstanceType" },
+          "IamInstanceProfile": { "Ref": "InstanceProfile" },
+          "ImageId": { "Fn::FindInMap": [ "AWSRegion2AMI", { "Ref": "AWS::Region" }, "AMI" ] },
+          "BlockDeviceMappings" : [],
+          "UserData": {
+              "Fn::Base64" : {
+                  "Fn::Join" : [
+                      "",
+                      [
+                        "#!/bin/bash -xe\n",
+                        "wget https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/bootstrap-salt.sh -O /tmp/moj-bootstrap.sh\n",
+                        "chmod 755 /tmp/moj-bootstrap.sh\n",
+                        "/tmp/moj-bootstrap.sh "
+                      ]
+                  ]
+              }
+          }
+      }
+  },
+  "ScalingGroup": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+          "MinSize": { "Ref": "MinNumInstances"},
+          "MaxSize": { "Ref": "MaxNumInstances"},
+          "DesiredCapacity": { "Ref": "DesiredNumInstances"},
+          "AvailabilityZones": { "Fn::GetAZs": "" },
+          "Tags": [
+              { "Key": "Name", "Value": { "Ref": "TagName" }, "PropagateAtLaunch": true },
+              { "Key": "Env", "Value": { "Ref": "TagEnv" }, "PropagateAtLaunch": true },
+              { "Key": "App", "Value": { "Ref": "TagApp" }, "PropagateAtLaunch": true }
+          ],
+          "LaunchConfigurationName": { "Ref": "BaseHostLaunchConfig" }
+      }
+  }
+}

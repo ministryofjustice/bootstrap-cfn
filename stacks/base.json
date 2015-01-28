@@ -1,0 +1,14 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "BaseHost Stack",
+
+    "Mappings": {
+        "AWSRegion2AMI": {
+            "eu-west-1": { "AMI": "ami-f0b11187" },
+            "eu-central-1": { "AMI": "ami-b83c0aa5" }
+        }
+    },
+
+    "Resources": {}
+
+}

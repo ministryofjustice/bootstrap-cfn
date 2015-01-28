@@ -11,6 +11,18 @@
       "Default": "default"
     },
 
+    "VolumeSize" : {
+      "Description" : "Size of the additional EBS volume in Gigabytes",
+      "Type" : "String",
+      "Default": "40"
+    },
+
+    "VolumeDevice": {
+      "Description" : "Device used to present the additional EBS volume as",
+      "Type" : "String",
+      "Default" : "/dev/sdf"
+    },
+
     "InstanceType" : {
       "Description" : "BaseHost EC2 instance type",
       "Type" : "String",
@@ -37,6 +49,60 @@
   },
 
   "Resources" : {
+
+    "InstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [ { "Ref": "RootRole" } ]
+      }
+    },
+
+    "RootRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": [ "sts:AssumeRole" ], "Effect": "Allow", "Principal": { "Service": [ "ec2.amazonaws.com" ] }
+            }
+          ]
+        }
+      }
+    },
+
+    "RolePolicies": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": "root",
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                  "ec2:Describe*"
+              ],
+              "Resource": "*",
+              "Effect": "Allow"
+            },
+            {
+              "Action": [
+                  "rds:Describe*"
+              ],
+              "Resource": "*",
+              "Effect": "Allow"
+            }
+          ]
+        },
+        "Roles": [
+          {
+              "Ref": "RootRole"
+          }
+        ]
+      }
+    },
+
+
 
     "BaseHost": {
       "Type": "AWS::EC2::Instance",
@@ -77,11 +143,17 @@
         }
       },
       "Properties": {
+        "IamInstanceProfile": { "Ref": "InstanceProfile" },
         "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
                           { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
         "InstanceType"   : { "Ref" : "InstanceType" },
-        "SecurityGroups" : [ {"Ref" : "BaseHostSecurityGroup"} ],
+        "SecurityGroups" : [ ],
         "KeyName"        : { "Ref" : "KeyName" },
+        "Tags" : [
+          { "Key" : "Name", "Value" : "docker" },
+          { "Key" : "Env", "Value" : "dev" },
+          { "Key" : "App", "Value" : "pf_rails" }
+        ],
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
           "#!/bin/bash -xe\n",
           "wget https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/bootstrap-salt.sh -O /tmp/moj-bootstrap.sh\n",
@@ -96,15 +168,25 @@
       }
     },
 
-    "BaseHostSecurityGroup" : {
-      "Type" : "AWS::EC2::SecurityGroup",
-      "Properties" : {
-        "GroupDescription" : "Enable HTTP access via port 80 plus SSH access",
-        "SecurityGroupIngress" : [
-          {"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"},
-          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"}
-        ]
-      }
+    "VolumeData" : {
+       "Type" : "AWS::EC2::Volume",
+       "Properties" : {
+          "Size" : { "Ref" : "VolumeSize" },
+          "AvailabilityZone" : { "Fn::GetAtt" : [ "BaseHost", "AvailabilityZone" ] },
+          "Tags" : [ {
+             "Key" : "EC2",
+             "Value" : { "Ref" : "BaseHost" }
+          } ]
+       }
+    },
+
+    "MountPoint" : {
+       "Type" : "AWS::EC2::VolumeAttachment",
+       "Properties" : {
+          "InstanceId" : { "Ref" : "BaseHost" },
+          "VolumeId"  : { "Ref" : "VolumeData" },
+          "Device" : { "Ref" : "VolumeDevice" }
+       }
     }
   }
 }

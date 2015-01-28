@@ -1,16 +1,14 @@
 #!/usr/bin/env python
 
 import sys
-import urllib2
-import json
-import yaml
-from fabric.api import env, task, sudo, execute, run, parallel, settings
+import time
+from fabric.api import env, task
 from awsutils.cloudformation import Cloudformation
-from helpers.config import AWSConfig, ProjectConfig
+from helpers.config import AWSConfig, ProjectConfig, ConfigParser
+
 
 
 ### GLOBAL VARIABLES
-env.base_stack_url = 'https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/base-cfn.json'
 env.application = None
 env.environment = None
 env.aws = None
@@ -49,28 +47,14 @@ def cfn_create():
         print "\n[ERROR] Please specify a config file, e.g 'config:/tmp/sample-application.yaml'"
         sys.exit(1)
 
-    # DOWNLOAD BaseHost CFN STACK
-    base_stack = json.loads(urllib2.urlopen(env.base_stack_url).read())
-    print base_stack
-    print
-
+    # LOAD AWS CONFIG FROM ~/.config.yaml
     aws_config = AWSConfig(env.aws)
-    project = ProjectConfig(env.config, env.environment)
-    print project.config
 
-    # ADD SECURITY GROUPS
-    if 'ec2' in project.config:
-        for server in project.config['ec2'].keys():
-            if 'security_groups' in project.config['ec2'][server]:
-                if 'ingress' in project.config['ec2'][server]['security_groups']:
-                    for port in project.config['ec2'][server]['security_groups']['ingress'].keys():
-                        print port
-                        print project.config['ec2'][server]['security_groups']['ingress'][port]
+    # LOAD PROJECT CONFIG YAML FILE AND TRANSFORM TO CLOUDFORMATION FORMAT
+    project_config = ProjectConfig(env.config, env.environment)
+    cfn_config = ConfigParser(project_config.config)
 
-
-
-
-# "SecurityGroupIngress" : [
-#           {"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"},
-#           {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"}
-#         ]
+    # CREATE CLOUDFORMATION STACK
+    cfn = Cloudformation(aws_config)
+    stack_name = "%s-%s-%s" % (env.application, env.environment, time.strftime('%Y%m%d-%H%M', time.gmtime()))
+    cfn.create(stack_name, cfn_config.process())
