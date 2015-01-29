@@ -24,3 +24,28 @@ class Cloudformation:
                                           capabilities=['CAPABILITY_IAM'])
 
         print "\n\n\n%s\n\n\nSTACK CREATED" % stack
+        return stack
+
+    def modify_sg(self, stack_data, sg_data):
+        for sg in sg_data:
+            sg_struct = {
+                    'Type': 'AWS::EC2::SecurityGroup',
+                    'Properties': {
+                        'GroupDescription': 'Auto generated SG',
+                        'SecurityGroupIngress': sg_data[sg]['rules']
+                    }
+                }
+            stack_data['Resources'][sg] = sg_struct
+        stack_data['Resources']['BaseHost']['Properties']['SecurityGroups'] = [{'Ref': x} for x in sg_data.keys()]
+        return stack_data
+
+    def stack_done(self, stack_id):
+        stack_events = self.conn_cfn.describe_stack_events(stack_id)
+        if stack_events[0].resource_type == 'AWS::CloudFormation::Stack'\
+                and stack_events[0].resource_status in ['CREATE_COMPLETE', 'CREATE_FAILED', 'ROLLBACK_COMPLETE']:
+            return True
+        return False
+
+    def get_last_stack_event(self, stack_id):
+        return self.conn_cfn.describe_stack_events(stack_id)[0]
+

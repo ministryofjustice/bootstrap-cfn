@@ -27,7 +27,7 @@ dev:
         CidrIp: 0.0.0.0/0
   elb:
     - name: test-dev-external
-      hosted_zone: is.dsd.io.
+      hosted_zone: kyrtest.pf.dsd.io.
       scheme: internet-facing
       listeners:
         - LoadBalancerPort: 80
@@ -37,7 +37,7 @@ dev:
           InstancePort: 443
           Protocol: TCP
     - name: test-dev-internal
-      hosted_zone: is.dsd.io.
+      hosted_zone: kyrtest.pf.dsd.io.
       scheme: internet-facing
       listeners:
         - LoadBalancerPort: 80
