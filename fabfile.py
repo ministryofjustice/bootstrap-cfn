@@ -6,8 +6,9 @@ import json
 import yaml
 import time
 from fabric.api import env, task, sudo, execute, run, parallel, settings
-from awsutils.cloudformation import Cloudformation
 from helpers.config import AWSConfig, ProjectConfig, ConfigParser
+from awsutils.cloudformation import Cloudformation
+from awsutils.ec2 import EC2
 
 
 
@@ -65,7 +66,8 @@ def cfn_create():
     cfn = Cloudformation(aws_config)
 
     # Inject security groups in stack template and create stacks.
-    stack_name = "%s-%s-%s" % (env.application, env.environment, time.strftime('%Y%m%d-%H%M', time.gmtime()))
+    #stack_name = "%s-%s-%s" % (env.application, env.environment, time.strftime('%Y%m%d-%H%M', time.gmtime()))
+    stack_name = "%s-%s" % (env.application, env.environment)
     stack = cfn.create(stack_name, cfn_config.process())
 
     if  hasattr(env, 'blocking') and env.blocking.lower() == 'false':
@@ -93,3 +95,26 @@ def cfn_create():
     else:
         print 'Failed to create stack: {0}'.format(stack)
 
+def get_stack_instances_ips(stack_name):
+    if env.aws is None:
+        print "\n[ERROR] Please specify an AWS account, e.g 'aws:dev'"
+        sys.exit(1)
+
+    aws_config = AWSConfig(env.aws)
+    cfn = Cloudformation(aws_config)
+    ec2 = EC2(aws_config)
+    instance_id_list = cfn.get_stack_instance_ids(stack_name)
+    return ec2.get_instance_public_ips(instance_id_list)
+
+@task
+def get_stack_addresses():
+    if env.environment is None:
+        print "\n[ERROR] Please specify an environment, e.g 'environment:dev'"
+        sys.exit(1)
+    if env.application is None:
+        print "\n[ERROR] Please specify an application, e.g 'application:peoplefinder'"
+        sys.exit(1)
+    stack_name = "%s-%s" % (env.application, env.environment)
+    res = get_stack_instances_ips(stack_name)
+    print res
+    return res
