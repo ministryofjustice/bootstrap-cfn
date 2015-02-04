@@ -18,5 +18,7 @@ class EC2:
             sys.exit(1)
 
     def get_instance_public_ips(self, instance_id_list):
+        if not instance_id_list:
+            return []
         return [x.ip_address for x in 
                 self.conn_ec2.get_only_instances(instance_ids=instance_id_list)]

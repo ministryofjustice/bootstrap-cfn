@@ -5,12 +5,15 @@ import urllib2
 import json
 import yaml
 import time
-from fabric.api import env, task, sudo, execute, run, parallel, settings
 from helpers.config import AWSConfig, ProjectConfig, ConfigParser
 from awsutils.cloudformation import Cloudformation
 from awsutils.ec2 import EC2
 
+import os
 
+from fabric.api import env, task, sudo, execute, run, parallel, settings
+from fabric.contrib.project import rsync_project, upload_project
+from fabric.operations import put
 
 ### GLOBAL VARIABLES
 env.application = None
@@ -39,6 +42,10 @@ def config(x):
 @task
 def blocking(x):
     env.blocking = str(x).lower()
+
+@task
+def user(x):
+    env.user = x
 
 @task
 def cfn_create():
@@ -118,3 +125,54 @@ def get_stack_addresses():
     res = get_stack_instances_ips(stack_name)
     print res
     return res
+
+@task
+def rsync():
+    if env.aws is None:
+        print "\n[ERROR] Please specify an AWS account, e.g 'aws:dev'"
+        sys.exit(1)
+    if env.environment is None:
+        print "\n[ERROR] Please specify an environment, e.g 'environment:dev'"
+        sys.exit(1)
+    if env.application is None:
+        print "\n[ERROR] Please specify an application, e.g 'application:peoplefinder'"
+        sys.exit(1)
+    if env.config is None:
+        # check if there is a deploy repo in a predefined location
+        app_yaml = '../{0}-deploy/{0}.yaml'.format(env.application)
+        if os.path.exists(app_yaml):
+            env.config = app_yaml
+        else:
+            print "\n[ERROR] Please specify a config file, e.g 'config:/tmp/sample-application.yaml'"
+            sys.exit(1)
+           
+    work_dir = os.path.join('..', '{0}-deploy'.format(env.application))
+    # LOAD AWS CONFIG FROM ~/.config.yaml
+    aws_config = AWSConfig(env.aws)
+
+    project_config = ProjectConfig(env.config, env.environment)
+    cfg = project_config.config
+    
+    local_state_dir = os.path.join(work_dir, 'vendor', '_root', '.')
+    local_formula_dir= os.path.join(work_dir, 'vendor', 'formula-repos', '.')
+    local_pillar_dir = os.path.join(work_dir, 'pillar', '.')
+    local_salt_dir = os.path.join(work_dir, 'salt', '.')
+
+    remote_state_dir = cfg['salt'].get('remote_state_dir', '/srv/salt')
+    remote_pillar_dir = cfg['salt'].get('remote_pillar_dir', '/srv/pillar')
+    remote_formula_dir = cfg['salt'].get('remote_formula_dir', '/srv/formula-repos')
+
+    #if not os.path.exists(local_state_dir):
+    #    shake(work_dir)
+
+    ips = get_stack_addresses()
+    for ip in ips:
+        env.host_string = '{0}@{1}'.format(env.user, ip)
+        sudo('mkdir -p {0}'.format(remote_state_dir))
+        sudo('mkdir -p {0}'.format(remote_pillar_dir))
+        sudo('mkdir -p {0}'.format(remote_formula_dir))
+        upload_project(remote_dir=remote_formula_dir, local_dir=local_formula_dir, use_sudo=True)
+        upload_project(remote_dir=remote_state_dir, local_dir=local_state_dir, use_sudo=True)
+        upload_project(remote_dir=remote_state_dir, local_dir=local_salt_dir, use_sudo=True)
+        upload_project(remote_dir=remote_pillar_dir, local_dir=os.path.join(local_pillar_dir, env.environment, '.'), use_sudo=True)
+
