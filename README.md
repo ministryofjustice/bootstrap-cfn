@@ -1,4 +1,4 @@
-# Ministry of Justice - Cloudformation 
+# Ministry of Justice - Cloudformation
 
 The objective of this repo is to enable MoJ teams to create project infrastructure in a uniform manner. Currently this includes the following AWS services:
 
@@ -18,12 +18,17 @@ pip install -r requirements.txt
 ## Example Usage
 
 ```
-fab application:courtfinder environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
+fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
 ```
+
+* **application:courtfinder** - is just a name to associate with Cloudformation stack
+* **aws:dev** - is a way to differentiate between AWS accounts (`~/.config.yaml`)
+* **environment:dev** - The `dev` section will be read from the projects YAML file (line 1 in the example below)
+* **config:/path/to/file.yaml** - The location to the project YAML file
 
 ## Example Configuration
 ##### AWS Account Configuration
-This tool can support many AWS accounts, for example, you may have separate `development` and `production` accounts, however you still want to deploy the same stack to each, this can be achieved by adding multiple accounts to the `~/.config.yaml` file. You'll notice from the **Example Usage** section above the `environment:dev` flag, this can be changed accordingly.
+This tool can support many AWS accounts, for example, you may have separate `development` and `production` accounts, however you still want to deploy the same stack to each, this can be achieved by adding multiple accounts to the `~/.config.yaml` file. You'll notice from the **Example Usage** section above the `aws:dev` flag, this can be changed accordingly.
 
 ```
 provider_zones:
