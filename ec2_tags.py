@@ -21,7 +21,7 @@ conn = boto.ec2.connect_to_region(region)
 instance = conn.get_all_instances(instance_ids=[instance_id])[0].instances[0]
 
 
-tags = {'Project': '', 'Role': '', 'Apps': '', 'Env': ''}
+tags = {'Project': '', 'Role': '', 'Apps': '', 'Env': '', 'SaltMasterPrvIP': ''}
 
 for i in tags.keys():
     if i in instance.tags.keys():

@@ -2,7 +2,6 @@ import sys
 import os
 import yaml
 import json
-import random
 
 
 class AWSConfig:

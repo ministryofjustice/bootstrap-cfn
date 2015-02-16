@@ -37,7 +37,7 @@ class Cloudformation:
     def get_last_stack_event(self, stack_id):
         return self.conn_cfn.describe_stack_events(stack_id)[0]
 
-    def get_stack_instance_ids(self, stack_name_or_id):
+    def get_stack_instances(self, stack_name_or_id):
         # get the stack
         stack = self.conn_cfn.describe_stacks(stack_name_or_id)
         if not stack:
@@ -55,4 +55,7 @@ class Cloudformation:
                 aws_secret_access_key=self.config.aws_secret)
         # get the instance IDs for all instances in the scaling group
         instances = asc.get_all_groups(names=[scaling_group_id])[0].instances
-        return [x.instance_id for x in instances]
+        return instances
+
+    def get_stack_instance_ids(self, stack_name_or_id):
+        return [x.instance_id for x in self.get_stack_instances(stack_name_or_id)]
