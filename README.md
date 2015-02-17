@@ -16,9 +16,16 @@ pip install -r requirements.txt
 ```
 
 ## Example Usage
+Bootstrap-cfn uses [fabric](http://www.fabfile.org/), so if your ```$CWD``` is the root directory of bootstrap-cfn then you can run:
 
 ```
 fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
+```
+
+If your ```CWD``` is anywhere else, you need to pass in a path to particular fabric file:
+
+```
+fab -f /path/to/bootstrap-cfn/fabfile.py application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
 ```
 
 * **application:courtfinder** - is just a name to associate with Cloudformation stack
