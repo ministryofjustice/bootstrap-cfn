@@ -69,8 +69,7 @@ def get_config():
         sys.exit(1)
 
     aws_config = AWSConfig(env.aws)
-    if env.passwords is not None:
-        project_config = ProjectConfig(env.config, env.environment, passwords=env.passwords)
+    project_config = ProjectConfig(env.config, env.environment, passwords=env.passwords)
 
     cfn_config = ConfigParser(project_config.config)
     cfn = Cloudformation(aws_config)
