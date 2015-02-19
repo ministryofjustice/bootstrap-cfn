@@ -2,6 +2,7 @@ import sys
 import os
 import yaml
 import json
+from copy import deepcopy
 
 
 class AWSConfig:
@@ -31,10 +32,34 @@ class ProjectConfig:
 
     config = None
 
-    def __init__(self, config, environment):
-        if os.path.exists(config):
-            f = yaml.load(open(config).read())
-            self.config = f[environment]
+    def __init__(self, config, environment, passwords=None):
+        self.config = self.load_yaml(config)[environment]
+        if passwords:
+            passwords_dict = self.load_yaml(passwords)[environment]
+            self.config = self.dict_merge(self.config, passwords_dict)
+
+    @staticmethod
+    def load_yaml(fp):
+        if os.path.exists(fp):
+            return yaml.load(open(fp).read())
+
+    def dict_merge(self, target, *args):
+        # Merge multiple dicts
+        if len(args) > 1:
+            for obj in args:
+                self.dict_merge(target, obj)
+            return target
+
+        # Recursively merge dicts and set non-dict values
+        obj = args[0]
+        if not isinstance(obj, dict):
+            return obj
+        for k, v in obj.iteritems():
+            if k in target and isinstance(target[k], dict):
+                self.dict_merge(target[k], v)
+            else:
+                target[k] = deepcopy(v)
+        return target
 
 
 class ConfigParser:

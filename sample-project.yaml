@@ -52,7 +52,6 @@ dev:
     identifier: test-dev
     db-name: test
     db-master-username: testuser
-    db-master-password: testpassword
     instance-class: db.t2.micro
     multi-az: false
     db-engine: postgres
