@@ -3,7 +3,8 @@
 import sys
 import random
 import yaml
-from bootstrap_cfn.config import AWSConfig, ProjectConfig, ConfigParser
+
+from bootstrap_cfn.config import ProjectConfig, ConfigParser
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.ec2 import EC2
 from bootstrap_cfn.iam import IAM
@@ -100,8 +101,7 @@ def get_config():
 
 def get_connection(klass):
     _validate_fabric_env()
-    aws_config = AWSConfig(env.aws)
-    return klass(aws_config)
+    return klass(env.aws)
 
 @task
 def cfn_delete(force=False):

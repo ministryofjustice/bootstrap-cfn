@@ -21,6 +21,7 @@ class CfnTestCase(unittest.TestCase):
 
         self.env = mock.Mock()
         self.env.aws = 'dev'
+        self.env.aws_profile = 'the-profile-name'
         self.env.environment = 'dev'
         self.env.application = 'unittest-app'
         self.env.config = os.path.join(self.work_dir, 'test_config.yaml')
@@ -72,14 +73,9 @@ class CfnTestCase(unittest.TestCase):
                           's3': {'static-bucket-name': 'moj-test-dev-static'}}}
         yaml.dump(config, open(self.env.config, 'w'))
 
-        self.aws_config = mock.Mock()
-        self.aws_config.aws_access = 'aws_access_key'
-        self.aws_config.aws_secret = 'aws_secret_key'
-        self.aws_config.region = 'aws_region'
-
         self.stack_name = '{0}-{1}'.format(self.env.application,
                                            self.env.environment)
-        self.cf = cloudformation.Cloudformation(self.aws_config)
+        self.cf = cloudformation.Cloudformation(self.env.aws_profile, 'aws_region')
         self.real_is_ssh_up = ssh.is_ssh_up
 
     def test_cf_create(self):
@@ -89,8 +85,10 @@ class CfnTestCase(unittest.TestCase):
         mock_config = {'create_stack.return_value': self.stack_name}
         cf_connect_result.configure_mock(**mock_config)
         boto.cloudformation.connect_to_region = cf_mock
-        cf = cloudformation.Cloudformation(self.aws_config)
+
+        cf = cloudformation.Cloudformation(self.env.aws_profile)
         x = cf.create(self.stack_name, '{}')
+
         self.assertEqual(x, self.stack_name)
 
     def test_cf_delete(self):
@@ -101,7 +99,7 @@ class CfnTestCase(unittest.TestCase):
         mock_config = {'delete_stack.return_value': example_return}
         cf_connect_result.configure_mock(**mock_config)
         boto.cloudformation.connect_to_region = cf_mock
-        cf = cloudformation.Cloudformation(self.aws_config)
+        cf = cloudformation.Cloudformation(self.env.aws_profile)
         x = cf.delete(self.stack_name)
         self.assertTrue('DeleteStackResponse' in x.keys())
 
@@ -114,7 +112,7 @@ class CfnTestCase(unittest.TestCase):
         mock_config = {'describe_stacks.return_value': [stack_mock]}
         cf_connect_result.configure_mock(**mock_config)
         boto.cloudformation.connect_to_region = cf_mock
-        cf = cloudformation.Cloudformation(self.aws_config)
+        cf = cloudformation.Cloudformation(self.env.aws_profile)
         x = cf.stack_missing('not-a-stack-name')
         self.assertTrue(x)
 
@@ -127,7 +125,7 @@ class CfnTestCase(unittest.TestCase):
         mock_config = {'describe_stacks.return_value': [stack_mock]}
         cf_connect_result.configure_mock(**mock_config)
         boto.cloudformation.connect_to_region = cf_mock
-        cf = cloudformation.Cloudformation(self.aws_config)
+        cf = cloudformation.Cloudformation(self.env.aws_profile)
         with self.assertRaises(errors.CfnTimeoutError):
             cf.wait_for_stack_missing('my-stack-name', 1, 1)
 
@@ -140,7 +138,7 @@ class CfnTestCase(unittest.TestCase):
         mock_config = {'describe_stacks.return_value': [stack_mock]}
         cf_connect_result.configure_mock(**mock_config)
         boto.cloudformation.connect_to_region = cf_mock
-        cf = cloudformation.Cloudformation(self.aws_config)
+        cf = cloudformation.Cloudformation(self.env.aws_profile)
         x = cf.stack_missing('not-a-stack-name')
         self.assertTrue(x)
 
@@ -153,7 +151,7 @@ class CfnTestCase(unittest.TestCase):
         mock_config = {'describe_stacks.return_value': [stack_mock]}
         cf_connect_result.configure_mock(**mock_config)
         boto.cloudformation.connect_to_region = cf_mock
-        cf = cloudformation.Cloudformation(self.aws_config)
+        cf = cloudformation.Cloudformation(self.env.aws_profile)
         x = cf.stack_missing('my-stack-name')
         self.assertFalse(x)
 
@@ -174,7 +172,7 @@ class CfnTestCase(unittest.TestCase):
 
         with self.assertRaises(errors.CfnTimeoutError):
             print cloudformation.Cloudformation(
-                self.aws_config).wait_for_stack_done(self.stack_name, 1, 1)
+                self.env.aws_profile).wait_for_stack_done(self.stack_name, 1, 1)
         
     def test_wait_for_stack_done(self):
         stack_evt_mock = mock.Mock()
@@ -192,7 +190,7 @@ class CfnTestCase(unittest.TestCase):
         boto.cloudformation.connect_to_region = cf_mock
 
         self.assertTrue(cloudformation.Cloudformation(
-            self.aws_config).wait_for_stack_done(self.stack_name, 1, 1))
+            self.env.aws_profile).wait_for_stack_done(self.stack_name, 1, 1))
 
     def test_stack_done(self):
         stack_evt_mock = mock.Mock()
@@ -210,7 +208,7 @@ class CfnTestCase(unittest.TestCase):
         boto.cloudformation.connect_to_region = cf_mock
 
         self.assertTrue(cloudformation.Cloudformation(
-            self.aws_config).stack_done(self.stack_name))
+            self.env.aws_profile).stack_done(self.stack_name))
 
     def test_stack_not_done(self):
         stack_evt_mock = mock.Mock()
@@ -227,14 +225,14 @@ class CfnTestCase(unittest.TestCase):
         boto.cloudformation.connect_to_region = cf_mock
 
         self.assertFalse(cloudformation.Cloudformation(
-            self.aws_config).stack_done(self.stack_name))
+            self.env.aws_profile).stack_done(self.stack_name))
 
     def test_ssl_upload(self):
         iam_mock = mock.Mock()
         iam_connect_result = mock.Mock(name='iam_connect')
         iam_mock.return_value = iam_connect_result
         boto.iam.connect_to_region = iam_mock
-        i = iam.IAM(self.aws_config)
+        i = iam.IAM(self.env.aws_profile)
         x = i.upload_ssl_certificate({}, self.stack_name)
         self.assertTrue(x)
 
@@ -243,7 +241,7 @@ class CfnTestCase(unittest.TestCase):
         iam_connect_result = mock.Mock(name='iam_connect')
         iam_mock.return_value = iam_connect_result
         boto.iam.connect_to_region = iam_mock
-        i = iam.IAM(self.aws_config)
+        i = iam.IAM(self.env.aws_profile)
         x = i.delete_ssl_certificate({}, self.stack_name)
         self.assertTrue(x)
 
@@ -282,12 +280,12 @@ class CfnTestCase(unittest.TestCase):
         as_connect_result.configure_mock(**mock_config)
         boto.ec2.autoscale.connect_to_region = as_mock
 
-        cf = cloudformation.Cloudformation(self.aws_config)
+        cf = cloudformation.Cloudformation(self.env.aws_profile)
         x = cf.get_stack_instance_ids(self.stack_name)
         self.assertEqual(x, ['i-12345'])
 
     def test_get_instance_id_list_empty(self):
-        x = ec2.EC2(self.aws_config).get_instance_public_ips([])
+        x = ec2.EC2(self.env.aws_profile).get_instance_public_ips([])
         self.assertEqual(x, [])
 
     def test_get_instance_id_list(self):
@@ -302,7 +300,7 @@ class CfnTestCase(unittest.TestCase):
         ec2_connect_result.configure_mock(**mock_config)
         boto.ec2.connect_to_region = ec2_mock
 
-        ec = ec2.EC2(self.aws_config)
+        ec = ec2.EC2(self.env.aws_profile)
         ips = ec.get_instance_public_ips(['i-12345'])
         self.assertEqual(ips, ['1.1.1.1'])
 
@@ -363,7 +361,7 @@ class CfnTestCase(unittest.TestCase):
         ssh_mock.side_effect = [True,True]
         ssh.is_ssh_up = ssh_mock
 
-        ec = ec2.EC2(self.aws_config)
+        ec = ec2.EC2(self.env.aws_profile)
         x = ec.is_ssh_up_on_all_instances(self.stack_name)
         self.assertFalse(x)
 
@@ -420,7 +418,7 @@ class CfnTestCase(unittest.TestCase):
         ssh_mock.side_effect = [True,True]
         ssh.is_ssh_up = ssh_mock
 
-        ec = ec2.EC2(self.aws_config)
+        ec = ec2.EC2(self.env.aws_profile)
         x = ec.is_ssh_up_on_all_instances(self.stack_name)
         self.assertTrue(x)
 
@@ -477,7 +475,7 @@ class CfnTestCase(unittest.TestCase):
         ssh_mock.side_effect = [True,False]
         ssh.is_ssh_up = ssh_mock
 
-        ec = ec2.EC2(self.aws_config)
+        ec = ec2.EC2(self.env.aws_profile)
         x = ec.is_ssh_up_on_all_instances(self.stack_name)
         self.assertFalse(x)
 

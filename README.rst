@@ -26,12 +26,12 @@ Installation
 Developing and running tests
 =============================
 
-The test suite can be run via setup.py as follows:
-::   
+The test suite can be run via setup.py as follows::
+
     python -m unittest discover
-    
-    or
-    
+
+or::
+
     python setup.py test
 
 
@@ -40,7 +40,7 @@ Example Usage
 
 Bootstrap-cfn uses `fabric <http://www.fabfile.org/>`_, so if your ``$CWD`` is the root directory of bootstrap-cfn then you can run::
 
-    fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
+    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
 
 
 If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabric file::
@@ -63,17 +63,15 @@ Example Configuration
 AWS Account Configuration
 ++++++++++++++++++++++++++
 
-This tool can support many AWS accounts, for example, you may have separate *development* and *production* accounts, however you still want to deploy the same stack to each, this can be achieved by adding multiple accounts to the ``~/.config.yaml`` file. You'll notice from the **Example Usage** section above the ``aws:dev`` flag, this can be changed accordingly.
+This tool needs AWS credentials to create stacks and the credentials should be placed in the ``~/.aws/credentials`` file (which is the same one used by the AWS CLI tools). You should create named profiles like this (and the section names should match up with what you specify to the fabric command with the ``aws:my_project_prod`` flag) ::
 
-::
 
-    provider_zones:
-      dev:
-        aws_access_key_id: 'AKIAI***********'
-        aws_secret_access_key: '*******************************************'
-      prod:
-        aws_access_key_id: 'AKIAI***********'
-        aws_secret_access_key: '*******************************************'
+    [my_project_dev]
+    aws_access_key_id = AKIAI***********
+    aws_secret_access_key = *******************************************
+    [my_project_prod]
+    aws_access_key_id = AKIAI***********
+    aws_secret_access_key = *******************************************
 
 
 Project specific YAML file

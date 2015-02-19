@@ -6,31 +6,6 @@ import yaml
 import bootstrap_cfn.errors as errors
 from copy import deepcopy
 
-
-class AWSConfig:
-
-    aws_access = None
-    aws_secret = None
-    aws_region = 'eu-west-1'
-
-    def __init__(self, account, fp=None):
-        if fp:
-            if os.path.exists(fp):
-                f = open(fp).read()
-            else:
-                raise IOError
-        else:
-            f = open(os.path.expanduser("~") + "/.config.yaml").read()
-
-        try:
-            if f:
-                d = yaml.load(f)['provider_zones']
-                self.aws_access = d[account]['aws_access_key_id']
-                self.aws_secret = d[account]['aws_secret_access_key']
-        except KeyError:
-            raise
-
-
 class ProjectConfig:
 
     config = None
