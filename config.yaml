@@ -1,0 +1,8 @@
+provider_zones:
+  dev:
+    aws_access_key_id: 'AKIAI***********'
+    aws_secret_access_key: '*******************************************'
+  prod:
+    aws_access_key_id: 'AKIAI***********'
+    aws_secret_access_key: '*******************************************'
+

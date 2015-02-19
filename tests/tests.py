@@ -24,6 +24,14 @@ class TestConfig(unittest.TestCase):
         self.assertEquals(config.config['rds']['instance-class'], 'db.t2.micro')
         self.assertEquals(config.config['rds']['db-master-password'], 'testpassword')
 
+    def test_aws_config_invalid_file(self):
+        '''
+        Test the AWS config file errors on invalid file
+        '''
+
+        with self.assertRaises(IOError):
+            AWSConfig('dev', 'config_unknown.yaml')
+
     def test_aws_config_valid(self):
         '''
         Test the AWS config file is setup correctly
@@ -38,13 +46,6 @@ class TestConfig(unittest.TestCase):
         '''
         with self.assertRaises(KeyError):
             AWSConfig('unknown', 'config.yaml')
-
-    def test_aws_config_invalid_file(self):
-        '''
-        Test the AWS config file errors on invalid file
-        '''
-        with self.assertRaises(IOError):
-            AWSConfig('dev', 'config_unknown.yaml')
 
 
 class TestConfigParser(unittest.TestCase):
