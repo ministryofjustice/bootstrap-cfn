@@ -34,7 +34,7 @@ class ProjectConfig:
 
     def __init__(self, config, environment, passwords=None):
         self.config = self.load_yaml(config)[environment]
-        if passwords is not None:
+        if passwords:
             passwords_dict = self.load_yaml(passwords)[environment]
             self.config = self.dict_merge(self.config, passwords_dict)
 
