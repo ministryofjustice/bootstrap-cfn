@@ -21,7 +21,8 @@ env.application = None
 env.environment = None
 env.aws = None
 env.config = None
-TIMEOUT = 3600 
+env.password = None
+TIMEOUT = 3600
 RETRY_INTERVAL = 10
 
 @task
@@ -39,6 +40,10 @@ def application(x):
 @task
 def config(x):
     env.config = str(x).lower()
+
+@task
+def passwords(x):
+    env.passwords = str(x).lower()
 
 @task
 def blocking(x):
@@ -64,7 +69,10 @@ def get_config():
         sys.exit(1)
 
     aws_config = AWSConfig(env.aws)
-    project_config = ProjectConfig(env.config, env.environment)
+    if env.passwords is not None:
+        project_config = ProjectConfig(env.config, env.environment, password=env.passwords)
+    else:
+        project_config = ProjectConfig(env.config, env.environment)
     cfn_config = ConfigParser(project_config.config)
     cfn = Cloudformation(aws_config)
     return aws_config, cfn, cfn_config
