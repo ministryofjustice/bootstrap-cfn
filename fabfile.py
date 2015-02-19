@@ -70,7 +70,7 @@ def get_config():
 
     aws_config = AWSConfig(env.aws)
     if env.passwords is not None:
-        project_config = ProjectConfig(env.config, env.environment, password=env.passwords)
+        project_config = ProjectConfig(env.config, env.environment, passwords=env.passwords)
     else:
         project_config = ProjectConfig(env.config, env.environment)
     cfn_config = ConfigParser(project_config.config)
