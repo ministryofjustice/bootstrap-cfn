@@ -82,9 +82,17 @@ class ConfigParser:
         if 's3' in self.data:
             s3 = self.s3()
             # ADD ADDITIONAL IAM ROLE DUE TO ADDING S3 BUCKET
-            arn = s3['StaticBucketPolicy']['Properties']['PolicyDocument']['Statement'][0]['Resource']
-            policy = {'Action': ['s3:Get*', 's3:Put*', 's3:List*'], 'Resource': arn, 'Effect': 'Allow'}
-            iam['RolePolicies']['Properties']['PolicyDocument']['Statement'].append(policy)
+            arn = s3['StaticBucketPolicy']['Properties'][
+                'PolicyDocument']['Statement'][0]['Resource']
+            policy = {
+                'Action': [
+                    's3:Get*',
+                    's3:Put*',
+                    's3:List*'],
+                'Resource': arn,
+                'Effect': 'Allow'}
+            iam['RolePolicies']['Properties'][
+                'PolicyDocument']['Statement'].append(policy)
         if 'elb' in self.data:
             elb = self.elb()
 
@@ -92,10 +100,10 @@ class ConfigParser:
             elb_name_list = []
             for i in elb:
                 if i.keys()[0][0:3] == "ELB":
-                    elb_name_list.append(i[i.keys()[0]]['Properties']['LoadBalancerName'])
-            ec2['ScalingGroup']['Properties']['LoadBalancerNames'] = elb_name_list
-
-
+                    elb_name_list.append(
+                        i[i.keys()[0]]['Properties']['LoadBalancerName'])
+            ec2['ScalingGroup']['Properties'][
+                'LoadBalancerNames'] = elb_name_list
 
         # LOAD BASE TEMPLATE AND INSERT AWS SERVICES
         data = iam
@@ -107,7 +115,8 @@ class ConfigParser:
 
         template = json.loads(open("%s/stacks/base.json" % os.getcwd()).read())
         template['Resources'] = data
-        return json.dumps(template, sort_keys=True, indent=4, separators=(',', ': '))
+        return json.dumps(
+            template, sort_keys=True, indent=4, separators=(',', ': '))
 
     def iam(self):
         # LOAD STACK TEMPLATE
@@ -130,8 +139,10 @@ class ConfigParser:
 
         # SET BUCKET NAME AND ARN
         arn = 'arn:aws:s3:::%s/*' % self.data['s3']['static-bucket-name']
-        template['StaticBucketPolicy']['Properties']['PolicyDocument']['Statement'][0]['Resource'] = arn
-        template['StaticBucket']['Properties']['BucketName'] = self.data['s3']['static-bucket-name']
+        template['StaticBucketPolicy']['Properties'][
+            'PolicyDocument']['Statement'][0]['Resource'] = arn
+        template['StaticBucket']['Properties'][
+            'BucketName'] = self.data['s3']['static-bucket-name']
         return template
 
     def rds(self):
@@ -159,7 +170,8 @@ class ConfigParser:
                 print "\n\n[ERROR] Missing RDS fields [%s]" % i
                 sys.exit(1)
             else:
-                template['RDSInstance']['Properties'][required_fields[i]] = self.data['rds'][i]
+                template['RDSInstance']['Properties'][
+                    required_fields[i]] = self.data['rds'][i]
 
         return template
 
@@ -183,21 +195,43 @@ class ConfigParser:
                     sys.exit(1)
 
             # LOAD STACK TEMPLATE
-            template = json.loads(open("%s/stacks/elb.json" % os.getcwd()).read())
+            template = json.loads(
+                open(
+                    "%s/stacks/elb.json" %
+                    os.getcwd()).read())
 
             # CONFIGURE THE LISTENERS, ELB NAME AND ROUTE53 RECORDS
-            template['ElasticLoadBalancer']['Properties']['Listeners'] = elb['listeners']
-            template['ElasticLoadBalancer']['Properties']['LoadBalancerName'] = 'ELB-%s' % elb['name']
-            template['ElasticLoadBalancer']['Properties']['Scheme'] = elb['scheme']
-            template['DNSRecord']['Properties']['HostedZoneName'] = elb['hosted_zone']
-            template['DNSRecord']['Properties']['RecordSets'][0]['Name'] = "%s.%s" % (elb['name'], elb['hosted_zone'])
-            target_zone = ['ELB%s' % elb['name'].replace('-', ''), 'CanonicalHostedZoneNameID']
-            target_dns = ['ELB%s' % elb['name'].replace('-', ''), 'CanonicalHostedZoneName']
-            template['DNSRecord']['Properties']['RecordSets'][0]['AliasTarget']['HostedZoneId']['Fn::GetAtt'] = target_zone
-            template['DNSRecord']['Properties']['RecordSets'][0]['AliasTarget']['DNSName']['Fn::GetAtt'] = target_dns
+            template['ElasticLoadBalancer']['Properties'][
+                'Listeners'] = elb['listeners']
+            template['ElasticLoadBalancer']['Properties'][
+                'LoadBalancerName'] = 'ELB-%s' % elb['name']
+            template['ElasticLoadBalancer'][
+                'Properties']['Scheme'] = elb['scheme']
+            template['DNSRecord']['Properties'][
+                'HostedZoneName'] = elb['hosted_zone']
+            template['DNSRecord']['Properties']['RecordSets'][0][
+                'Name'] = "%s.%s" % (elb['name'], elb['hosted_zone'])
+            target_zone = [
+                'ELB%s' %
+                elb['name'].replace(
+                    '-',
+                    ''),
+                'CanonicalHostedZoneNameID']
+            target_dns = [
+                'ELB%s' %
+                elb['name'].replace(
+                    '-',
+                    ''),
+                'CanonicalHostedZoneName']
+            template['DNSRecord']['Properties']['RecordSets'][0][
+                'AliasTarget']['HostedZoneId']['Fn::GetAtt'] = target_zone
+            template['DNSRecord']['Properties']['RecordSets'][0][
+                'AliasTarget']['DNSName']['Fn::GetAtt'] = target_dns
 
-            elb_list.append({'ELB%s' % elb['name'].replace('-', ''): template['ElasticLoadBalancer']})
-            elb_list.append({'DNS%s' % elb['name'].replace('-', ''): template['DNSRecord']})
+            elb_list.append(
+                {'ELB%s' % elb['name'].replace('-', ''): template['ElasticLoadBalancer']})
+            elb_list.append(
+                {'DNS%s' % elb['name'].replace('-', ''): template['DNSRecord']})
 
         return elb_list
 
@@ -206,25 +240,35 @@ class ConfigParser:
         template = json.loads(open("%s/stacks/ec2.json" % os.getcwd()).read())
 
         # SET SECURITY GROUPS, DEFAULT KEY AND INSTANCE TYPE
-        template['BaseHostSG']['Properties']['SecurityGroupIngress'] = self.data['ec2']['security_groups']
-        template['BaseHostLaunchConfig']['Properties']['KeyName'] = self.data['ec2']['parameters']['KeyName']
-        template['BaseHostLaunchConfig']['Properties']['InstanceType'] = self.data['ec2']['parameters']['InstanceType']
+        template['BaseHostSG']['Properties'][
+            'SecurityGroupIngress'] = self.data['ec2']['security_groups']
+        template['BaseHostLaunchConfig']['Properties'][
+            'KeyName'] = self.data['ec2']['parameters']['KeyName']
+        template['BaseHostLaunchConfig']['Properties'][
+            'InstanceType'] = self.data['ec2']['parameters']['InstanceType']
 
         # BLOCK DEVICE MAPPING
         devices = []
         for i in self.data['ec2']['block_devices']:
-            devices.append({'DeviceName': i['DeviceName'], 'Ebs': {'VolumeSize': i['VolumeSize']}})
-        template['BaseHostLaunchConfig']['Properties']['BlockDeviceMappings'] = devices
+            devices.append(
+                {'DeviceName': i['DeviceName'], 'Ebs': {'VolumeSize': i['VolumeSize']}})
+        template['BaseHostLaunchConfig']['Properties'][
+            'BlockDeviceMappings'] = devices
 
         # SET AUTO SCALING PARAMETERS
-        template['ScalingGroup']['Properties']['MinSize'] = self.data['ec2']['auto_scaling']['min']
-        template['ScalingGroup']['Properties']['MaxSize'] = self.data['ec2']['auto_scaling']['max']
-        template['ScalingGroup']['Properties']['DesiredCapacity'] = self.data['ec2']['auto_scaling']['desired']
+        template['ScalingGroup']['Properties'][
+            'MinSize'] = self.data['ec2']['auto_scaling']['min']
+        template['ScalingGroup']['Properties'][
+            'MaxSize'] = self.data['ec2']['auto_scaling']['max']
+        template['ScalingGroup']['Properties'][
+            'DesiredCapacity'] = self.data['ec2']['auto_scaling']['desired']
 
         # SET INSTANCE TAGS
         tags = []
         for i in self.data['ec2']['tags']:
-            tags.append({'Key': i, 'Value': self.data['ec2']['tags'][i], 'PropagateAtLaunch': True})
+            tags.append({'Key': i,
+                         'Value': self.data['ec2']['tags'][i],
+                         'PropagateAtLaunch': True})
         template['ScalingGroup']['Properties']['Tags'] = tags
 
         return template

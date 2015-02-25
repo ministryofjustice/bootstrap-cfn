@@ -13,15 +13,22 @@ import urllib2
 # Env: dev
 
 # GET REGION AND INSTANCE ID FROM METADATA API
-instance_id = urllib2.urlopen('http://169.254.169.254/latest/meta-data/instance-id').read().strip()
-region = urllib2.urlopen('http://169.254.169.254/latest/meta-data/placement/availability-zone').read().strip()[:-1]
+instance_id = urllib2.urlopen(
+    'http://169.254.169.254/latest/meta-data/instance-id').read().strip()
+region = urllib2.urlopen(
+    'http://169.254.169.254/latest/meta-data/placement/availability-zone').read().strip()[:-1]
 
 # WRITE TAGS
 conn = boto.ec2.connect_to_region(region)
 instance = conn.get_all_instances(instance_ids=[instance_id])[0].instances[0]
 
 
-tags = {'Project': '', 'Role': '', 'Apps': '', 'Env': '', 'SaltMasterPrvIP': ''}
+tags = {
+    'Project': '',
+    'Role': '',
+    'Apps': '',
+    'Env': '',
+    'SaltMasterPrvIP': ''}
 
 for i in tags.keys():
     if i in instance.tags.keys():
