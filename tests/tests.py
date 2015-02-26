@@ -63,7 +63,7 @@ class TestConfig(unittest.TestCase):
 class TestConfigParser(unittest.TestCase):
 
     def setUp(self):
-        pass
+        self.maxDiff = 3000
 
     def test_iam(self):
         known = {'RolePolicies': {'Type': 'AWS::IAM::Policy',
@@ -93,7 +93,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                              'Effect': 'Allow',
                                                                                              'Principal': {'Service': ['ec2.amazonaws.com']}}]}}}}
         config = ConfigParser(None)
-        self.assertEquals(cmp(known, config.iam()), 0)
+        self.assertEquals(known, config.iam())
 
     def test_s3(self):
         known = {
@@ -145,7 +145,7 @@ class TestConfigParser(unittest.TestCase):
                 'sample-project.yaml',
                 'dev',
                 'sample-project-passwords.yaml').config)
-        self.assertEquals(cmp(known, config.rds()), 0)
+        self.assertEquals(known, config.rds())
 
     def test_elb(self):
         known = [{'ELBtestdevexternal': {'Type': 'AWS::ElasticLoadBalancing::LoadBalancer',
@@ -187,7 +187,7 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'sample-project.yaml',
                 'dev').config)
-        self.assertEquals(cmp(known, config.elb()), 0)
+        self.assertEquals(known, config.elb())
 
     def test_ec2(self):
         known = {'ScalingGroup': {'Type': 'AWS::AutoScaling::AutoScalingGroup',
@@ -237,7 +237,7 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'sample-project.yaml',
                 'dev').config)
-        self.assertEquals(cmp(known, config.ec2()), 0)
+        self.assertEquals(known, config.ec2())
 
 
 if __name__ == '__main__':
