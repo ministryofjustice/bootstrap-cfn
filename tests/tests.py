@@ -119,6 +119,7 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'sample-project.yaml',
                 'dev').config)
+        config = ConfigParser(ProjectConfig('sample-project.yaml', 'dev').config)
         self.assertEquals(known, config.s3())
 
     def test_rds(self):

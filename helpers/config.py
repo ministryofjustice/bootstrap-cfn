@@ -82,18 +82,6 @@ class ConfigParser:
             rds = self.rds()
         if 's3' in self.data:
             s3 = self.s3()
-            # ADD ADDITIONAL IAM ROLE DUE TO ADDING S3 BUCKET
-            arn = s3['StaticBucketPolicy']['Properties'][
-                'PolicyDocument']['Statement'][0]['Resource']
-            policy = {
-                'Action': [
-                    's3:Get*',
-                    's3:Put*',
-                    's3:List*'],
-                'Resource': arn,
-                'Effect': 'Allow'}
-            iam['RolePolicies']['Properties'][
-                'PolicyDocument']['Statement'].append(policy)
         if 'elb' in self.data:
             elb = self.elb()
 
@@ -133,17 +121,22 @@ class ConfigParser:
         template = json.loads(pkgutil.get_data('awsutils', 'stacks/s3.json'))
 
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
+        present_keys = self.data['s3'].keys()
         for i in required_fields.keys():
-            if i not in self.data['s3'].keys():
+            if i not in present_keys:
                 print "\n\n[ERROR] Missing S3 fields [%s]" % i
                 sys.exit(1)
+        
+        #policy = None
+        if 'policy' in present_keys:
+            policy = json.loads(open(self.data['policy']).read())
+        else:
+             arn = 'arn:aws:s3:::%s/*' % self.data['s3']['static-bucket-name']
+             policy = {'Action': ['s3:Get*', 's3:Put*', 's3:List*'], 'Resource': arn, 'Effect': 'Allow', 'Principal' : {'AWS' : '*'}}
 
-        # SET BUCKET NAME AND ARN
-        arn = 'arn:aws:s3:::%s/*' % self.data['s3']['static-bucket-name']
-        template['StaticBucketPolicy']['Properties'][
-            'PolicyDocument']['Statement'][0]['Resource'] = arn
-        template['StaticBucket']['Properties'][
-            'BucketName'] = self.data['s3']['static-bucket-name']
+        template['StaticBucket']['Properties']['BucketName'] = self.data['s3']['static-bucket-name']
+        template['StaticBucketPolicy']['Properties']['PolicyDocument']['Statement'][0] = policy 
+
         return template
 
     def rds(self):
