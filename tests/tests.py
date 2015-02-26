@@ -63,7 +63,7 @@ class TestConfig(unittest.TestCase):
 class TestConfigParser(unittest.TestCase):
 
     def setUp(self):
-        pass
+        self.maxDiff = 3000
 
     def test_iam(self):
         known = {'RolePolicies': {'Type': 'AWS::IAM::Policy',
@@ -93,7 +93,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                              'Effect': 'Allow',
                                                                                              'Principal': {'Service': ['ec2.amazonaws.com']}}]}}}}
         config = ConfigParser(None)
-        self.assertEquals(cmp(known, config.iam()), 0)
+        self.assertEquals(known, config.iam())
 
     def test_s3(self):
         known = {
@@ -119,33 +119,41 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'sample-project.yaml',
                 'dev').config)
-        self.assertEquals(cmp(known, config.s3()), 0)
+        self.assertEquals(known, config.s3())
 
     def test_rds(self):
         known = {
             'RDSInstance': {
                 'Type': 'AWS::RDS::DBInstance',
                 'Properties': {
-                    'Engine': 'postgres',
-                    'MultiAZ': False,
-                    'AllowMajorVersionUpgrade': False,
-                    'PubliclyAccessible': False,
-                    'MasterUsername': 'testuser',
-                    'MasterUserPassword': 'testpassword',
-                    'AutoMinorVersionUpgrade': False,
-                    'StorageType': 'gp2',
                     'AllocatedStorage': 5,
-                    'EngineVersion': '9.3.5',
+                    'AllowMajorVersionUpgrade': False,
+                    'AutoMinorVersionUpgrade': False,
+                    'BackupRetentionPeriod': 1,
                     'DBInstanceClass': 'db.t2.micro',
-                    'DBName': 'test',
                     'DBInstanceIdentifier': 'test-dev',
-                    'BackupRetentionPeriod': 1}}}
+                    'DBName': 'test',
+                    'DBSecurityGroups': [{'Ref': 'StackDBSecurityGroup'}],
+                    'Engine': 'postgres',
+                    'EngineVersion': '9.3.5',
+                    'MasterUserPassword': 'testpassword',
+                    'MasterUsername': 'testuser',
+                    'MultiAZ': False,
+                    'PubliclyAccessible': False,
+                    'StorageType': 'gp2', }},
+            'StackDBSecurityGroup': {
+                'Type': 'AWS::RDS::DBSecurityGroup',
+                'Properties': {
+                    'DBSecurityGroupIngress': {'CIDRIP': '172.31.0.0/16'},
+                    'GroupDescription': 'Ingress for CIDRIP'}}
+        }
+
         config = ConfigParser(
             ProjectConfig(
                 'sample-project.yaml',
                 'dev',
                 'sample-project-passwords.yaml').config)
-        self.assertEquals(cmp(known, config.rds()), 0)
+        self.assertEquals(known, config.rds())
 
     def test_elb(self):
         known = [{'ELBtestdevexternal': {'Type': 'AWS::ElasticLoadBalancing::LoadBalancer',
@@ -187,7 +195,7 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'sample-project.yaml',
                 'dev').config)
-        self.assertEquals(cmp(known, config.elb()), 0)
+        self.assertEquals(known, config.elb())
 
     def test_ec2(self):
         known = {'ScalingGroup': {'Type': 'AWS::AutoScaling::AutoScalingGroup',
@@ -237,7 +245,7 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'sample-project.yaml',
                 'dev').config)
-        self.assertEquals(cmp(known, config.ec2()), 0)
+        self.assertEquals(known, config.ec2())
 
 
 if __name__ == '__main__':
