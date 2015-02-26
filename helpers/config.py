@@ -1,7 +1,8 @@
-import sys
-import os
-import yaml
 import json
+import os
+import pkgutil
+import sys
+import yaml
 from copy import deepcopy
 
 
@@ -113,14 +114,14 @@ class ConfigParser:
         for i in elb:
             data.update(i)
 
-        template = json.loads(open("%s/stacks/base.json" % os.getcwd()).read())
+        template = json.loads(pkgutil.get_data('awsutils', 'stacks/base.json'))
         template['Resources'] = data
         return json.dumps(
             template, sort_keys=True, indent=4, separators=(',', ': '))
 
     def iam(self):
         # LOAD STACK TEMPLATE
-        return json.loads(open("%s/stacks/iam.json" % os.getcwd()).read())
+        return json.loads(pkgutil.get_data('awsutils', 'stacks/iam.json'))
 
     def s3(self):
         # REQUIRED FIELDS AND MAPPING
@@ -129,7 +130,7 @@ class ConfigParser:
         }
 
         # LOAD STACK TEMPLATE
-        template = json.loads(open("%s/stacks/s3.json" % os.getcwd()).read())
+        template = json.loads(pkgutil.get_data('awsutils', 'stacks/s3.json'))
 
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         for i in required_fields.keys():
@@ -162,7 +163,7 @@ class ConfigParser:
         }
 
         # LOAD STACK TEMPLATE
-        template = json.loads(open("%s/stacks/rds.json" % os.getcwd()).read())
+        template = json.loads(pkgutil.get_data('awsutils', 'stacks/rds.json'))
 
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         for i in required_fields.keys():
@@ -195,10 +196,7 @@ class ConfigParser:
                     sys.exit(1)
 
             # LOAD STACK TEMPLATE
-            template = json.loads(
-                open(
-                    "%s/stacks/elb.json" %
-                    os.getcwd()).read())
+            template = json.loads(pkgutil.get_data('awsutils', 'stacks/elb.json'))
 
             # CONFIGURE THE LISTENERS, ELB NAME AND ROUTE53 RECORDS
             template['ElasticLoadBalancer']['Properties'][
@@ -237,7 +235,7 @@ class ConfigParser:
 
     def ec2(self):
         # LOAD STACK TEMPLATE
-        template = json.loads(open("%s/stacks/ec2.json" % os.getcwd()).read())
+        template = json.loads(pkgutil.get_data('awsutils', 'stacks/ec2.json'))
 
         # SET SECURITY GROUPS, DEFAULT KEY AND INSTANCE TYPE
         template['BaseHostSG']['Properties'][
