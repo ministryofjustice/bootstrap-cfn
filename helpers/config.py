@@ -195,7 +195,7 @@ class ConfigParser:
             template['ElasticLoadBalancer']['Properties'][
                 'Listeners'] = elb['listeners']
             template['ElasticLoadBalancer']['Properties'][
-                'LoadBalancerName'] = 'ELB-%s' % elb['name']
+                'LoadBalancerName'] = 'ELB-%s' % elb['name'].replace('.', '')
             template['ElasticLoadBalancer'][
                 'Properties']['Scheme'] = elb['scheme']
             template['DNSRecord']['Properties'][
@@ -203,16 +203,10 @@ class ConfigParser:
             template['DNSRecord']['Properties']['RecordSets'][0][
                 'Name'] = "%s.%s" % (elb['name'], elb['hosted_zone'])
             target_zone = [
-                'ELB%s' %
-                elb['name'].replace(
-                    '-',
-                    ''),
+                'ELB%s' % elb['name'].replace('-', '').replace('.', ''),
                 'CanonicalHostedZoneNameID']
             target_dns = [
-                'ELB%s' %
-                elb['name'].replace(
-                    '-',
-                    ''),
+                'ELB%s' % elb['name'].replace('-', '').replace('.', ''),
                 'CanonicalHostedZoneName']
             template['DNSRecord']['Properties']['RecordSets'][0][
                 'AliasTarget']['HostedZoneId']['Fn::GetAtt'] = target_zone
@@ -220,9 +214,9 @@ class ConfigParser:
                 'AliasTarget']['DNSName']['Fn::GetAtt'] = target_dns
 
             elb_list.append(
-                {'ELB%s' % elb['name'].replace('-', ''): template['ElasticLoadBalancer']})
+                {'ELB%s' % elb['name'].replace('-', '').replace('.', ''): template['ElasticLoadBalancer']})
             elb_list.append(
-                {'DNS%s' % elb['name'].replace('-', ''): template['DNSRecord']})
+                {'DNS%s' % elb['name'].replace('-', '').replace('.', ''): template['DNSRecord']})
 
         return elb_list
 
