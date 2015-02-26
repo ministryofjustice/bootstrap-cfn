@@ -10,6 +10,7 @@ import os
 
 
 class CfnTestCase(unittest.TestCase):
+
     def setUp(self):
         self.work_dir = tempfile.mkdtemp()
 

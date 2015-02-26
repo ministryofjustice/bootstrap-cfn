@@ -3,6 +3,7 @@ import boto.cloudformation
 import boto.ec2
 from boto.ec2 import autoscale
 
+
 class Cloudformation:
 
     conn_cfn = None
@@ -21,8 +22,8 @@ class Cloudformation:
 
     def create(self, stack_name, template_body):
         stack = self.conn_cfn.create_stack(stack_name=stack_name,
-                                          template_body=template_body,
-                                          capabilities=['CAPABILITY_IAM'])
+                                           template_body=template_body,
+                                           capabilities=['CAPABILITY_IAM'])
 
         print "\n\n\n%s\n\n\nSTACK CREATED" % stack
         return stack
@@ -43,19 +44,20 @@ class Cloudformation:
         if not stack:
             print 'Empty stack'
             return []
-        fn = lambda x:x.resource_type == 'AWS::AutoScaling::AutoScalingGroup'
-        #get the scaling group
+        fn = lambda x: x.resource_type == 'AWS::AutoScaling::AutoScalingGroup'
+        # get the scaling group
         scaling_group = filter(fn, stack[0].list_resources())
         if not scaling_group:
             print 'No scaling group found'
             return []
         scaling_group_id = scaling_group[0].physical_resource_id
-        asc = autoscale.connect_to_region(self.config.aws_region, 
-                aws_access_key_id=self.config.aws_access,
-                aws_secret_access_key=self.config.aws_secret)
+        asc = autoscale.connect_to_region(self.config.aws_region,
+                                          aws_access_key_id=self.config.aws_access,
+                                          aws_secret_access_key=self.config.aws_secret)
         # get the instance IDs for all instances in the scaling group
         instances = asc.get_all_groups(names=[scaling_group_id])[0].instances
         return instances
 
     def get_stack_instance_ids(self, stack_name_or_id):
-        return [x.instance_id for x in self.get_stack_instances(stack_name_or_id)]
+        return [
+            x.instance_id for x in self.get_stack_instances(stack_name_or_id)]
