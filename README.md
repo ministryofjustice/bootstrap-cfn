@@ -15,6 +15,12 @@ cd bootstrap-cfn
 pip install -r requirements.txt
 ```
 
+## Developing and running tests
+
+The test suite can be run via setup.py as follows
+
+    python -m unittest discover
+
 ## Example Usage
 Bootstrap-cfn uses [fabric](http://www.fabfile.org/), so if your ```$CWD``` is the root directory of bootstrap-cfn then you can run:
 
