@@ -28,6 +28,12 @@ class Cloudformation:
         print "\n\n\n%s\n\n\nSTACK CREATED" % stack
         return stack
 
+    def delete(self, stack_name):
+        stack = self.conn_cfn.delete_stack(stack_name)
+
+        print "\n\n\n%s\n\n\nSTACK DELETED" % stack
+        return stack
+
     def stack_done(self, stack_id):
         stack_events = self.conn_cfn.describe_stack_events(stack_id)
         if stack_events[0].resource_type == 'AWS::CloudFormation::Stack'\
@@ -61,3 +67,8 @@ class Cloudformation:
     def get_stack_instance_ids(self, stack_name_or_id):
         return [
             x.instance_id for x in self.get_stack_instances(stack_name_or_id)]
+
+    def stack_missing(self, stack_name):
+        ''' Returns True if stack not found'''
+        stacks = self.conn_cfn.describe_stacks()
+        return stack_name not in [s.stack_name for s in stacks]

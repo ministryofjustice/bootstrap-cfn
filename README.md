@@ -27,6 +27,10 @@ Bootstrap-cfn uses [fabric](http://www.fabfile.org/), so if your ```$CWD``` is t
 ```
 fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
 ```
+To delete this stack, run:
+```
+fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_delete
+```
 
 If your ```CWD``` is anywhere else, you need to pass in a path to particular fabric file:
 

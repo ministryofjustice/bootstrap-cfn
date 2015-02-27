@@ -63,6 +63,9 @@ def blocking(x):
 def user(x):
     env.user = x
 
+def get_new_stack_name():
+    env.stack_name = "%s-%s" % (env.application, env.environment)
+    return env.stack_name
 
 def get_config():
     if env.aws is None:
@@ -88,12 +91,35 @@ def get_config():
     cfn = Cloudformation(aws_config)
     return aws_config, cfn, cfn_config
 
+@task
+def cfn_delete():
+    aws_config, cfn, cfn_config = get_config()
+    stack_name = "%s-%s" % (env.application, env.environment)
+    cfn.delete(stack_name)
+
+    if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
+        print stacks
+        print 'Running in non blocking mode. Exiting.'
+        sys.exit(0)
+
+    # Wait for stacks to delete
+    print 'Waiting for stack to delete.'
+    attempts = 0
+    while True:
+        if cfn.stack_missing(stack_name):
+           print "Stack successfully deleted"
+           break
+        if attempts == TIMEOUT / RETRY_INTERVAL:
+            print '[ERROR] Stack creation timed out'
+            sys.exit(1)
+        attempts += 1
+        time.sleep(RETRY_INTERVAL)
 
 @task
 def cfn_create():
     aws_config, cfn, cfn_config = get_config()
     # Inject security groups in stack template and create stacks.
-    stack_name = "%s-%s" % (env.application, env.environment)
+    stack_name = get_new_stack_name()
     stack = cfn.create(stack_name, cfn_config.process())
 
     if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
@@ -178,7 +204,10 @@ def get_candidate_minions():
 def install_minions():
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
-    stack_name = '%s-%s' % (env.application, env.environment)
+    if env.stack_name:
+        stack_name = env.stack_name
+    else:
+        stack_name = '%s-%s' % (env.application, env.environment)
 
     candidates = get_candidate_minions()
     existing_minions = ec2.get_minions()
@@ -208,7 +237,10 @@ def install_minions():
 def install_master():
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
-    stack_name = '%s-%s' % (env.application, env.environment)
+    if env.stack_name:
+        stack_name = env.stack_name
+    else:
+        stack_name = '%s-%s' % (env.application, env.environment)
 
     instance_ids = cfn.get_stack_instance_ids(stack_name)
     master_inst = ec2.get_master_instance()
