@@ -9,6 +9,7 @@ import time
 from helpers.config import AWSConfig, ProjectConfig, ConfigParser
 from awsutils.cloudformation import Cloudformation
 from awsutils.ec2 import EC2
+from awsutils.iam import IAM
 
 import os
 
@@ -124,8 +125,13 @@ def cfn_delete(force=False):
 @task
 def cfn_create():
     aws_config, cfn, cfn_config = get_config()
+    #Upload any SSL certs that we may need for the stack.
+    iam = IAM(aws_config)
+    iam.upload_ssl_certificate(cfn_config.ssl())
     # Inject security groups in stack template and create stacks.
     stack_name = get_new_stack_name()
+    #Useful for debug
+    #print cfn_config.process()
     stack = cfn.create(stack_name, cfn_config.process())
     print "\n\nSTACK {0} CREATING...".format(stack_name)
 
@@ -153,6 +159,8 @@ def cfn_create():
         print 'Successfully built stack {0}.'.format(stack)
     else:
         print 'Failed to create stack: {0}'.format(stack)
+        #So delete the SSL cert that we uploaded
+        iam.delete_ssl_certifacte(cfn_config.ssl())
 
 
 def get_stack_instances_ips(stack_name):

@@ -1,0 +1,14 @@
+{
+  "SSLCertificateId" : {
+    "Fn::Join":[
+       "",
+       [
+          "arn:aws:iam::",
+          {
+             "Ref":"AWS::AccountId"
+          },
+          ":server-certificate/"
+       ]
+    ]
+  }
+}

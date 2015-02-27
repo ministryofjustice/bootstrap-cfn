@@ -139,6 +139,9 @@ class ConfigParser:
 
         return template
 
+    def ssl(self):
+        return self.data['ssl']
+
     def rds(self):
         # REQUIRED FIELDS MAPPING
         required_fields = {
@@ -190,6 +193,26 @@ class ConfigParser:
 
             # LOAD STACK TEMPLATE
             template = json.loads(pkgutil.get_data('awsutils', 'stacks/elb.json'))
+
+            # LOAD SSL TEMPLATE
+            ssl_template = json.loads(pkgutil.get_data('awsutils', 'stacks/elb_ssl.json'))
+
+            for listener in elb['listeners']:
+                if listener['Protocol'] == 'HTTPS':
+                    try:
+                        cert_name = elb['certificate_name']
+                    except KeyError:
+                        print "[ERROR] HTTPS listener but no certificate_name specified"
+                        sys.exit(1)
+                    try:
+                        self.ssl()[cert_name]['cert']
+                        self.ssl()[cert_name]['key']
+                    except KeyError:
+                        print "[ERROR] Couldn't find ssl cert {0} in config file".format(cert_name)
+                        sys.exit(1)
+                    ssl_template["SSLCertificateId"]['Fn::Join'][1].append(cert_name)
+                    listener.update(ssl_template)
+     
 
             # CONFIGURE THE LISTENERS, ELB NAME AND ROUTE53 RECORDS
             template['ElasticLoadBalancer']['Properties'][
