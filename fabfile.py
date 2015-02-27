@@ -25,7 +25,10 @@ env.password = None
 TIMEOUT = 3600
 RETRY_INTERVAL = 10
 
-
+# This is needed because pkgutil wont pick up modules
+# imported in a fabfile.
+path = env.real_fabfile
+sys.path.append(os.path.dirname(path))
 @task
 def aws(x):
     env.aws = str(x).lower()
