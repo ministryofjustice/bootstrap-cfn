@@ -201,6 +201,68 @@ class TestConfigParser(unittest.TestCase):
                 'dev').config)
         self.assertEquals(known, config.elb())
 
+    def test_elb_with_reserved_chars(self):
+        from testfixtures import compare
+
+        self.maxDiff = None
+        known = [
+            {
+                'ELBdev_dockerregistryservice': {
+                    'Type': 'AWS::ElasticLoadBalancing::LoadBalancer',
+                    'Properties': {
+                        'Listeners': [
+                            {
+                                'InstancePort': 80,
+                                'LoadBalancerPort': 80,
+                                'Protocol': 'TCP'
+                            },
+                            {
+                                'InstancePort': 443,
+                                'LoadBalancerPort': 443,
+                                'Protocol': 'TCP'
+                            }
+                        ],
+                        'AvailabilityZones': {'Fn::GetAZs': ''},
+                        'Scheme': 'internet-facing',
+                        'LoadBalancerName': 'ELB-dev_docker-registryservice'}
+                }
+            },
+            {
+                'DNSdev_dockerregistryservice': {
+                    'Type': 'AWS::Route53::RecordSetGroup',
+                    'Properties': {
+                        'HostedZoneName': 'kyrtest.foo.bar.',
+                        'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
+                        'RecordSets': [
+                            {'AliasTarget': {'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice', 'CanonicalHostedZoneNameID']},
+                                             'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice', 'CanonicalHostedZoneName']}},
+                             'Type': 'A',
+                             'Name': 'dev_docker-registry.service.kyrtest.foo.bar.'}
+                        ]
+                    }
+                }
+            }
+        ]
+        project_config = ProjectConfig('sample-project.yaml', 'dev')
+        # Ugh. Fixtures please?
+        project_config.config['elb'] = [{
+            'name': 'dev_docker-registry.service',
+            'hosted_zone': 'kyrtest.foo.bar.',
+            'scheme': 'internet-facing',
+            'listeners': [
+                { 'LoadBalancerPort': 80,
+                  'InstancePort': 80,
+                  'Protocol': 'TCP'
+                },
+                { 'LoadBalancerPort': 443,
+                  'InstancePort': 443,
+                  'Protocol': 'TCP'
+                },
+            ],
+        }]
+        config = ConfigParser(project_config.config)
+        self.assertEquals(known, config.elb())
+
     def test_ec2(self):
         known = {'ScalingGroup': {'Type': 'AWS::AutoScaling::AutoScalingGroup',
                                   'Properties': {'DesiredCapacity': 1,
