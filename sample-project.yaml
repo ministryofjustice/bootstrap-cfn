@@ -56,3 +56,17 @@ dev:
     multi-az: false
     db-engine: postgres
     db-engine-version: 9.3.5
+  ssl:
+    my-cert:
+      cert: |
+        -----BEGIN CERTIFICATE-----
+        blahblahblah
+        -----END CERTIFICATE-----
+      key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        blahblahblah
+        -----END RSA PRIVATE KEY-----
+      chain: |
+        -----BEGIN CERTIFICATE-----
+        blahblahblah
+        -----END CERTIFICATE-----
