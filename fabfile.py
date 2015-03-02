@@ -88,7 +88,7 @@ def get_config():
         env.environment,
         passwords=env.passwords)
 
-    cfn_config = ConfigParser(project_config.config)
+    cfn_config = ConfigParser(project_config.config, env.stack_name)
     cfn = Cloudformation(aws_config)
     return aws_config, cfn, cfn_config
 
@@ -99,8 +99,9 @@ def cfn_delete(force=False):
         if not x in ['y','Y','Yes','yes']:
             sys.exit(1)
         
-    aws_config, cfn, cfn_config = get_config()
     stack_name = "%s-%s" % (env.application, env.environment)
+    env.stack_name = stack_name
+    aws_config, cfn, cfn_config = get_config()
     cfn.delete(stack_name)
     print "\n\nSTACK {0} DELETING...".format(stack_name)
 
@@ -121,17 +122,19 @@ def cfn_delete(force=False):
             sys.exit(1)
         attempts += 1
         time.sleep(RETRY_INTERVAL)
+    iam = IAM(aws_config)
+    iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
 
 @task
 def cfn_create():
+    stack_name = get_new_stack_name()
     aws_config, cfn, cfn_config = get_config()
     #Upload any SSL certs that we may need for the stack.
     iam = IAM(aws_config)
-    iam.upload_ssl_certificate(cfn_config.ssl())
-    # Inject security groups in stack template and create stacks.
-    stack_name = get_new_stack_name()
+    iam.upload_ssl_certificate(cfn_config.ssl(), stack_name)
     #Useful for debug
     #print cfn_config.process()
+    # Inject security groups in stack template and create stacks.
     stack = cfn.create(stack_name, cfn_config.process())
     print "\n\nSTACK {0} CREATING...".format(stack_name)
 
@@ -160,7 +163,7 @@ def cfn_create():
     else:
         print 'Failed to create stack: {0}'.format(stack)
         #So delete the SSL cert that we uploaded
-        iam.delete_ssl_certifacte(cfn_config.ssl())
+        iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
 
 
 def get_stack_instances_ips(stack_name):

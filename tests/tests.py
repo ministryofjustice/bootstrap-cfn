@@ -92,7 +92,7 @@ class TestConfigParser(unittest.TestCase):
                                                  'AssumeRolePolicyDocument': {'Statement': [{'Action': ['sts:AssumeRole'],
                                                                                              'Effect': 'Allow',
                                                                                              'Principal': {'Service': ['ec2.amazonaws.com']}}]}}}}
-        config = ConfigParser(None)
+        config = ConfigParser(None, 'my-stack-name')
         self.assertEquals(known, config.iam())
 
     def test_s3(self):
@@ -121,8 +121,8 @@ class TestConfigParser(unittest.TestCase):
         config = ConfigParser(
             ProjectConfig(
                 'sample-project.yaml',
-                'dev').config)
-        config = ConfigParser(ProjectConfig('sample-project.yaml', 'dev').config)
+                'dev').config, 'my-stack-name')
+        config = ConfigParser(ProjectConfig('sample-project.yaml', 'dev').config, 'my-stack-name')
         self.assertEquals(known, config.s3())
 
     def test_rds(self):
@@ -156,7 +156,7 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'sample-project.yaml',
                 'dev',
-                'sample-project-passwords.yaml').config)
+                'sample-project-passwords.yaml').config,'my-stack-name')
         self.assertEquals(known, config.rds())
 
     def test_elb(self):
@@ -260,7 +260,7 @@ class TestConfigParser(unittest.TestCase):
                 },
             ],
         }]
-        config = ConfigParser(project_config.config)
+        config = ConfigParser(project_config.config,'my-stack-name')
         self.assertEquals(known, config.elb())
 
     def test_ec2(self):
@@ -310,7 +310,7 @@ class TestConfigParser(unittest.TestCase):
         config = ConfigParser(
             ProjectConfig(
                 'sample-project.yaml',
-                'dev').config)
+                'dev').config, 'my-stack-name')
         self.assertEquals(known, config.ec2())
 
 

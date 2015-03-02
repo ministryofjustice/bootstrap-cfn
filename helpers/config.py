@@ -68,7 +68,8 @@ class ConfigParser:
 
     config = {}
 
-    def __init__(self, data):
+    def __init__(self, data, stack_name):
+        self.stack_name = stack_name
         self.data = data
 
     def process(self):
@@ -210,7 +211,7 @@ class ConfigParser:
                     except KeyError:
                         print "[ERROR] Couldn't find ssl cert {0} in config file".format(cert_name)
                         sys.exit(1)
-                    ssl_template["SSLCertificateId"]['Fn::Join'][1].append(cert_name)
+                    ssl_template["SSLCertificateId"]['Fn::Join'][1].append("{0}-{1}".format(cert_name, self.stack_name))
                     listener.update(ssl_template)
      
 

@@ -16,7 +16,7 @@ class IAM:
             print "[ERROR] No AWS credentials"
             sys.exit(1)
 
-    def upload_ssl_certificate(self, ssl_config):
+    def upload_ssl_certificate(self, ssl_config, stack_name):
         for cert_name, ssl_data in ssl_config.items():
             cert_body = ssl_data['cert']
             private_key = ssl_data['key']
@@ -24,10 +24,12 @@ class IAM:
                 cert_chain = ssl_data['chain']
             except:
                 cert_chain = None
-            self.conn_iam.upload_server_cert(cert_name, cert_body, private_key, cert_chain)
+            cert_id = "{0}-{1}".format(cert_name, stack_name)
+            self.conn_iam.upload_server_cert(cert_id, cert_body, private_key, cert_chain)
         return True
 
-    def delete_ssl_certifacte(self, ssl_config):
+    def delete_ssl_certificate(self, ssl_config, stack_name):
         for cert_name in ssl_config.keys():
-            self.conn_iam.delete_server_cert(cert_name)
+            cert_id = "{0}-{1}".format(cert_name, stack_name)
+            self.conn_iam.delete_server_cert(cert_id)
         return True
