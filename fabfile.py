@@ -115,8 +115,8 @@ def cfn_delete(force=False):
         if cfn.stack_missing(stack_name):
            print "Stack successfully deleted"
            break
-        if attempts == TIMEOUT / RETRY_INTERVAL:
-            print '[ERROR] Stack creation timed out'
+        if attempts >= TIMEOUT / RETRY_INTERVAL:
+            print '[ERROR] Stack deletion timed out'
             sys.exit(1)
         attempts += 1
         time.sleep(RETRY_INTERVAL)
@@ -140,7 +140,7 @@ def cfn_create():
     while True:
         if cfn.stack_done(stack):
             break
-        if attempts == TIMEOUT / RETRY_INTERVAL:
+        if attempts >= TIMEOUT / RETRY_INTERVAL:
             print '[ERROR] Stack creation timed out'
             sys.exit(1)
         attempts += 1
