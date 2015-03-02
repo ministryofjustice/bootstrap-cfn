@@ -92,7 +92,12 @@ def get_config():
     return aws_config, cfn, cfn_config
 
 @task
-def cfn_delete():
+def cfn_delete(force=False):
+    if not force:
+        x = raw_input("Are you really sure you want to blow away the whole stack!? (y/n)\n")
+        if not x in ['y','Y','Yes','yes']:
+            sys.exit(1)
+        
     aws_config, cfn, cfn_config = get_config()
     stack_name = "%s-%s" % (env.application, env.environment)
     cfn.delete(stack_name)

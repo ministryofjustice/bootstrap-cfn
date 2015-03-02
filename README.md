@@ -35,13 +35,20 @@ fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder
 If your ```CWD``` is anywhere else, you need to pass in a path to particular fabric file:
 
 ```
-fab -f /path/to/bootstrap-cfn/fabfile.py application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
+fab application:courtfinder-a1e8 aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_delete
 ```
+and `cfn_delete:force` to skip the prompt.
 
 * **application:courtfinder** - is just a name to associate with Cloudformation stack
 * **aws:dev** - is a way to differentiate between AWS accounts (`~/.config.yaml`)
 * **environment:dev** - The `dev` section will be read from the projects YAML file (line 1 in the example below)
 * **config:/path/to/file.yaml** - The location to the project YAML file
+
+If your ```CWD``` is anywhere else, you need to pass in a path to particular fabric file:
+
+```
+fab -f /path/to/bootstrap-cfn/fabfile.py application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
+```
 
 ## Example Configuration
 ##### AWS Account Configuration
