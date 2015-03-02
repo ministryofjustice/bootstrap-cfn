@@ -6,10 +6,10 @@ import json
 import random
 import yaml
 import time
-from helpers.config import AWSConfig, ProjectConfig, ConfigParser
-from awsutils.cloudformation import Cloudformation
-from awsutils.ec2 import EC2
-from awsutils.iam import IAM
+from bootstrap_cfn.config import AWSConfig, ProjectConfig, ConfigParser
+from bootstrap_cfn.cloudformation import Cloudformation
+from bootstrap_cfn.ec2 import EC2
+from bootstrap_cfn.iam import IAM
 
 import os
 
@@ -28,7 +28,7 @@ RETRY_INTERVAL = 10
 
 # This is needed because pkgutil wont pick up modules
 # imported in a fabfile.
-path = env.real_fabfile
+path = env.real_fabfile or os.getcwd()
 sys.path.append(os.path.dirname(path))
 @task
 def aws(x):
@@ -102,7 +102,7 @@ def cfn_delete(force=False):
         x = raw_input("Are you really sure you want to blow away the whole stack!? (y/n)\n")
         if not x in ['y','Y','Yes','yes']:
             sys.exit(1)
-        
+
     stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     cfn.delete(stack_name)

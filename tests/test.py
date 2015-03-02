@@ -4,9 +4,9 @@ import mock
 import yaml
 import boto.cloudformation
 import boto.ec2.autoscale
-from awsutils import cloudformation
-from awsutils import ec2
-from awsutils import iam
+from bootstrap_cfn import cloudformation
+from bootstrap_cfn import ec2
+from bootstrap_cfn import iam
 import os
 
 
