@@ -3,6 +3,7 @@ import os
 import pkgutil
 import sys
 import yaml
+import helpers.errors as errors
 from copy import deepcopy
 
 
@@ -203,14 +204,12 @@ class ConfigParser:
                     try:
                         cert_name = elb['certificate_name']
                     except KeyError:
-                        print "[ERROR] HTTPS listener but no certificate_name specified"
-                        sys.exit(1)
+                        raise errors.CfnConfigError("HTTPS listener but no certificate_name specified")
                     try:
                         self.ssl()[cert_name]['cert']
                         self.ssl()[cert_name]['key']
                     except KeyError:
-                        print "[ERROR] Couldn't find ssl cert {0} in config file".format(cert_name)
-                        sys.exit(1)
+                        raise errors.CfnConfigError("Couldn't find ssl cert {0} in config file".format(cert_name))
                     ssl_template["SSLCertificateId"]['Fn::Join'][1].append("{0}-{1}".format(cert_name, self.stack_name))
                     listener.update(ssl_template)
      
