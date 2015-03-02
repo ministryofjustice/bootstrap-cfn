@@ -24,14 +24,10 @@ class Cloudformation:
         stack = self.conn_cfn.create_stack(stack_name=stack_name,
                                            template_body=template_body,
                                            capabilities=['CAPABILITY_IAM'])
-
-        print "\n\n\n%s\n\n\nSTACK CREATED" % stack
         return stack
 
     def delete(self, stack_name):
         stack = self.conn_cfn.delete_stack(stack_name)
-
-        print "\n\n\n%s\n\n\nSTACK DELETED" % stack
         return stack
 
     def stack_done(self, stack_id):

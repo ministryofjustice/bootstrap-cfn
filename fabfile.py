@@ -101,6 +101,7 @@ def cfn_delete(force=False):
     aws_config, cfn, cfn_config = get_config()
     stack_name = "%s-%s" % (env.application, env.environment)
     cfn.delete(stack_name)
+    print "\n\nSTACK {0} DELETING...".format(stack_name)
 
     if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
         print stacks
@@ -126,6 +127,7 @@ def cfn_create():
     # Inject security groups in stack template and create stacks.
     stack_name = get_new_stack_name()
     stack = cfn.create(stack_name, cfn_config.process())
+    print "\n\nSTACK {0} CREATING...".format(stack_name)
 
     if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
         print stacks
