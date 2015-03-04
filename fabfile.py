@@ -64,9 +64,13 @@ def blocking(x):
 def user(x):
     env.user = x
 
-def get_new_stack_name():
-    env.stack_name = "%s-%s" % (env.application, env.environment)
-    return env.stack_name
+def get_stack_name():
+    try:
+        stack_name = env.stack_name
+    except AttributeError:
+        stack_name = "%s-%s" % (env.application, env.environment)
+        env.stack_name = stack_name
+    return stack_name
 
 def get_config():
     if env.aws is None:
@@ -99,8 +103,7 @@ def cfn_delete(force=False):
         if not x in ['y','Y','Yes','yes']:
             sys.exit(1)
         
-    stack_name = "%s-%s" % (env.application, env.environment)
-    env.stack_name = stack_name
+    stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     cfn.delete(stack_name)
     print "\n\nSTACK {0} DELETING...".format(stack_name)
@@ -127,7 +130,7 @@ def cfn_delete(force=False):
 
 @task
 def cfn_create():
-    stack_name = get_new_stack_name()
+    stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     #Upload any SSL certs that we may need for the stack.
     iam = IAM(aws_config)
@@ -186,7 +189,7 @@ def get_stack_addresses():
     if env.application is None:
         print "\n[ERROR] Please specify an application, e.g 'application:peoplefinder'"
         sys.exit(1)
-    stack_name = "%s-%s" % (env.application, env.environment)
+    stack_name = get_stack_name()
     res = get_stack_instances_ips(stack_name)
     print res
     return res
@@ -194,6 +197,7 @@ def get_stack_addresses():
 
 @task
 def find_master():
+    stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
     master = ec2.get_master_instance().ip_address
@@ -202,16 +206,16 @@ def find_master():
 
 
 def get_stack_instances_ips(stack_name):
+    stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
-    stack_name = '%s-%s' % (env.application, env.environment)
     instance_id_list = cfn.get_stack_instance_ids(stack_name)
 
 
 def get_candidate_minions():
+    stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
-    stack_name = '%s-%s' % (env.application, env.environment)
     instance_ids = cfn.get_stack_instance_ids(stack_name)
     master_instance_id = ec2.get_master_instance().id
     instance_ids.remove(master_instance_id)
@@ -220,12 +224,9 @@ def get_candidate_minions():
 
 @task
 def install_minions():
+    stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
-    if env.stack_name:
-        stack_name = env.stack_name
-    else:
-        stack_name = '%s-%s' % (env.application, env.environment)
 
     candidates = get_candidate_minions()
     existing_minions = ec2.get_minions()
@@ -253,12 +254,9 @@ def install_minions():
 
 @task
 def install_master():
+    stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
-    if env.stack_name:
-        stack_name = env.stack_name
-    else:
-        stack_name = '%s-%s' % (env.application, env.environment)
 
     instance_ids = cfn.get_stack_instance_ids(stack_name)
     master_inst = ec2.get_master_instance()
@@ -321,6 +319,7 @@ def rsync():
             print "\n[ERROR] Please specify a config file, e.g 'config:/tmp/sample-application.yaml'"
             sys.exit(1)
 
+    stack_name = get_stack_name()
     work_dir = os.path.join('..', '{0}-deploy'.format(env.application))
     # LOAD AWS CONFIG FROM ~/.config.yaml
     aws_config = AWSConfig(env.aws)
