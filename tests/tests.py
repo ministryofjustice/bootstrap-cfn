@@ -2,7 +2,7 @@
 
 import unittest
 from helpers.config import ProjectConfig, AWSConfig, ConfigParser
-
+import helpers.errors as errors
 
 class TestConfig(unittest.TestCase):
 
@@ -17,7 +17,7 @@ class TestConfig(unittest.TestCase):
         self.assertEquals(
             sorted(
                 config.config.keys()), [
-                'ec2', 'elb', 'rds', 's3'])
+                'ec2', 'elb', 'rds', 's3','ssl'])
 
     def test_project_config_merge_password(self):
         '''
@@ -92,7 +92,7 @@ class TestConfigParser(unittest.TestCase):
                                                  'AssumeRolePolicyDocument': {'Statement': [{'Action': ['sts:AssumeRole'],
                                                                                              'Effect': 'Allow',
                                                                                              'Principal': {'Service': ['ec2.amazonaws.com']}}]}}}}
-        config = ConfigParser(None)
+        config = ConfigParser(None, 'my-stack-name')
         self.assertEquals(known, config.iam())
 
     def test_s3(self):
@@ -121,8 +121,8 @@ class TestConfigParser(unittest.TestCase):
         config = ConfigParser(
             ProjectConfig(
                 'sample-project.yaml',
-                'dev').config)
-        config = ConfigParser(ProjectConfig('sample-project.yaml', 'dev').config)
+                'dev').config, 'my-stack-name')
+        config = ConfigParser(ProjectConfig('sample-project.yaml', 'dev').config, 'my-stack-name')
         self.assertEquals(known, config.s3())
 
     def test_rds(self):
@@ -156,7 +156,7 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'sample-project.yaml',
                 'dev',
-                'sample-project-passwords.yaml').config)
+                'sample-project-passwords.yaml').config,'my-stack-name')
         self.assertEquals(known, config.rds())
 
     def test_elb(self):
@@ -198,7 +198,135 @@ class TestConfigParser(unittest.TestCase):
         config = ConfigParser(
             ProjectConfig(
                 'sample-project.yaml',
-                'dev').config)
+                'dev').config,'my-stack-name')
+        self.assertEquals(known, config.elb())
+
+    def test_elb_missing_cert(self):
+        from testfixtures import compare
+
+        self.maxDiff = None
+        project_config = ProjectConfig('sample-project.yaml', 'dev')
+        # Ugh. Fixtures please?
+        project_config.config.pop('ssl')
+        project_config.config['elb'] = [{
+            'name': 'dev_docker-registry.service',
+            'hosted_zone': 'kyrtest.foo.bar.',
+            'certificate_name': 'my-cert',
+            'scheme': 'internet-facing',
+            'listeners': [
+                { 'LoadBalancerPort': 80,
+                  'InstancePort': 80,
+                  'Protocol': 'TCP'
+                },
+                { 'LoadBalancerPort': 443,
+                  'InstancePort': 443,
+                  'Protocol': 'HTTPS'
+                },
+            ],
+        }]
+        config = ConfigParser(project_config.config,'my-stack-name')
+        with self.assertRaises(errors.CfnConfigError):
+            config.elb()
+
+    def test_elb_missing_cert_name(self):
+        from testfixtures import compare
+
+        self.maxDiff = None
+        project_config = ProjectConfig('sample-project.yaml', 'dev')
+        # Ugh. Fixtures please?
+        project_config.config['elb'] = [{
+            'name': 'dev_docker-registry.service',
+            'hosted_zone': 'kyrtest.foo.bar.',
+            'scheme': 'internet-facing',
+            'listeners': [
+                { 'LoadBalancerPort': 80,
+                  'InstancePort': 80,
+                  'Protocol': 'TCP'
+                },
+                { 'LoadBalancerPort': 443,
+                  'InstancePort': 443,
+                  'Protocol': 'HTTPS'
+                },
+            ],
+        }]
+        config = ConfigParser(project_config.config,'my-stack-name')
+        with self.assertRaises(errors.CfnConfigError):
+            config.elb()
+
+    def test_elb_with_ssl(self):
+        from testfixtures import compare
+
+        self.maxDiff = None
+        known = [
+            {
+                'ELBdev_dockerregistryservice': {
+                    'Type': 'AWS::ElasticLoadBalancing::LoadBalancer',
+                    'Properties': {
+                        'Listeners': [
+                            {
+                                'InstancePort': 80,
+                                'LoadBalancerPort': 80,
+                                'Protocol': 'TCP'
+                            },
+                            {
+                                'InstancePort': 443,
+                                'LoadBalancerPort': 443,
+                                'Protocol': 'HTTPS',
+                                'SSLCertificateId': {
+                                    'Fn::Join': [
+                                        '',
+                                        [
+                                            'arn:aws:iam::',
+                                            {
+                                                'Ref': 'AWS::AccountId'
+                                            },
+                                            ':server-certificate/',
+                                            'my-cert-my-stack-name'
+                                        ]
+                                    ]
+                                }
+                            }
+                        ],
+                        'AvailabilityZones': {'Fn::GetAZs': ''},
+                        'Scheme': 'internet-facing',
+                        'LoadBalancerName': 'ELB-dev_docker-registryservice'}
+                }
+            },
+            {
+                'DNSdev_dockerregistryservice': {
+                    'Type': 'AWS::Route53::RecordSetGroup',
+                    'Properties': {
+                        'HostedZoneName': 'kyrtest.foo.bar.',
+                        'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
+                        'RecordSets': [
+                            {'AliasTarget': {'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice', 'CanonicalHostedZoneNameID']},
+                                             'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice', 'CanonicalHostedZoneName']}},
+                             'Type': 'A',
+                             'Name': 'dev_docker-registry.service.kyrtest.foo.bar.'}
+                        ]
+                    }
+                }
+            }
+        ]
+        project_config = ProjectConfig('sample-project.yaml', 'dev')
+        # Ugh. Fixtures please?
+        project_config.config['elb'] = [{
+            'name': 'dev_docker-registry.service',
+            'hosted_zone': 'kyrtest.foo.bar.',
+            'scheme': 'internet-facing',
+            'certificate_name': 'my-cert',
+            'listeners': [
+                { 'LoadBalancerPort': 80,
+                  'InstancePort': 80,
+                  'Protocol': 'TCP'
+                },
+                { 'LoadBalancerPort': 443,
+                  'InstancePort': 443,
+                  'Protocol': 'HTTPS'
+                },
+            ],
+        }]
+        config = ConfigParser(project_config.config,'my-stack-name')
         self.assertEquals(known, config.elb())
 
     def test_elb_with_reserved_chars(self):
@@ -260,7 +388,7 @@ class TestConfigParser(unittest.TestCase):
                 },
             ],
         }]
-        config = ConfigParser(project_config.config)
+        config = ConfigParser(project_config.config,'my-stack-name')
         self.assertEquals(known, config.elb())
 
     def test_ec2(self):
@@ -310,7 +438,7 @@ class TestConfigParser(unittest.TestCase):
         config = ConfigParser(
             ProjectConfig(
                 'sample-project.yaml',
-                'dev').config)
+                'dev').config, 'my-stack-name')
         self.assertEquals(known, config.ec2())
 
 

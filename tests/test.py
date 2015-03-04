@@ -6,6 +6,7 @@ import boto.cloudformation
 import boto.ec2.autoscale
 from awsutils import cloudformation
 from awsutils import ec2
+from awsutils import iam
 import os
 
 
@@ -159,6 +160,24 @@ class CfnTestCase(unittest.TestCase):
 
         self.assertFalse(cloudformation.Cloudformation(
             self.aws_config).stack_done(self.stack_name))
+
+    def test_ssl_upload(self):
+        iam_mock = mock.Mock()
+        iam_connect_result = mock.Mock(name='iam_connect')
+        iam_mock.return_value = iam_connect_result
+        boto.iam.connect_to_region = iam_mock
+        i = iam.IAM(self.aws_config)
+        x = i.upload_ssl_certificate({}, self.stack_name)
+        self.assertTrue(x)
+
+    def test_ssl_delete(self):
+        iam_mock = mock.Mock()
+        iam_connect_result = mock.Mock(name='iam_connect')
+        iam_mock.return_value = iam_connect_result
+        boto.iam.connect_to_region = iam_mock
+        i = iam.IAM(self.aws_config)
+        x = i.delete_ssl_certificate({}, self.stack_name)
+        self.assertTrue(x)
 
     def test_get_stack_instance_ids(self):
         scaling_group = mock.Mock()
