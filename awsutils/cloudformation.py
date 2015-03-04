@@ -24,8 +24,10 @@ class Cloudformation:
         stack = self.conn_cfn.create_stack(stack_name=stack_name,
                                            template_body=template_body,
                                            capabilities=['CAPABILITY_IAM'])
+        return stack
 
-        print "\n\n\n%s\n\n\nSTACK CREATED" % stack
+    def delete(self, stack_name):
+        stack = self.conn_cfn.delete_stack(stack_name)
         return stack
 
     def stack_done(self, stack_id):
@@ -61,3 +63,8 @@ class Cloudformation:
     def get_stack_instance_ids(self, stack_name_or_id):
         return [
             x.instance_id for x in self.get_stack_instances(stack_name_or_id)]
+
+    def stack_missing(self, stack_name):
+        ''' Returns True if stack not found'''
+        stacks = self.conn_cfn.describe_stacks()
+        return stack_name not in [s.stack_name for s in stacks]

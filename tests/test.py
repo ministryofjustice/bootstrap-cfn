@@ -87,6 +87,44 @@ class CfnTestCase(unittest.TestCase):
         x = cf.create(self.stack_name, '{}')
         self.assertEqual(x, self.stack_name)
 
+    def test_cf_delete(self):
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        example_return = {'DeleteStackResponse': {'ResponseMetadata': {'RequestId': 'someuuid'}}}
+        mock_config = {'delete_stack.return_value': example_return}
+        cf_connect_result.configure_mock(**mock_config)
+        boto.cloudformation.connect_to_region = cf_mock
+        cf = cloudformation.Cloudformation(self.aws_config)
+        x = cf.delete(self.stack_name)
+        self.assertTrue('DeleteStackResponse' in x.keys())
+
+    def test_stack_missing(self):
+        stack_mock = mock.Mock(stack_name='my-stack-name')
+
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        mock_config = {'describe_stacks.return_value': [stack_mock]}
+        cf_connect_result.configure_mock(**mock_config)
+        boto.cloudformation.connect_to_region = cf_mock
+        cf = cloudformation.Cloudformation(self.aws_config)
+        x = cf.stack_missing('not-a-stack-name')
+        self.assertTrue(x)
+
+    def test_stack_not_deleted(self):
+        stack_mock = mock.Mock(stack_name='my-stack-name')
+
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        mock_config = {'describe_stacks.return_value': [stack_mock]}
+        cf_connect_result.configure_mock(**mock_config)
+        boto.cloudformation.connect_to_region = cf_mock
+        cf = cloudformation.Cloudformation(self.aws_config)
+        x = cf.stack_missing('my-stack-name')
+        self.assertFalse(x)
+
     def test_stack_done(self):
         stack_evt_mock = mock.Mock()
         rt = mock.PropertyMock(return_value='AWS::CloudFormation::Stack')
