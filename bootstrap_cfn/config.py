@@ -3,7 +3,7 @@ import os
 import pkgutil
 import sys
 import yaml
-import helpers.errors as errors
+import bootstrap_cfn.errors as errors
 from copy import deepcopy
 
 
@@ -104,14 +104,14 @@ class ConfigParser:
         for i in elb:
             data.update(i)
 
-        template = json.loads(pkgutil.get_data('awsutils', 'stacks/base.json'))
+        template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/base.json'))
         template['Resources'] = data
         return json.dumps(
             template, sort_keys=True, indent=4, separators=(',', ': '))
 
     def iam(self):
         # LOAD STACK TEMPLATE
-        return json.loads(pkgutil.get_data('awsutils', 'stacks/iam.json'))
+        return json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/iam.json'))
 
     def s3(self):
         # REQUIRED FIELDS AND MAPPING
@@ -120,7 +120,7 @@ class ConfigParser:
         }
 
         # LOAD STACK TEMPLATE
-        template = json.loads(pkgutil.get_data('awsutils', 'stacks/s3.json'))
+        template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/s3.json'))
 
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         present_keys = self.data['s3'].keys()
@@ -128,7 +128,7 @@ class ConfigParser:
             if i not in present_keys:
                 print "\n\n[ERROR] Missing S3 fields [%s]" % i
                 sys.exit(1)
-        
+
         #policy = None
         if 'policy' in present_keys:
             policy = json.loads(open(self.data['policy']).read())
@@ -137,7 +137,7 @@ class ConfigParser:
              policy = {'Action': ['s3:Get*', 's3:Put*', 's3:List*'], 'Resource': arn, 'Effect': 'Allow', 'Principal' : {'AWS' : '*'}}
 
         template['StaticBucket']['Properties']['BucketName'] = self.data['s3']['static-bucket-name']
-        template['StaticBucketPolicy']['Properties']['PolicyDocument']['Statement'][0] = policy 
+        template['StaticBucketPolicy']['Properties']['PolicyDocument']['Statement'][0] = policy
 
         return template
 
@@ -161,7 +161,7 @@ class ConfigParser:
         }
 
         # LOAD STACK TEMPLATE
-        template = json.loads(pkgutil.get_data('awsutils', 'stacks/rds.json'))
+        template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/rds.json'))
 
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         for i in required_fields.keys():
@@ -194,10 +194,10 @@ class ConfigParser:
                     sys.exit(1)
 
             # LOAD STACK TEMPLATE
-            template = json.loads(pkgutil.get_data('awsutils', 'stacks/elb.json'))
+            template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/elb.json'))
 
             # LOAD SSL TEMPLATE
-            ssl_template = json.loads(pkgutil.get_data('awsutils', 'stacks/elb_ssl.json'))
+            ssl_template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/elb_ssl.json'))
 
             for listener in elb['listeners']:
                 if listener['Protocol'] == 'HTTPS':
@@ -212,7 +212,7 @@ class ConfigParser:
                         raise errors.CfnConfigError("Couldn't find ssl cert {0} in config file".format(cert_name))
                     ssl_template["SSLCertificateId"]['Fn::Join'][1].append("{0}-{1}".format(cert_name, self.stack_name))
                     listener.update(ssl_template)
-     
+
 
             # CONFIGURE THE LISTENERS, ELB NAME AND ROUTE53 RECORDS
             template['ElasticLoadBalancer']['Properties'][
@@ -245,7 +245,7 @@ class ConfigParser:
 
     def ec2(self):
         # LOAD STACK TEMPLATE
-        template = json.loads(pkgutil.get_data('awsutils', 'stacks/ec2.json'))
+        template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/ec2.json'))
 
         # SET SECURITY GROUPS, DEFAULT KEY AND INSTANCE TYPE
         template['BaseHostSG']['Properties'][

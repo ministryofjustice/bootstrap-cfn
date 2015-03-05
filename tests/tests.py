@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import unittest
-from helpers.config import ProjectConfig, AWSConfig, ConfigParser
-import helpers.errors as errors
+from bootstrap_cfn.config import ProjectConfig, AWSConfig, ConfigParser
+import bootstrap_cfn.errors as errors
 
 class TestConfig(unittest.TestCase):
 
@@ -13,7 +13,7 @@ class TestConfig(unittest.TestCase):
         '''
         Test the file is valid YAML and takes and environment
         '''
-        config = ProjectConfig('sample-project.yaml', 'dev')
+        config = ProjectConfig('tests/sample-project.yaml', 'dev')
         self.assertEquals(
             sorted(
                 config.config.keys()), [
@@ -24,9 +24,9 @@ class TestConfig(unittest.TestCase):
         Test the two config files merge properly by ensuring elements from both files are present
         '''
         config = ProjectConfig(
-            'sample-project.yaml',
+            'tests/sample-project.yaml',
             'dev',
-            'sample-project-passwords.yaml')
+            'tests/sample-project-passwords.yaml')
         self.assertEquals(
             config.config['rds']['instance-class'],
             'db.t2.micro')
@@ -40,13 +40,13 @@ class TestConfig(unittest.TestCase):
         '''
 
         with self.assertRaises(IOError):
-            AWSConfig('dev', 'config_unknown.yaml')
+            AWSConfig('dev', 'tests/config_unknown.yaml')
 
     def test_aws_config_valid(self):
         '''
         Test the AWS config file is setup correctly
         '''
-        config = AWSConfig('dev', 'config.yaml')
+        config = AWSConfig('dev', 'tests/config.yaml')
         self.assertEquals(config.aws_access, 'AKIAI***********')
         self.assertEquals(
             config.aws_secret,
@@ -57,7 +57,7 @@ class TestConfig(unittest.TestCase):
         Test the AWS config file errors on invalid environment
         '''
         with self.assertRaises(KeyError):
-            AWSConfig('unknown', 'config.yaml')
+            AWSConfig('unknown', 'tests/config.yaml')
 
 
 class TestConfigParser(unittest.TestCase):
@@ -120,9 +120,9 @@ class TestConfigParser(unittest.TestCase):
                     'BucketName': 'moj-test-dev-static'}}}
         config = ConfigParser(
             ProjectConfig(
-                'sample-project.yaml',
+                'tests/sample-project.yaml',
                 'dev').config, 'my-stack-name')
-        config = ConfigParser(ProjectConfig('sample-project.yaml', 'dev').config, 'my-stack-name')
+        config = ConfigParser(ProjectConfig('tests/sample-project.yaml', 'dev').config, 'my-stack-name')
         self.assertEquals(known, config.s3())
 
     def test_rds(self):
@@ -154,9 +154,9 @@ class TestConfigParser(unittest.TestCase):
 
         config = ConfigParser(
             ProjectConfig(
-                'sample-project.yaml',
+                'tests/sample-project.yaml',
                 'dev',
-                'sample-project-passwords.yaml').config,'my-stack-name')
+                'tests/sample-project-passwords.yaml').config,'my-stack-name')
         self.assertEquals(known, config.rds())
 
     def test_elb(self):
@@ -197,7 +197,7 @@ class TestConfigParser(unittest.TestCase):
                                                                         'Name': 'test-dev-internal.kyrtest.pf.dsd.io.'}]}}}]
         config = ConfigParser(
             ProjectConfig(
-                'sample-project.yaml',
+                'tests/sample-project.yaml',
                 'dev').config,'my-stack-name')
         self.assertEquals(known, config.elb())
 
@@ -205,7 +205,7 @@ class TestConfigParser(unittest.TestCase):
         from testfixtures import compare
 
         self.maxDiff = None
-        project_config = ProjectConfig('sample-project.yaml', 'dev')
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         # Ugh. Fixtures please?
         project_config.config.pop('ssl')
         project_config.config['elb'] = [{
@@ -232,7 +232,7 @@ class TestConfigParser(unittest.TestCase):
         from testfixtures import compare
 
         self.maxDiff = None
-        project_config = ProjectConfig('sample-project.yaml', 'dev')
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         # Ugh. Fixtures please?
         project_config.config['elb'] = [{
             'name': 'dev_docker-registry.service',
@@ -308,7 +308,7 @@ class TestConfigParser(unittest.TestCase):
                 }
             }
         ]
-        project_config = ProjectConfig('sample-project.yaml', 'dev')
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         # Ugh. Fixtures please?
         project_config.config['elb'] = [{
             'name': 'dev_docker-registry.service',
@@ -371,7 +371,7 @@ class TestConfigParser(unittest.TestCase):
                 }
             }
         ]
-        project_config = ProjectConfig('sample-project.yaml', 'dev')
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         # Ugh. Fixtures please?
         project_config.config['elb'] = [{
             'name': 'dev_docker-registry.service',
@@ -437,7 +437,7 @@ class TestConfigParser(unittest.TestCase):
                                                          'InstanceType': 't2.micro'}}}
         config = ConfigParser(
             ProjectConfig(
-                'sample-project.yaml',
+                'tests/sample-project.yaml',
                 'dev').config, 'my-stack-name')
         self.assertEquals(known, config.ec2())
 
