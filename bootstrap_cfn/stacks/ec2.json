@@ -21,7 +21,7 @@
                       "",
                       [
                         "#!/bin/bash -xe\n",
-                        "wget https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/bootstrap-salt.sh -O /tmp/moj-bootstrap.sh\n",
+                        "wget https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/scripts/bootstrap-salt.sh -O /tmp/moj-bootstrap.sh\n",
                         "chmod 755 /tmp/moj-bootstrap.sh\n",
                         "/tmp/moj-bootstrap.sh "
                       ]
