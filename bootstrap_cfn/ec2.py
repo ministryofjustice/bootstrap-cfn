@@ -1,6 +1,6 @@
 import sys
 import boto.ec2
-
+from bootstrap_cfn import cloudformation
 
 class EC2:
 
@@ -17,6 +17,7 @@ class EC2:
         else:
             print "[ERROR] No AWS credentials"
             sys.exit(1)
+        self.cfn = cloudformation.Cloudformation(config)
 
     def get_instance_public_ips(self, instance_id_list):
         if not instance_id_list:
@@ -49,17 +50,22 @@ class EC2:
         resv = self.conn_ec2.get_all_reservations([inst_id])
         return [i for r in resv for i in r.instances][0] if resv else None
 
-    def get_master_instance(self, master_tag_name='SaltMaster'):
-        resv = self.conn_ec2.get_all_reservations(filters={'tag-key': master_tag_name,
-                                                           'instance-state-name': 'running'})
+    def get_master_instance(self, stack_name_or_id, master_tag_name='SaltMaster'):
+        stack_instances = self.cfn.get_stack_instances(stack_name_or_id)
+        stack_instance_ids = [x.instance_id for x in stack_instances]
+        filters = {'tag-key': master_tag_name,
+                   'instance-state-name': 'running',
+                   'instance-id': stack_instance_ids}
+        resv = self.conn_ec2.get_all_reservations(filters=filters)
         return [i for r in resv for i in r.instances][0] if resv else None
 
-    def get_minions(
-            self, minion_tag_name='SaltMasterPrvIP', remove_master=False):
+    def get_minions(self, stack_name_or_id,
+                    minion_tag_name='SaltMasterPrvIP', remove_master=False):
         resv = self.conn_ec2.get_all_reservations(
-            filters={
-                'tag-key': minion_tag_name})
+            filters={ 'tag-key': minion_tag_name,
+                      'instance-id': self.cfn.get_stack_instances(stack_name_or_id)
+                    })
         instances = [i for r in resv for i in r.instances]
         if remove_master:
-            instances.remove(self.get_master_instance())
+            instances.remove(self.get_master_instance(stack_name_or_id))
         return instances
