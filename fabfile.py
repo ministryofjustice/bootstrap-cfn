@@ -52,7 +52,7 @@ def config(x):
 
 @task
 def passwords(x):
-    env.passwords = str(x).lower()
+    env.stack_passwords = str(x).lower()
 
 
 @task
@@ -65,12 +65,9 @@ def user(x):
     env.user = x
 
 def get_stack_name():
-    try:
-        stack_name = env.stack_name
-    except AttributeError:
-        stack_name = "%s-%s" % (env.application, env.environment)
-        env.stack_name = stack_name
-    return stack_name
+    if hasattr(env, 'stack_name'):
+        return env.stack_name
+    return "%s-%s" % (env.application, env.environment)
 
 def get_config():
     if env.aws is None:
@@ -86,13 +83,15 @@ def get_config():
         print "\n[ERROR] Please specify a config file, e.g 'config:/tmp/sample-application.yaml'"
         sys.exit(1)
 
+    if not hasattr(env, 'stack_passwords'):
+        env.stack_passwords={}
     aws_config = AWSConfig(env.aws)
     project_config = ProjectConfig(
         env.config,
         env.environment,
-        passwords=env.passwords)
+        passwords=env.stack_passwords)
 
-    cfn_config = ConfigParser(project_config.config, env.stack_name)
+    cfn_config = ConfigParser(project_config.config, get_stack_name())
     cfn = Cloudformation(aws_config)
     return aws_config, cfn, cfn_config
 
@@ -102,7 +101,6 @@ def cfn_delete(force=False):
         x = raw_input("Are you really sure you want to blow away the whole stack!? (y/n)\n")
         if not x in ['y','Y','Yes','yes']:
             sys.exit(1)
-
     stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     cfn.delete(stack_name)
@@ -125,16 +123,18 @@ def cfn_delete(force=False):
             sys.exit(1)
         attempts += 1
         time.sleep(RETRY_INTERVAL)
-    iam = IAM(aws_config)
-    iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
+    if 'ssl' in cfn_config.data:
+        iam = IAM(aws_config)
+        iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
 
 @task
 def cfn_create():
     stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     #Upload any SSL certs that we may need for the stack.
-    iam = IAM(aws_config)
-    iam.upload_ssl_certificate(cfn_config.ssl(), stack_name)
+    if 'ssl' in cfn_config.data:
+        iam = IAM(aws_config)
+        iam.upload_ssl_certificate(cfn_config.ssl(), stack_name)
     #Useful for debug
     #print cfn_config.process()
     # Inject security groups in stack template and create stacks.
@@ -200,7 +200,8 @@ def find_master():
     stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
-    master = ec2.get_master_instance().ip_address
+    stack_name = get_stack_name()
+    master = ec2.get_master_instance(stack_name).ip_address
     print 'Salt master public address: {0}'.format(master)
     return master
 
@@ -217,7 +218,8 @@ def get_candidate_minions():
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
     instance_ids = cfn.get_stack_instance_ids(stack_name)
-    master_instance_id = ec2.get_master_instance().id
+    stack_name = get_stack_name()
+    master_instance_id = ec2.get_master_instance(stack_name).id
     instance_ids.remove(master_instance_id)
     return instance_ids
 
@@ -227,15 +229,17 @@ def install_minions():
     stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
+    stack_name = get_stack_name()
 
     candidates = get_candidate_minions()
-    existing_minions = ec2.get_minions()
+    existing_minions = ec2.get_minions(stack_name)
     to_install = list(set(candidates).difference(set(existing_minions)))
     if not to_install:
         return
     public_ips = ec2.get_instance_public_ips(to_install)
     sha = '6080a18e6c7c2d49335978fa69fa63645b45bc2a'
-    master_inst = ec2.get_master_instance()
+    stack_name = get_stack_name()
+    master_inst = ec2.get_master_instance(stack_name)
     master_public_ip = master_inst.ip_address
     master_prv_ip = master_inst.private_ip_address
     ec2.set_instance_tags(to_install, {'SaltMasterPrvIP': master_prv_ip})
@@ -257,9 +261,10 @@ def install_master():
     stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
-
+    stack_name = get_stack_name()
     instance_ids = cfn.get_stack_instance_ids(stack_name)
-    master_inst = ec2.get_master_instance()
+    stack_name = get_stack_name()
+    master_inst = ec2.get_master_instance(stack_name)
     master = master_inst.id if master_inst else random.choice(instance_ids)
     master_prv_ip = ec2.get_instance_private_ips([master])[0]
     master_public_ip = ec2.get_instance_public_ips([master])[0]
@@ -270,7 +275,6 @@ def install_master():
     stack_ips.remove(master_prv_ip)
     stack_public_ips = ec2.get_instance_public_ips(instance_ids)
     stack_public_ips.remove(master_public_ip)
-
     env.host_string = 'ubuntu@%s' % master_public_ip
     sha = '6080a18e6c7c2d49335978fa69fa63645b45bc2a'
     sudo(
