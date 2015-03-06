@@ -392,6 +392,9 @@ class TestConfigParser(unittest.TestCase):
         self.assertEquals(known, config.elb())
 
     def test_ec2(self):
+
+        self.maxDiff = None
+
         known = {'ScalingGroup': {'Type': 'AWS::AutoScaling::AutoScalingGroup',
                                   'Properties': {'DesiredCapacity': 1,
                                                  'Tags': [{'PropagateAtLaunch': True,
@@ -420,7 +423,7 @@ class TestConfigParser(unittest.TestCase):
                  'BaseHostLaunchConfig': {'Type': 'AWS::AutoScaling::LaunchConfiguration',
                                           'Properties': {'UserData': {'Fn::Base64': {'Fn::Join': ['',
                                                                                                   ['#!/bin/bash -xe\n',
-                                                                                                   'wget https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/bootstrap-salt.sh -O /tmp/moj-bootstrap.sh\n',
+                                                                                                   'wget https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/scripts/bootstrap-salt.sh -O /tmp/moj-bootstrap.sh\n',
                                                                                                    'chmod 755 /tmp/moj-bootstrap.sh\n',
                                                                                                    '/tmp/moj-bootstrap.sh ']]}},
                                                          'ImageId': {'Fn::FindInMap': ['AWSRegion2AMI',
