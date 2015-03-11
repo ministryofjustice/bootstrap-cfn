@@ -333,25 +333,25 @@ def rsync():
 
     local_salt_dir = os.path.join(
         work_dir,
-        cfg['salt'].get(
+        cfg.get('salt',{}).get(
             'local_salt_dir',
             'salt'),
         '.')
     local_pillar_dir = os.path.join(
         work_dir,
-        cfg['salt'].get(
+        cfg.get('salt',{}).get(
             'local_pillar_dir',
             'pillar'),
         '.')
     local_vendor_dir = os.path.join(
         work_dir,
-        cfg['salt'].get(
+        cfg.get('salt',{}).get(
             'local_vendor_dir',
             'vendor'),
         '.')
 
-    remote_state_dir = cfg['salt'].get('remote_state_dir', '/srv/salt')
-    remote_pillar_dir = cfg['salt'].get('remote_pillar_dir', '/srv/pillar')
+    remote_state_dir = cfg.get('salt',{}).get('remote_state_dir', '/srv/salt')
+    remote_pillar_dir = cfg.get('salt',{}).get('remote_pillar_dir', '/srv/pillar')
 
     # if not os.path.exists(local_state_dir):
     #    shake(work_dir)
