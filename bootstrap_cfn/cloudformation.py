@@ -4,7 +4,6 @@ import boto.ec2
 from boto.ec2 import autoscale
 from bootstrap_cfn import utils
 
-
 class Cloudformation:
 
     conn_cfn = None

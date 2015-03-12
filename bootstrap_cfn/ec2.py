@@ -1,6 +1,8 @@
 import sys
 import boto.ec2
 from bootstrap_cfn import cloudformation
+from bootstrap_cfn import ssh
+from bootstrap_cfn import utils
 
 class EC2:
 
@@ -69,3 +71,12 @@ class EC2:
         if remove_master:
             instances.remove(self.get_master_instance(stack_name_or_id))
         return instances
+
+    def is_ssh_up_on_all_instances(self, stack_id):
+        instances = self.get_instance_public_ips(self.cfn.get_stack_instance_ids(stack_id))
+        if all([ssh.is_ssh_up(i) for i in instances]):
+            return True
+        return False
+
+    def wait_for_ssh(self, stack_id, timeout=300, interval=30):
+        return utils.timeout(timeout, interval)(self.is_ssh_up_on_all_instances)(stack_id)
