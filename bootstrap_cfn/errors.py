@@ -4,3 +4,6 @@ class BootstrapCfnError(Exception):
 
 class CfnConfigError(BootstrapCfnError):
     pass
+
+class CfnTimeoutError(BootstrapCfnError):
+    pass

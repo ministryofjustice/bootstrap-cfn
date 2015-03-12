@@ -7,6 +7,7 @@ import boto.ec2.autoscale
 from bootstrap_cfn import cloudformation
 from bootstrap_cfn import ec2
 from bootstrap_cfn import iam
+from bootstrap_cfn import errors
 import os
 
 
@@ -100,6 +101,32 @@ class CfnTestCase(unittest.TestCase):
         x = cf.delete(self.stack_name)
         self.assertTrue('DeleteStackResponse' in x.keys())
 
+    def test_wait_for_stack_missing(self):
+        stack_mock = mock.Mock(stack_name='my-stack-name')
+
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        mock_config = {'describe_stacks.return_value': [stack_mock]}
+        cf_connect_result.configure_mock(**mock_config)
+        boto.cloudformation.connect_to_region = cf_mock
+        cf = cloudformation.Cloudformation(self.aws_config)
+        x = cf.stack_missing('not-a-stack-name')
+        self.assertTrue(x)
+
+    def test_wait_for_stack_not_missing(self):
+        stack_mock = mock.Mock(stack_name='my-stack-name')
+
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        mock_config = {'describe_stacks.return_value': [stack_mock]}
+        cf_connect_result.configure_mock(**mock_config)
+        boto.cloudformation.connect_to_region = cf_mock
+        cf = cloudformation.Cloudformation(self.aws_config)
+        with self.assertRaises(errors.CfnTimeoutError):
+            cf.wait_for_stack_missing('my-stack-name', 1, 1)
+
     def test_stack_missing(self):
         stack_mock = mock.Mock(stack_name='my-stack-name')
 
@@ -113,7 +140,7 @@ class CfnTestCase(unittest.TestCase):
         x = cf.stack_missing('not-a-stack-name')
         self.assertTrue(x)
 
-    def test_stack_not_deleted(self):
+    def test_stack_not_missing(self):
         stack_mock = mock.Mock(stack_name='my-stack-name')
 
         cf_mock = mock.Mock()
@@ -125,6 +152,43 @@ class CfnTestCase(unittest.TestCase):
         cf = cloudformation.Cloudformation(self.aws_config)
         x = cf.stack_missing('my-stack-name')
         self.assertFalse(x)
+
+    def test_stack_wait_for_stack_not_done(self):
+        stack_evt_mock = mock.Mock()
+        rt = mock.PropertyMock(return_value='AWS::CloudFormation::Stack')
+        rs = mock.PropertyMock(return_value='CREATE_COMPLETE_LOL')
+        type(stack_evt_mock).resource_type = rt
+        type(stack_evt_mock).resource_status = rs
+        mock_config = {'describe_stack_events.return_value': [stack_evt_mock]}
+
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        cf_connect_result.configure_mock(**mock_config)
+
+        boto.cloudformation.connect_to_region = cf_mock
+
+        with self.assertRaises(errors.CfnTimeoutError):
+            print cloudformation.Cloudformation(
+                self.aws_config).wait_for_stack_done(self.stack_name, 1, 1)
+        
+    def test_wait_for_stack_done(self):
+        stack_evt_mock = mock.Mock()
+        rt = mock.PropertyMock(return_value='AWS::CloudFormation::Stack')
+        rs = mock.PropertyMock(return_value='CREATE_COMPLETE')
+        type(stack_evt_mock).resource_type = rt
+        type(stack_evt_mock).resource_status = rs
+        mock_config = {'describe_stack_events.return_value': [stack_evt_mock]}
+
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        cf_connect_result.configure_mock(**mock_config)
+
+        boto.cloudformation.connect_to_region = cf_mock
+
+        self.assertTrue(cloudformation.Cloudformation(
+            self.aws_config).wait_for_stack_done(self.stack_name, 1, 1))
 
     def test_stack_done(self):
         stack_evt_mock = mock.Mock()
