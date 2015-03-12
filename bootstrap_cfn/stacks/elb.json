@@ -3,8 +3,8 @@
         "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
         "Properties" : {
             "LoadBalancerName": "",
-            "AvailabilityZones" : { "Fn::GetAZs" : "" },
             "Scheme" : "internet-facing",
+            "Subnets": [{ "Ref" : "SubnetA" }, { "Ref" : "SubnetB" }, { "Ref" : "SubnetC" }],
             "Listeners" : [
             ]
         }

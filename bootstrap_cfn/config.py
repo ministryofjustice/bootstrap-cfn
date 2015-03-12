@@ -74,6 +74,7 @@ class ConfigParser:
         self.data = data
 
     def process(self):
+        vpc = self.vpc()
         iam = self.iam()
         ec2 = self.ec2()
         rds = {}
@@ -98,6 +99,7 @@ class ConfigParser:
 
         # LOAD BASE TEMPLATE AND INSERT AWS SERVICES
         data = iam
+        data.update(vpc)
         data.update(ec2)
         data.update(rds)
         data.update(s3)
@@ -108,6 +110,10 @@ class ConfigParser:
         template['Resources'] = data
         return json.dumps(
             template, sort_keys=True, indent=4, separators=(',', ': '))
+
+    def vpc(self):
+        # LOAD STACK TEMPLATE
+        return json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/vpc.json'))
 
     def iam(self):
         # LOAD STACK TEMPLATE

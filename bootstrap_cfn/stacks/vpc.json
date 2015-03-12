@@ -1,5 +1,4 @@
 {
-
   "VPC" : {
      "Type" : "AWS::EC2::VPC",
      "Properties" : {
@@ -110,53 +109,5 @@
       "SubnetId" : { "Ref" : "SubnetC" },
       "RouteTableId" : { "Ref" : "PublicRouteTable" }
     }
-  },
-
-  "BaseHostSG": {
-    "Type": "AWS::EC2::SecurityGroup",
-    "Properties": {
-        "VpcId" : { "Ref" : "VPC" },
-        "GroupDescription": "BaseHost Security Group",
-        "SecurityGroupIngress": []
-    }
-  },
-  "BaseHostLaunchConfig": {
-      "Type": "AWS::AutoScaling::LaunchConfiguration",
-      "Properties": {
-          "KeyName": "default",
-          "SecurityGroups": [ { "Ref": "BaseHostSG" } ],
-          "InstanceType": { "Ref": "InstanceType" },
-          "AssociatePublicIpAddress" : "true",
-          "IamInstanceProfile": { "Ref": "InstanceProfile" },
-          "ImageId": { "Fn::FindInMap": [ "AWSRegion2AMI", { "Ref": "AWS::Region" }, "AMI" ] },
-          "BlockDeviceMappings" : [],
-          "UserData": {
-              "Fn::Base64" : {
-                  "Fn::Join" : [
-                      "",
-                      [
-                        "#!/bin/bash -xe\n",
-                        "#do nothing for now"
-                      ]
-                  ]
-              }
-          }
-      }
-  },
-  "ScalingGroup": {
-      "Type": "AWS::AutoScaling::AutoScalingGroup",
-      "Properties": {
-          "VPCZoneIdentifier" : [{ "Ref" : "SubnetA" }, { "Ref" : "SubnetB" }, { "Ref" : "SubnetC" }],
-          "MinSize": { "Ref": "MinNumInstances"},
-          "MaxSize": { "Ref": "MaxNumInstances"},
-          "DesiredCapacity": { "Ref": "DesiredNumInstances"},
-          "AvailabilityZones": { "Fn::GetAZs": "" },
-          "Tags": [
-              { "Key": "Name", "Value": { "Ref": "TagName" }, "PropagateAtLaunch": true },
-              { "Key": "Env", "Value": { "Ref": "TagEnv" }, "PropagateAtLaunch": true },
-              { "Key": "App", "Value": { "Ref": "TagApp" }, "PropagateAtLaunch": true }
-          ],
-          "LaunchConfigurationName": { "Ref": "BaseHostLaunchConfig" }
-      }
   }
 }

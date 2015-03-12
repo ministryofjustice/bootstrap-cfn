@@ -1,14 +1,25 @@
 {
-  "StackDBSecurityGroup": {
-    "Type" : "AWS::RDS::DBSecurityGroup",
+  "RDSSubnetGroup" : {
+    "Type" : "AWS::RDS::DBSubnetGroup",
     "Properties" : {
-       "GroupDescription" : "Ingress for CIDRIP",
-       "DBSecurityGroupIngress" : {
-           "CIDRIP" : "172.31.0.0/16"
-       }
+      "DBSubnetGroupDescription" : "VPC Subnets",
+      "SubnetIds" : [{ "Ref" : "SubnetA" }, { "Ref" : "SubnetB" }, { "Ref" : "SubnetC" }]
+    }
+  },
+  "DBSecurityGroup": {
+    "Type": "AWS::RDS::DBSecurityGroup",
+    "Properties": {
+      "GroupDescription": "EC2 Access",
+      "EC2VpcId" : { "Ref" : "VPC" },
+      "DBSecurityGroupIngress": [
+        {
+          "CIDRIP": { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]}
+        }
+      ]
     }
   },
   "RDSInstance": {
+    "DependsOn" : "DBSecurityGroup",
     "Type": "AWS::RDS::DBInstance",
     "Properties": {
       "DBInstanceIdentifier": "",
@@ -21,7 +32,8 @@
       "Engine": "",
       "EngineVersion": "",
       "MultiAZ": "",
-      "DBSecurityGroups" : [ {"Ref" : "StackDBSecurityGroup"} ],
+      "DBSubnetGroupName": {"Ref" : "RDSSubnetGroup"},
+      "DBSecurityGroups": [{"Ref" : "DBSecurityGroup"}],
       "PubliclyAccessible": false,
       "AllowMajorVersionUpgrade": false,
       "AutoMinorVersionUpgrade": false
