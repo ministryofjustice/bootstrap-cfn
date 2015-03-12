@@ -113,16 +113,8 @@ def cfn_delete(force=False):
 
     # Wait for stacks to delete
     print 'Waiting for stack to delete.'
-    attempts = 0
-    while True:
-        if cfn.stack_missing(stack_name):
-           print "Stack successfully deleted"
-           break
-        if attempts >= TIMEOUT / RETRY_INTERVAL:
-            print '[ERROR] Stack deletion timed out'
-            sys.exit(1)
-        attempts += 1
-        time.sleep(RETRY_INTERVAL)
+    cfn.wait_for_stack_missing(stack_name)
+    print "Stack successfully deleted"
     if 'ssl' in cfn_config.data:
         iam = IAM(aws_config)
         iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
@@ -148,16 +140,7 @@ def cfn_create():
 
     # Wait for stacks to complete
     print 'Waiting for stack to complete.'
-    attempts = 0
-    while True:
-        if cfn.stack_done(stack):
-            break
-        if attempts >= TIMEOUT / RETRY_INTERVAL:
-            print '[ERROR] Stack creation timed out'
-            sys.exit(1)
-        attempts += 1
-        time.sleep(RETRY_INTERVAL)
-
+    cfn.wait_for_stack_done(stack)
     print 'Stacks completed, checking results.'
     stack_evt = cfn.get_last_stack_event(stack)
     print '{0}: {1}'.format(stack_evt.stack_name, stack_evt.resource_status)

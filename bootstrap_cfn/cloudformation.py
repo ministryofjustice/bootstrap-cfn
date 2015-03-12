@@ -2,6 +2,7 @@ import sys
 import boto.cloudformation
 import boto.ec2
 from boto.ec2 import autoscale
+from bootstrap_cfn import utils
 
 
 class Cloudformation:
@@ -37,6 +38,9 @@ class Cloudformation:
             return True
         return False
 
+    def wait_for_stack_done(self, stack_id, timeout=3600, interval=30):
+        return utils.timeout(timeout, interval)(self.stack_done)(stack_id)
+
     def get_last_stack_event(self, stack_id):
         return self.conn_cfn.describe_stack_events(stack_id)[0]
 
@@ -68,3 +72,6 @@ class Cloudformation:
         ''' Returns True if stack not found'''
         stacks = self.conn_cfn.describe_stacks()
         return stack_name not in [s.stack_name for s in stacks]
+
+    def wait_for_stack_missing(self, stack_id, timeout=3600, interval=30):
+        return utils.timeout(timeout, interval)(self.stack_missing)(stack_id)
