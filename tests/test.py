@@ -4,12 +4,15 @@ import mock
 import yaml
 import boto.cloudformation
 import boto.ec2.autoscale
+import paramiko
 from bootstrap_cfn import cloudformation
 from bootstrap_cfn import ec2
 from bootstrap_cfn import iam
+from bootstrap_cfn import ssh
 from bootstrap_cfn import errors
+from paramiko.ssh_exception import AuthenticationException, BadHostKeyException
 import os
-
+import socket
 
 class CfnTestCase(unittest.TestCase):
 
@@ -77,6 +80,7 @@ class CfnTestCase(unittest.TestCase):
         self.stack_name = '{0}-{1}'.format(self.env.application,
                                            self.env.environment)
         self.cf = cloudformation.Cloudformation(self.aws_config)
+        self.real_is_ssh_up = ssh.is_ssh_up
 
     def test_cf_create(self):
         cf_mock = mock.Mock()
@@ -302,9 +306,140 @@ class CfnTestCase(unittest.TestCase):
         ips = ec.get_instance_public_ips(['i-12345'])
         self.assertEqual(ips, ['1.1.1.1'])
 
-    def tearDown(self):
-        pass
+    def test_is_ssh_up_on_all_instances(self):
+        scaling_group = mock.Mock()
+        rt = mock.PropertyMock(
+            return_value='AWS::AutoScaling::AutoScalingGroup')
+        sgi = mock.PropertyMock(
+            return_value='some-resource-id')
+        type(scaling_group).resource_type = rt
+        type(scaling_group).physical_resource_id = sgi
 
+        stack_mock = mock.Mock()
+        mock_config = {'list_resources.return_value': [scaling_group]}
+        stack_mock.configure_mock(**mock_config)
+
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        mock_config = {'describe_stacks.return_value': [stack_mock]}
+        cf_connect_result.configure_mock(**mock_config)
+        boto.cloudformation.connect_to_region = cf_mock
+
+        instance_mock1 = mock.Mock()
+        ip_address = mock.PropertyMock(return_value='1.1.1.1')
+        instance_id = mock.PropertyMock(return_value='i-12345')
+        type(instance_mock1).instance_id = instance_id
+        type(instance_mock1).ip_address = ip_address
+        instance_mock2 = mock.Mock()
+        ip_address = mock.PropertyMock(return_value='2.2.2.2')
+        instance_id = mock.PropertyMock(return_value='i-11111')
+        type(instance_mock2).instance_id = instance_id
+        type(instance_mock2).ip_address = ip_address
+
+        scaling_group_mock = mock.Mock()
+        instances = mock.PropertyMock(return_value=[instance_mock1, instance_mock2])
+        type(scaling_group_mock).instances = instances
+
+        as_mock = mock.Mock()
+        as_connect_result = mock.Mock(name='as_connect')
+        as_mock.return_value = as_connect_result
+        mock_config = {'get_all_groups.return_value': [scaling_group_mock]}
+        as_connect_result.configure_mock(**mock_config)
+        boto.ec2.autoscale.connect_to_region = as_mock
+
+        ec2_mock = mock.Mock()
+        ec2_connect_result = mock.Mock(name='cf_connect')
+        ec2_mock.return_value = ec2_connect_result
+        mock_config = {'get_only_instances.return_value': [instance_mock1, instance_mock2]}
+        ec2_connect_result.configure_mock(**mock_config)
+        boto.ec2.connect_to_region = ec2_mock
+
+        ssh_mock = mock.Mock()
+        ssh_mock.side_effect = [True,True]
+        ssh.is_ssh_up = ssh_mock
+
+        ec = ec2.EC2(self.aws_config)
+        x = ec.is_ssh_up_on_all_instances(self.stack_name)
+        self.assertTrue(x)
+
+    def test_is_ssh_not_up_on_all_instances(self):
+        scaling_group = mock.Mock()
+        rt = mock.PropertyMock(
+            return_value='AWS::AutoScaling::AutoScalingGroup')
+        sgi = mock.PropertyMock(
+            return_value='some-resource-id')
+        type(scaling_group).resource_type = rt
+        type(scaling_group).physical_resource_id = sgi
+
+        stack_mock = mock.Mock()
+        mock_config = {'list_resources.return_value': [scaling_group]}
+        stack_mock.configure_mock(**mock_config)
+
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        mock_config = {'describe_stacks.return_value': [stack_mock]}
+        cf_connect_result.configure_mock(**mock_config)
+        boto.cloudformation.connect_to_region = cf_mock
+
+        instance_mock1 = mock.Mock()
+        ip_address = mock.PropertyMock(return_value='1.1.1.1')
+        instance_id = mock.PropertyMock(return_value='i-12345')
+        type(instance_mock1).instance_id = instance_id
+        type(instance_mock1).ip_address = ip_address
+        instance_mock2 = mock.Mock()
+        ip_address = mock.PropertyMock(return_value='2.2.2.2')
+        instance_id = mock.PropertyMock(return_value='i-11111')
+        type(instance_mock2).instance_id = instance_id
+        type(instance_mock2).ip_address = ip_address
+
+        scaling_group_mock = mock.Mock()
+        instances = mock.PropertyMock(return_value=[instance_mock1, instance_mock2])
+        type(scaling_group_mock).instances = instances
+
+        as_mock = mock.Mock()
+        as_connect_result = mock.Mock(name='as_connect')
+        as_mock.return_value = as_connect_result
+        mock_config = {'get_all_groups.return_value': [scaling_group_mock]}
+        as_connect_result.configure_mock(**mock_config)
+        boto.ec2.autoscale.connect_to_region = as_mock
+
+        ec2_mock = mock.Mock()
+        ec2_connect_result = mock.Mock(name='cf_connect')
+        ec2_mock.return_value = ec2_connect_result
+        mock_config = {'get_only_instances.return_value': [instance_mock1, instance_mock2]}
+        ec2_connect_result.configure_mock(**mock_config)
+        boto.ec2.connect_to_region = ec2_mock
+
+        ssh_mock = mock.Mock()
+        ssh_mock.side_effect = [True,False]
+        ssh.is_ssh_up = ssh_mock
+
+        ec = ec2.EC2(self.aws_config)
+        x = ec.is_ssh_up_on_all_instances(self.stack_name)
+        self.assertFalse(x)
+
+    def test_is_ssh_up(self):
+        mock_p = mock.Mock()
+        mock_client = mock.Mock()
+        mock_config = {'connect.side_effect':AuthenticationException}
+        mock_client.configure_mock(**mock_config)
+        mock_p.return_value = mock_client 
+        paramiko.SSHClient = mock_p
+        self.assertTrue(ssh.is_ssh_up('1.1.1.1'))
+
+    def test_is_ssh_not_up(self):
+        mock_p = mock.Mock()
+        mock_client = mock.Mock()
+        mock_config = {'connect.side_effect':socket.error}
+        mock_client.configure_mock(**mock_config)
+        mock_p.return_value = mock_client 
+        paramiko.SSHClient = mock_p
+        self.assertFalse(ssh.is_ssh_up('1.1.1.1'))
+
+    def tearDown(self):
+        ssh.is_ssh_up = self.real_is_ssh_up
 
 if __name__ == '__main__':
     unittest.main()

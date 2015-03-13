@@ -212,8 +212,8 @@ def install_minions():
     stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
-    stack_name = get_stack_name()
-
+    print "Waiting for SSH on all instances..."
+    ec2.wait_for_ssh(stack_name)
     candidates = get_candidate_minions()
     existing_minions = ec2.get_minions(stack_name)
     to_install = list(set(candidates).difference(set(existing_minions)))
@@ -244,9 +244,9 @@ def install_master():
     stack_name = get_stack_name()
     aws_config, cfn, cfn_config = get_config()
     ec2 = EC2(aws_config)
-    stack_name = get_stack_name()
+    print "Waiting for SSH on all instances..."
+    ec2.wait_for_ssh(stack_name)
     instance_ids = cfn.get_stack_instance_ids(stack_name)
-    stack_name = get_stack_name()
     master_inst = ec2.get_master_instance(stack_name)
     master = master_inst.id if master_inst else random.choice(instance_ids)
     master_prv_ip = ec2.get_instance_private_ips([master])[0]
