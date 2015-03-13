@@ -50,6 +50,10 @@ If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabr
 - **environment:dev** - The ``dev`` section will be read from the projects YAML file (line 1 in the example below)
 - **config:/path/to/file.yaml** - The location to the project YAML file
 
+If you also want to bootstrap the salt master and minions, you can do this::
+
+    fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create install_master install_minions
+
 Example Configuration
 ======================
 AWS Account Configuration
