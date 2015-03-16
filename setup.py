@@ -25,27 +25,9 @@ Links
 """
 from setuptools import setup, find_packages
 
-import shutil, os
-
-src = 'fabfile.py'
-dest = 'bootstrap_cfn/fabfile.py'
-
-
-def copy_file(src, dest):
-    try:
-        shutil.copy(src, dest)
-
-    except shutil.Error as e:
-        print('Error: %s' % e)
-
-    except IOError as e:
-        print('Error: %s' % e.strerror)
-
-copy_file(src, dest)
-
 setup(
     name='bootstrap_cfn',
-    version='0.1.2',
+    version='0.1.3',
     url='http://github.com/ministryofjustice/bootstrap_cfn/',
     license='LICENSE',
     author='MOJDS',
@@ -77,8 +59,3 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules'
     ],
 )
-
-try:
-    os.remove(dest)
-except OSError:
-    pass
