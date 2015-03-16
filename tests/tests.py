@@ -423,9 +423,7 @@ class TestConfigParser(unittest.TestCase):
                  'BaseHostLaunchConfig': {'Type': 'AWS::AutoScaling::LaunchConfiguration',
                                           'Properties': {'UserData': {'Fn::Base64': {'Fn::Join': ['',
                                                                                                   ['#!/bin/bash -xe\n',
-                                                                                                   'wget https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/scripts/bootstrap-salt.sh -O /tmp/moj-bootstrap.sh\n',
-                                                                                                   'chmod 755 /tmp/moj-bootstrap.sh\n',
-                                                                                                   '/tmp/moj-bootstrap.sh ']]}},
+                                                                                                   '#do nothing for now']]}},
                                                          'ImageId': {'Fn::FindInMap': ['AWSRegion2AMI',
                                                                                        {
                                                                                            'Ref': 'AWS::Region'},
