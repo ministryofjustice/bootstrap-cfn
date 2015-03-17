@@ -149,8 +149,9 @@ def cfn_create():
     else:
         print 'Failed to create stack: {0}'.format(stack)
         #So delete the SSL cert that we uploaded
-        iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
-
+        if 'ssl' in cfn_config.data:
+            iam = IAM(aws_config)
+            iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
 
 def get_stack_instances_ips(stack_name):
     if env.aws is None:
