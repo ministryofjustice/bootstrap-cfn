@@ -5,6 +5,7 @@
  * Rename fabfile to fab_tasks to make it easier to import in other projects.
  * Move bootstrap script execution to fabric tasks.
  * Fix bug in wait_for_ssh when no instances are running.
+ * Add conditional statement in fabfile to check for ssl cert on roll back before trying to delete it.
 
 ## Version 0.1
 
