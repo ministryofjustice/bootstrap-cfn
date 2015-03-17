@@ -73,7 +73,14 @@ class EC2:
         return instances
 
     def is_ssh_up_on_all_instances(self, stack_id):
+        '''
+        Returns False if no instances found
+        Returns False if any instance is not available over SSH
+        Returns True if all found instances available over SSH
+        '''
         instances = self.get_instance_public_ips(self.cfn.get_stack_instance_ids(stack_id))
+        if not instances:
+            return False
         if all([ssh.is_ssh_up(i) for i in instances]):
             return True
         return False

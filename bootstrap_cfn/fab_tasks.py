@@ -228,7 +228,9 @@ def install_minions():
     ec2.set_instance_tags(to_install, {'SaltMasterPrvIP': master_prv_ip})
     for inst_ip in public_ips:
         env.host_string = 'ubuntu@%s' % inst_ip
-        sudo('/usr/local/bin/ec2_tags.py')
+        sudo('wget https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/scripts/bootstrap-salt.sh -O /tmp/moj-bootstrap.sh')
+        sudo('chmod 755 /tmp/moj-bootstrap.sh')
+        sudo('/tmp/moj-bootstrap.sh')
         sudo(
             'wget https://raw.githubusercontent.com/saltstack/salt-bootstrap/%s/bootstrap-salt.sh -O /tmp/bootstrap-salt.sh' %
             sha)
@@ -260,11 +262,13 @@ def install_master():
     stack_public_ips.remove(master_public_ip)
     env.host_string = 'ubuntu@%s' % master_public_ip
     sha = '6080a18e6c7c2d49335978fa69fa63645b45bc2a'
+    sudo('wget https://raw.githubusercontent.com/ministryofjustice/bootstrap-cfn/master/scripts/bootstrap-salt.sh -O /tmp/moj-bootstrap.sh')
+    sudo('chmod 755 /tmp/moj-bootstrap.sh')
+    sudo('/tmp/moj-bootstrap.sh')
     sudo(
         'wget https://raw.githubusercontent.com/saltstack/salt-bootstrap/%s/bootstrap-salt.sh -O /tmp/bootstrap-salt.sh' %
         sha)
     sudo('chmod 755 /tmp/bootstrap-salt.sh')
-    sudo('/usr/local/bin/ec2_tags.py')
     sudo(
         '/tmp/bootstrap-salt.sh -M -A `cat /etc/tags/SaltMasterPrvIP` git v2014.1.4')
     sudo('salt-key -y -A')
