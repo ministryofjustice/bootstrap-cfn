@@ -47,3 +47,23 @@ def check_state_result(result):
         return True
     else:
         raise errors.SaltStateError('State did not execute successfully')
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description='Run salt states')
+    parser.add_argument('-t', dest='target', type=str,
+                       help='target', required=True)
+    parser.add_argument('-s', dest='state', type=str,
+                       help='Name of state or "highstate"', required=True)
+    parser.add_argument('-T', dest='timeout', type=float,
+                       help='Timeout to wait for state execution to finish'\
+                            'on all minions.', required=False, default = 1800)
+    parser.add_argument('-I', dest='interval', type=float,
+                       help='Interval to check for finished execution.',
+                       required=False, default=10)
+                            
+    args = parser.parse_args()
+    if args.state == "highstate":
+        highstate(args.target, args.timeout, args.interval)
+    else:
+        state(args.target, args.state, args.timeout, args.interval)
