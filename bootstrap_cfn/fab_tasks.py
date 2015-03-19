@@ -241,7 +241,6 @@ def install_minions():
         env.host_string = 'ubuntu@%s' % master_public_ip
         sudo('salt-key -y -A')
 
-
 @task
 def install_master():
     stack_name = get_stack_name()

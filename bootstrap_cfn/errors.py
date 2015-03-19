@@ -7,3 +7,9 @@ class CfnConfigError(BootstrapCfnError):
 
 class CfnTimeoutError(BootstrapCfnError):
     pass
+
+class SaltStateError(BootstrapCfnError):
+    pass
+
+class SaltParserError(BootstrapCfnError):
+    pass
