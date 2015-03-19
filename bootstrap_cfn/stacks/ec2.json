@@ -1,7 +1,9 @@
 {
+
   "BaseHostSG": {
     "Type": "AWS::EC2::SecurityGroup",
     "Properties": {
+        "VpcId" : { "Ref" : "VPC" },
         "GroupDescription": "BaseHost Security Group",
         "SecurityGroupIngress": []
     }
@@ -12,6 +14,7 @@
           "KeyName": "default",
           "SecurityGroups": [ { "Ref": "BaseHostSG" } ],
           "InstanceType": { "Ref": "InstanceType" },
+          "AssociatePublicIpAddress" : "true",
           "IamInstanceProfile": { "Ref": "InstanceProfile" },
           "ImageId": { "Fn::FindInMap": [ "AWSRegion2AMI", { "Ref": "AWS::Region" }, "AMI" ] },
           "BlockDeviceMappings" : [],
@@ -31,6 +34,7 @@
   "ScalingGroup": {
       "Type": "AWS::AutoScaling::AutoScalingGroup",
       "Properties": {
+          "VPCZoneIdentifier" : [{ "Ref" : "SubnetA" }, { "Ref" : "SubnetB" }, { "Ref" : "SubnetC" }],
           "MinSize": { "Ref": "MinNumInstances"},
           "MaxSize": { "Ref": "MaxNumInstances"},
           "DesiredCapacity": { "Ref": "DesiredNumInstances"},
