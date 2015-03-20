@@ -88,6 +88,9 @@ def _validate_fabric_env():
     if not hasattr(env, 'stack_passwords'):
         env.stack_passwords = {}
 
+    if not hasattr(env, 'aws_region'):
+        env.aws_region = 'eu-west-1'
+
 
 def get_config():
     _validate_fabric_env()
@@ -101,7 +104,7 @@ def get_config():
 
 def get_connection(klass):
     _validate_fabric_env()
-    return klass(env.aws)
+    return klass(env.aws, env.aws_region)
 
 @task
 def cfn_delete(force=False):
