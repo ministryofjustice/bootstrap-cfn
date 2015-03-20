@@ -1,0 +1,10 @@
+{
+  "dbhost": {
+    "Description": "RDS Hostname",
+    "Value": {"Fn::GetAtt" : [ "RDSInstance" , "Endpoint.Address" ]}
+  },
+  "dbport": {
+    "Description": "RDS Port",
+    "Value": {"Fn::GetAtt" : [ "RDSInstance" , "Endpoint.Port" ]}
+  }
+}

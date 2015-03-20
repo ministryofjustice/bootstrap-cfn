@@ -80,9 +80,11 @@ class ConfigParser:
         rds = {}
         s3 = {}
         elb = {}
+        output_templates = []
 
         if 'rds' in self.data:
             rds = self.rds()
+            output_templates.append('stacks/rds_out.json')
         if 's3' in self.data:
             s3 = self.s3()
         if 'elb' in self.data:
@@ -108,6 +110,9 @@ class ConfigParser:
 
         template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/base.json'))
         template['Resources'] = data
+        template['Outputs'] = {}
+        for t in output_templates:
+            template['Outputs'].update(json.loads(pkgutil.get_data('bootstrap_cfn', t)))
         return json.dumps(
             template, sort_keys=True, indent=4, separators=(',', ': '))
 
