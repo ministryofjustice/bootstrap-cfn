@@ -2,6 +2,8 @@ import boto.iam
 from boto.exception import NoAuthHandlerFound
 from boto.provider import ProfileNotFoundError
 
+from bootstrap_cfn import utils
+
 class IAM:
 
     conn_cfn = None
@@ -12,19 +14,7 @@ class IAM:
         self.aws_profile_name = aws_profile_name
         self.aws_region_name = aws_region_name
 
-        try:
-            self.conn_iam = boto.iam.connect_to_region(
-                region_name=self.aws_region_name,
-                profile_name=self.aws_profile_name
-            )
-        except NoAuthHandlerFound:
-            print "[ERROR] No AWS credentials"
-            print "Create an ~/.aws/credentials file by following this layout:\n\n" + \
-                "  http://boto.readthedocs.org/en/latest/boto_config_tut.html#credentials"
-            sys.exit(1)
-        except ProfileNotFoundError, e:
-            print e
-            sys.exit(1)
+        self.conn_iam = utils.connect_to_aws(boto.iam, self)
 
     def upload_ssl_certificate(self, ssl_config, stack_name):
         for cert_name, ssl_data in ssl_config.items():

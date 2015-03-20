@@ -15,19 +15,7 @@ class Cloudformation:
     def __init__(self, aws_profile_name, aws_region_name='eu-west-1'):
         self.aws_profile_name = aws_profile_name
         self.aws_region_name = aws_region_name
-        try:
-            self.conn_cfn = boto.cloudformation.connect_to_region(
-                self.aws_region_name,
-                profile_name=self.aws_profile_name
-            )
-        except NoAuthHandlerFound:
-            print "[ERROR] No AWS credentials"
-            print "Create an ~/.aws/credentials file by following this layout:\n\n" + \
-                "  http://boto.readthedocs.org/en/latest/boto_config_tut.html#credentials"
-            sys.exit(1)
-        except ProfileNotFoundError, e:
-            print e
-            sys.exit(1)
+        self.conn_cfn = utils.connect_to_aws(boto.cloudformation, self)
 
     def create(self, stack_name, template_body):
         stack = self.conn_cfn.create_stack(stack_name=stack_name,
@@ -66,10 +54,7 @@ class Cloudformation:
             return []
         scaling_group_id = scaling_group[0].physical_resource_id
 
-        asc = autoscale.connect_to_region(
-            self.aws_region_name,
-            profile_name=self.aws_profile_name
-        )
+        asc = utils.connect_to_aws(autoscale, self)
 
         # get the instance IDs for all instances in the scaling group
         instances = asc.get_all_groups(names=[scaling_group_id])[0].instances

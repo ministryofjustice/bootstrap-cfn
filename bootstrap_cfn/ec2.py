@@ -16,19 +16,8 @@ class EC2:
     def __init__(self, aws_profile_name, aws_region_name='eu-west-1'):
         self.aws_profile_name = aws_profile_name
         self.aws_region_name = aws_region_name
-        try:
-            self.conn_ec2 = boto.ec2.connect_to_region(
-                self.aws_region_name,
-                profile_name=self.aws_profile_name
-            )
-        except NoAuthHandlerFound:
-            print "[ERROR] No AWS credentials"
-            print "Create an ~/.aws/credentials file by following this layout:\n\n" + \
-                "  http://boto.readthedocs.org/en/latest/boto_config_tut.html#credentials"
-            sys.exit(1)
-        except ProfileNotFoundError, e:
-            print e
-            sys.exit(1)
+
+        self.conn_ec2 = utils.connect_to_aws(boto.ec2, self)
 
         self.cfn = cloudformation.Cloudformation(
             aws_profile_name=aws_profile_name,
