@@ -259,8 +259,13 @@ class ConfigParser:
         template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/ec2.json'))
 
         # SET SECURITY GROUPS, DEFAULT KEY AND INSTANCE TYPE
-        template['BaseHostSG']['Properties'][
-            'SecurityGroupIngress'] = self.data['ec2']['security_groups']
+        sg_t = template.pop('BaseHostSG')
+        for sg_name, sg in self.data['ec2']['security_groups'].items():
+            new_sg = deepcopy(sg_t)
+            new_sg['Properties']['SecurityGroupIngress'] = sg
+            template[sg_name] = new_sg
+
+        template['BaseHostLaunchConfig']['Properties']['SecurityGroups'] = [{'Ref': k} for k in self.data['ec2']['security_groups'].keys()]
         template['BaseHostLaunchConfig']['Properties'][
             'KeyName'] = self.data['ec2']['parameters']['KeyName']
         template['BaseHostLaunchConfig']['Properties'][
