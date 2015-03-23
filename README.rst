@@ -1,6 +1,9 @@
 .. image:: https://travis-ci.org/ministryofjustice/bootstrap-cfn.svg
     :target: https://travis-ci.org/ministryofjustice/bootstrap-cfn
 
+.. image:: https://coveralls.io/repos/ministryofjustice/bootstrap-cfn/badge.svg?branch=master
+    :target: https://coveralls.io/r/ministryofjustice/bootstrap-cfn?branch=master
+
 Ministry of Justice - Cloudformation
 =====================================
 
