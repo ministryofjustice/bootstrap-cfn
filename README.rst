@@ -101,14 +101,15 @@ The YAML file below highlights what is possible with all the bootstrap-cfn featu
           - DeviceName: /dev/sdf
             VolumeSize: 10
         security_groups:
-          - IpProtocol: tcp
-            FromPort: 22
-            ToPort: 22
-            CidrIp: 0.0.0.0/0
-          - IpProtocol: tcp
-            FromPort: 80
-            ToPort: 80
-            CidrIp: 0.0.0.0/0
+          MySecGroup:
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+              CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              CidrIp: 0.0.0.0/0
       elb:
         - name: test-dev-external
           hosted_zone: my.domain.com.

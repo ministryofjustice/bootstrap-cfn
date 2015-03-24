@@ -248,23 +248,6 @@ def install_master():
         '/tmp/bootstrap-salt.sh -M -A `cat /etc/tags/SaltMasterPrvIP` git v2014.1.4')
     sudo('salt-key -y -A')
 
-    master_instance = ec2.get_instance_by_id(master)
-    sg_name = '{0}-salt_sg'.format(stack_name)
-    try:
-        salt_sg = ec2.get_sg(sg_name)
-    except Exception:
-        salt_sg = ec2.create_sg(sg_name)
-    existing_hosts = [x.cidr_ip for rule in salt_sg.rules for x in rule.grants]
-    print existing_hosts
-    for prv_ip in stack_ips:
-        print '\t %s/32' % prv_ip, '{0}/32'.format(prv_ip) not in existing_hosts
-        if '{0}/32'.format(prv_ip) not in existing_hosts:
-            ec2.add_minion_to_sg(salt_sg, prv_ip)
-    groups = master_instance.get_attribute('groupSet').get('groupSet')
-    groups.append(salt_sg)
-    master_instance.modify_attribute('groupSet', [x.id for x in groups])
-
-
 @task
 def rsync():
     if env.config is None:

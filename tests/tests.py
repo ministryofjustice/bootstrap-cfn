@@ -3,6 +3,7 @@
 import unittest
 from bootstrap_cfn.config import ProjectConfig, AWSConfig, ConfigParser
 import bootstrap_cfn.errors as errors
+from testfixtures import compare
 
 
 class TestConfig(unittest.TestCase):
@@ -431,7 +432,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                    'AMI']},
                                                    'InstanceType': 't2.micro',
                                                    'KeyName': 'default',
-                                                   'SecurityGroups': [{'Ref': 'BaseHostSG'}],
+                                                   'SecurityGroups': [{'Ref':'BaseHostSG'},{'Ref':'AnotherSG'}],
                                                    'UserData': {'Fn::Base64': {'Fn::Join': ['',
                                                                                                ['#!/bin/bash -xe\n',
                                                                                                 '#do nothing for now']]}}},
@@ -445,6 +446,13 @@ class TestConfigParser(unittest.TestCase):
                                                                     'FromPort': 80,
                                                                     'IpProtocol': 'tcp',
                                                                     'ToPort': 80}],
+                                         'VpcId': {'Ref': 'VPC'}},
+                         'Type': 'AWS::EC2::SecurityGroup'},
+         'AnotherSG': {'Properties': {'GroupDescription': 'BaseHost Security Group',
+                                         'SecurityGroupIngress': [{ 'SourceSecurityGroupName': {'Ref':'BaseHostSG'},
+                                                                    'FromPort': 443,
+                                                                    'IpProtocol': 'tcp',
+                                                                    'ToPort': 443}],
                                          'VpcId': {'Ref': 'VPC'}},
                          'Type': 'AWS::EC2::SecurityGroup'},
          'ScalingGroup': {'Properties': {'AvailabilityZones': {'Fn::GetAZs': ''},
@@ -471,7 +479,7 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'tests/sample-project.yaml',
                 'dev').config, 'my-stack-name')
-        self.assertEquals(known, config.ec2())
+        compare(known, config.ec2())
 
 
 if __name__ == '__main__':
