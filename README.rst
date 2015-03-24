@@ -57,6 +57,7 @@ If you also want to bootstrap the salt master and minions, you can do this::
 
     fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create install_master install_minions
 
+
 Example Configuration
 ======================
 AWS Account Configuration
@@ -156,6 +157,21 @@ The YAML file below highlights what is possible with all the bootstrap-cfn featu
             -----END CERTIFICATE-----
 
 
+Salt specific configuration
+++++++++++++++++++++++++++++
+
+In order to rsync your salt states to the salt master you need to add a `salt` section to the top level of your project's YAML file. The following parameters specify the rsync sources and targets:
+
+- **local_salt_dir**: Directory containing all the files you want to have in your salt root (for example top.sls or project specific states). 
+    **Default value**: ./salt
+- **local_pillar_dir**: Directory containing all the files you want to have in your pillar root. 
+    **Default value**: ./pillar
+- **local_vendor_dir**: Directory containing formulas cloned by salt-shaker.
+    **Default value**: ./vendor
+- **remote_state_dir**: Salt root on the master.
+    **Default value**: /srv/salt
+- **remote_pillar_dir**: Pillar root on the master.
+    **Default value**: /srv/pillar
 SSL certs for ELBs
 ++++++++++++++++++++
 
