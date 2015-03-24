@@ -8,6 +8,7 @@
  * Add conditional statement in fabfile to check for ssl cert on roll back before trying to delete it.
  * Refactor fab_tasks get_config method to not return *every* config item. Also PEP8 fixes and removing unused functions.
  * Change security group input to dictionary so we can create multiple groups that reference each other.
+ * Include cloudformation config in salt pillar.
 
 ## Version 0.1
 

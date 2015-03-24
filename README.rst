@@ -173,6 +173,13 @@ In order to rsync your salt states to the salt master you need to add a `salt` s
     **Default value**: /srv/salt
 - **remote_pillar_dir**: Pillar root on the master.
     **Default value**: /srv/pillar
+
+The cloudformation yaml will be automatically uploaded to your pillar as cloudformation.sls. So if you include ``-cloudformation`` in your pillar top file you can do things like:
+
+::
+
+    salt-call pillar.get s3:static-bucket-name
+
 SSL certs for ELBs
 ++++++++++++++++++++
 
