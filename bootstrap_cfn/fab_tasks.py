@@ -85,8 +85,12 @@ def _validate_fabric_env():
         print "\n[ERROR] Please specify a config file, e.g 'config:/tmp/sample-application.yaml'"
         sys.exit(1)
 
-    if not hasattr(env, 'stack_passwords'):
-        env.stack_passwords = {}
+    if hasattr(env, 'stack_passwords') and env.stack_passwords is not None:
+        if not os.path.exists(env.stack_passwords):
+            print >> sys.stderr, "\n[ERROR] Passwords file '{0}' doesn't exist!".format(env.stack_passwords)
+            sys.exit(1)
+    else:
+        env.stack_passwords = None
 
     if not hasattr(env, 'aws_region'):
         env.aws_region = 'eu-west-1'
