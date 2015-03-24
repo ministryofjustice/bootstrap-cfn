@@ -88,8 +88,7 @@ class ConfigParser:
         if 's3' in self.data:
             s3 = self.s3()
         if 'elb' in self.data:
-            elb = self.elb()
-
+            elb, elb_sgs = self.elb()
             # GET LIST OF ELB NAMES AND ADD TO EC2 INSTANCES
             elb_name_list = []
             for i in elb:
@@ -107,6 +106,8 @@ class ConfigParser:
         data.update(s3)
         for i in elb:
             data.update(i)
+        for k,v in elb_sgs.items():
+            data[k] = v
 
         template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/base.json'))
         template['Resources'] = data
@@ -195,9 +196,10 @@ class ConfigParser:
         }
 
         elb_list = []
-
+        elb_sgs = {}
         # COULD HAVE MULTIPLE ELB'S (PUBLIC / PRIVATE etc)
         for elb in self.data['elb']:
+            safe_name = elb['name'].replace('-', '').replace('.', '')
             # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
             for i in required_fields.keys():
                 if i not in elb.keys():
@@ -225,6 +227,17 @@ class ConfigParser:
                     listener.update(ssl_template)
 
 
+            elb_sg = template.pop('DefaultELBSecurityGroup')
+            if 'security_groups' in elb:
+                for sg_name, sg in elb['security_groups'].items():
+                    new_sg = deepcopy(elb_sg)
+                    new_sg['Properties']['SecurityGroupIngress'] = sg
+                    elb_sgs[sg_name + safe_name] = new_sg
+                template['ElasticLoadBalancer']['Properties']['SecurityGroups'] = [{'Ref': k + safe_name} for k in elb['security_groups'].keys()]
+            else:
+                elb_sgs['DefaultSG' + safe_name] = elb_sg
+                template['ElasticLoadBalancer']['Properties']['SecurityGroups'] = [{'Ref': 'DefaultSG' + safe_name }]
+
             # CONFIGURE THE LISTENERS, ELB NAME AND ROUTE53 RECORDS
             template['ElasticLoadBalancer']['Properties'][
                 'Listeners'] = elb['listeners']
@@ -237,10 +250,10 @@ class ConfigParser:
             template['DNSRecord']['Properties']['RecordSets'][0][
                 'Name'] = "%s.%s" % (elb['name'], elb['hosted_zone'])
             target_zone = [
-                'ELB%s' % elb['name'].replace('-', '').replace('.', ''),
+                'ELB%s' % safe_name,
                 'CanonicalHostedZoneNameID']
             target_dns = [
-                'ELB%s' % elb['name'].replace('-', '').replace('.', ''),
+                'ELB%s' % safe_name,
                 'CanonicalHostedZoneName']
             template['DNSRecord']['Properties']['RecordSets'][0][
                 'AliasTarget']['HostedZoneId']['Fn::GetAtt'] = target_zone
@@ -248,11 +261,11 @@ class ConfigParser:
                 'AliasTarget']['DNSName']['Fn::GetAtt'] = target_dns
 
             elb_list.append(
-                {'ELB%s' % elb['name'].replace('-', '').replace('.', ''): template['ElasticLoadBalancer']})
+                {'ELB%s' % safe_name: template['ElasticLoadBalancer']})
             elb_list.append(
-                {'DNS%s' % elb['name'].replace('-', '').replace('.', ''): template['DNSRecord']})
+                {'DNS%s' % safe_name: template['DNSRecord']})
 
-        return elb_list
+        return elb_list, elb_sgs
 
     def ec2(self):
         # LOAD STACK TEMPLATE
