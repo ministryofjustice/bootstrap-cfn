@@ -267,53 +267,35 @@ def install_master():
 
 @task
 def rsync():
-    if env.aws is None:
-        print "\n[ERROR] Please specify an AWS account, e.g 'aws:dev'"
-        sys.exit(1)
-    if env.environment is None:
-        print "\n[ERROR] Please specify an environment, e.g 'environment:dev'"
-        sys.exit(1)
-    if env.application is None:
-        print "\n[ERROR] Please specify an application, e.g 'application:peoplefinder'"
-        sys.exit(1)
     if env.config is None:
         # check if there is a deploy repo in a predefined location
         app_yaml = '../{0}-deploy/{0}.yaml'.format(env.application)
         if os.path.exists(app_yaml):
             env.config = app_yaml
-        else:
-            print "\n[ERROR] Please specify a config file, e.g 'config:/tmp/sample-application.yaml'"
-            sys.exit(1)
+
+    _validate_fabric_env()
 
     work_dir = os.path.join('..', '{0}-deploy'.format(env.application))
 
     project_config = ProjectConfig(env.config, env.environment)
     cfg = project_config.config
+    salt_cfg = cfg.get('salt', {})
 
     local_salt_dir = os.path.join(
         work_dir,
-        cfg.get('salt', {}).get(
-            'local_salt_dir',
-            'salt'),
+        salt_cfg.get('local_salt_dir', 'salt'),
         '.')
     local_pillar_dir = os.path.join(
         work_dir,
-        cfg.get('salt', {}).get(
-            'local_pillar_dir',
-            'pillar'),
+        salt_cfg.get('local_pillar_dir', 'pillar'),
         '.')
     local_vendor_dir = os.path.join(
         work_dir,
-        cfg.get('salt', {}).get(
-            'local_vendor_dir',
-            'vendor'),
+        salt_cfg.get('local_vendor_dir', 'vendor'),
         '.')
 
-    remote_state_dir = cfg.get('salt', {}).get('remote_state_dir', '/srv/salt')
-    remote_pillar_dir = cfg.get('salt', {}).get('remote_pillar_dir', '/srv/pillar')
-
-    # if not os.path.exists(local_state_dir):
-    #    shake(work_dir)
+    remote_state_dir = salt_cfg.get('remote_state_dir', '/srv/salt')
+    remote_pillar_dir = salt_cfg.get('remote_pillar_dir', '/srv/pillar')
 
     master_ip = find_master()
     env.host_string = '{0}@{1}'.format(env.user, master_ip)
@@ -321,16 +303,11 @@ def rsync():
     sudo('mkdir -p {0}'.format(remote_pillar_dir))
     upload_project(
         remote_dir=remote_state_dir,
-        local_dir=os.path.join(
-            local_vendor_dir,
-            '_root',
-            '.'),
+        local_dir=os.path.join(local_vendor_dir, '_root', '.'),
         use_sudo=True)
     upload_project(
         remote_dir='/srv/',
-        local_dir=os.path.join(
-            local_vendor_dir,
-            'formula-repos'),
+        local_dir=os.path.join(local_vendor_dir, 'formula-repos'),
         use_sudo=True)
     upload_project(
         remote_dir=remote_state_dir,
@@ -338,8 +315,5 @@ def rsync():
         use_sudo=True)
     upload_project(
         remote_dir=remote_pillar_dir,
-        local_dir=os.path.join(
-            local_pillar_dir,
-            env.environment,
-            '.'),
+        local_dir=os.path.join(local_pillar_dir, env.environment, '.'),
         use_sudo=True)
