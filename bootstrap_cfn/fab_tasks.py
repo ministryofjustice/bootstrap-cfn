@@ -161,20 +161,6 @@ def cfn_create():
         if 'ssl' in cfn_config.data:
             iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
 
-def get_stack_instances_ips(stack_name):
-    cfn = get_connection(Cloudformation)
-    ec2 = get_connection(EC2)
-    instance_id_list = cfn.get_stack_instance_ids(stack_name)
-    return ec2.get_instance_public_ips(instance_id_list)
-
-
-@task
-def get_stack_addresses():
-    stack_name = get_stack_name()
-    res = get_stack_instances_ips(stack_name)
-    print res
-    return res
-
 
 @task
 def find_master():
@@ -183,12 +169,6 @@ def find_master():
     master = ec2.get_master_instance(stack_name).ip_address
     print 'Salt master public address: {0}'.format(master)
     return master
-
-
-def get_stack_instances_ips(stack_name):
-    stack_name = get_stack_name()
-    ec2 = get_connection(EC2)
-    instance_id_list = cfn.get_stack_instance_ids(stack_name)
 
 
 def get_candidate_minions():
