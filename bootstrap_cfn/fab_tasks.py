@@ -69,7 +69,7 @@ def get_stack_name():
         return env.stack_name
     return "%s-%s" % (env.application, env.environment)
 
-def get_config():
+def _validate_fabric_env():
     if env.aws is None:
         print "\n[ERROR] Please specify an AWS account, e.g 'aws:dev'"
         sys.exit(1)
@@ -85,15 +85,21 @@ def get_config():
 
     if not hasattr(env, 'stack_passwords'):
         env.stack_passwords={}
-    aws_config = AWSConfig(env.aws)
+
+def get_config():
+    _validate_fabric_env()
     project_config = ProjectConfig(
         env.config,
         env.environment,
         passwords=env.stack_passwords)
 
     cfn_config = ConfigParser(project_config.config, get_stack_name())
-    cfn = Cloudformation(aws_config)
-    return aws_config, cfn, cfn_config
+    return cfn_config
+
+def get_connection(klass):
+    _validate_fabric_env()
+    aws_config = AWSConfig(env.aws)
+    return klass(aws_config)
 
 @task
 def cfn_delete(force=False):
@@ -102,7 +108,8 @@ def cfn_delete(force=False):
         if not x in ['y','Y','Yes','yes']:
             sys.exit(1)
     stack_name = get_stack_name()
-    aws_config, cfn, cfn_config = get_config()
+    cfn_config = get_config()
+    cfn = get_connection(Cloudformation)
     cfn.delete(stack_name)
     print "\n\nSTACK {0} DELETING...".format(stack_name)
 
@@ -116,16 +123,18 @@ def cfn_delete(force=False):
     cfn.wait_for_stack_missing(stack_name)
     print "Stack successfully deleted"
     if 'ssl' in cfn_config.data:
-        iam = IAM(aws_config)
+        iam = get_connection(IAM)
         iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
 
 @task
 def cfn_create():
     stack_name = get_stack_name()
-    aws_config, cfn, cfn_config = get_config()
+    cfn_config = get_config()
+
+    cfn = get_connection(Cloudformation)
     #Upload any SSL certs that we may need for the stack.
     if 'ssl' in cfn_config.data:
-        iam = IAM(aws_config)
+        iam = get_connection(IAM)
         iam.upload_ssl_certificate(cfn_config.ssl(), stack_name)
     #Useful for debug
     #print cfn_config.process()
@@ -150,29 +159,17 @@ def cfn_create():
         print 'Failed to create stack: {0}'.format(stack)
         #So delete the SSL cert that we uploaded
         if 'ssl' in cfn_config.data:
-            iam = IAM(aws_config)
             iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
 
 def get_stack_instances_ips(stack_name):
-    if env.aws is None:
-        print "\n[ERROR] Please specify an AWS account, e.g 'aws:dev'"
-        sys.exit(1)
-
-    aws_config = AWSConfig(env.aws)
-    cfn = Cloudformation(aws_config)
-    ec2 = EC2(aws_config)
+    cfn = get_connection(Cloudformation)
+    ec2 = get_connection(EC2)
     instance_id_list = cfn.get_stack_instance_ids(stack_name)
     return ec2.get_instance_public_ips(instance_id_list)
 
 
 @task
 def get_stack_addresses():
-    if env.environment is None:
-        print "\n[ERROR] Please specify an environment, e.g 'environment:dev'"
-        sys.exit(1)
-    if env.application is None:
-        print "\n[ERROR] Please specify an application, e.g 'application:peoplefinder'"
-        sys.exit(1)
     stack_name = get_stack_name()
     res = get_stack_instances_ips(stack_name)
     print res
@@ -182,9 +179,7 @@ def get_stack_addresses():
 @task
 def find_master():
     stack_name = get_stack_name()
-    aws_config, cfn, cfn_config = get_config()
-    ec2 = EC2(aws_config)
-    stack_name = get_stack_name()
+    ec2 = get_connection(EC2)
     master = ec2.get_master_instance(stack_name).ip_address
     print 'Salt master public address: {0}'.format(master)
     return master
@@ -192,15 +187,14 @@ def find_master():
 
 def get_stack_instances_ips(stack_name):
     stack_name = get_stack_name()
-    aws_config, cfn, cfn_config = get_config()
-    ec2 = EC2(aws_config)
+    ec2 = get_connection(EC2)
     instance_id_list = cfn.get_stack_instance_ids(stack_name)
 
 
 def get_candidate_minions():
     stack_name = get_stack_name()
-    aws_config, cfn, cfn_config = get_config()
-    ec2 = EC2(aws_config)
+    cfn = get_connection(Cloudformation)
+    ec2 = get_connection(EC2)
     instance_ids = cfn.get_stack_instance_ids(stack_name)
     stack_name = get_stack_name()
     master_instance_id = ec2.get_master_instance(stack_name).id
@@ -211,8 +205,7 @@ def get_candidate_minions():
 @task
 def install_minions():
     stack_name = get_stack_name()
-    aws_config, cfn, cfn_config = get_config()
-    ec2 = EC2(aws_config)
+    ec2 = get_connection(EC2)
     print "Waiting for SSH on all instances..."
     ec2.wait_for_ssh(stack_name)
     candidates = get_candidate_minions()
@@ -244,8 +237,8 @@ def install_minions():
 @task
 def install_master():
     stack_name = get_stack_name()
-    aws_config, cfn, cfn_config = get_config()
-    ec2 = EC2(aws_config)
+    ec2 = get_connection(EC2)
+    cfn = get_connection(Cloudformation)
     print "Waiting for SSH on all instances..."
     ec2.wait_for_ssh(stack_name)
     instance_ids = cfn.get_stack_instance_ids(stack_name)
@@ -311,6 +304,9 @@ def rsync():
             sys.exit(1)
 
     stack_name = get_stack_name()
+
+    ec2 = get_connection(EC2)
+
     work_dir = os.path.join('..', '{0}-deploy'.format(env.application))
     # LOAD AWS CONFIG FROM ~/.config.yaml
     aws_config = AWSConfig(env.aws)
