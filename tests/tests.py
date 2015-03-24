@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
-from bootstrap_cfn.config import ProjectConfig, AWSConfig, ConfigParser
+from bootstrap_cfn.config import ProjectConfig, ConfigParser
 import bootstrap_cfn.errors as errors
 from testfixtures import compare
 
@@ -35,31 +35,6 @@ class TestConfig(unittest.TestCase):
         self.assertEquals(
             config.config['rds']['db-master-password'],
             'testpassword')
-
-    def test_aws_config_invalid_file(self):
-        '''
-        Test the AWS config file errors on invalid file
-        '''
-
-        with self.assertRaises(IOError):
-            AWSConfig('dev', 'tests/config_unknown.yaml')
-
-    def test_aws_config_valid(self):
-        '''
-        Test the AWS config file is setup correctly
-        '''
-        config = AWSConfig('dev', 'tests/config.yaml')
-        self.assertEquals(config.aws_access, 'AKIAI***********')
-        self.assertEquals(
-            config.aws_secret,
-            '*******************************************')
-
-    def test_aws_config_invalid_env(self):
-        '''
-        Test the AWS config file errors on invalid environment
-        '''
-        with self.assertRaises(KeyError):
-            AWSConfig('unknown', 'tests/config.yaml')
 
 
 class TestConfigParser(unittest.TestCase):
