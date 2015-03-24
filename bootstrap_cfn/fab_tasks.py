@@ -2,14 +2,16 @@
 
 import sys
 import random
+import yaml
 from bootstrap_cfn.config import AWSConfig, ProjectConfig, ConfigParser
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.ec2 import EC2
 from bootstrap_cfn.iam import IAM
 
 import os
+from StringIO import StringIO
 
-from fabric.api import env, task, sudo
+from fabric.api import env, task, sudo, put
 from fabric.contrib.project import upload_project
 
 # GLOBAL VARIABLES
@@ -96,12 +98,10 @@ def get_config():
     cfn_config = ConfigParser(project_config.config, get_stack_name())
     return cfn_config
 
-
 def get_connection(klass):
     _validate_fabric_env()
     aws_config = AWSConfig(env.aws)
     return klass(aws_config)
-
 
 @task
 def cfn_delete(force=False):
@@ -261,6 +261,7 @@ def rsync():
     work_dir = os.path.join('..', '{0}-deploy'.format(env.application))
 
     project_config = ProjectConfig(env.config, env.environment)
+    stack_name = get_stack_name()
     cfg = project_config.config
     salt_cfg = cfg.get('salt', {})
 
@@ -299,4 +300,11 @@ def rsync():
     upload_project(
         remote_dir=remote_pillar_dir,
         local_dir=os.path.join(local_pillar_dir, env.environment, '.'),
+        use_sudo=True)
+    cf_sls = StringIO(yaml.dump(cfg))
+    put(
+        remote_path=os.path.join(
+            remote_pillar_dir,
+            'cloudformation.sls'),
+        local_path=cf_sls,
         use_sudo=True)
