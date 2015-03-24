@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-import urllib2
-import json
 import random
-import yaml
-import time
 from bootstrap_cfn.config import AWSConfig, ProjectConfig, ConfigParser
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.ec2 import EC2
@@ -13,9 +9,8 @@ from bootstrap_cfn.iam import IAM
 
 import os
 
-from fabric.api import env, task, sudo, execute, run, parallel, settings
-from fabric.contrib.project import rsync_project, upload_project
-from fabric.operations import put
+from fabric.api import env, task, sudo
+from fabric.contrib.project import upload_project
 
 # GLOBAL VARIABLES
 env.application = None
@@ -30,6 +25,8 @@ RETRY_INTERVAL = 10
 # imported in a fabfile.
 path = env.real_fabfile or os.getcwd()
 sys.path.append(os.path.dirname(path))
+
+
 @task
 def aws(x):
     env.aws = str(x).lower()
@@ -64,10 +61,12 @@ def blocking(x):
 def user(x):
     env.user = x
 
+
 def get_stack_name():
     if hasattr(env, 'stack_name'):
         return env.stack_name
     return "%s-%s" % (env.application, env.environment)
+
 
 def _validate_fabric_env():
     if env.aws is None:
@@ -84,7 +83,8 @@ def _validate_fabric_env():
         sys.exit(1)
 
     if not hasattr(env, 'stack_passwords'):
-        env.stack_passwords={}
+        env.stack_passwords = {}
+
 
 def get_config():
     _validate_fabric_env()
@@ -96,16 +96,18 @@ def get_config():
     cfn_config = ConfigParser(project_config.config, get_stack_name())
     return cfn_config
 
+
 def get_connection(klass):
     _validate_fabric_env()
     aws_config = AWSConfig(env.aws)
     return klass(aws_config)
 
+
 @task
 def cfn_delete(force=False):
     if not force:
         x = raw_input("Are you really sure you want to blow away the whole stack!? (y/n)\n")
-        if not x in ['y','Y','Yes','yes']:
+        if x not in ['y', 'Y', 'Yes', 'yes']:
             sys.exit(1)
     stack_name = get_stack_name()
     cfn_config = get_config()
@@ -114,7 +116,6 @@ def cfn_delete(force=False):
     print "\n\nSTACK {0} DELETING...".format(stack_name)
 
     if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
-        print stacks
         print 'Running in non blocking mode. Exiting.'
         sys.exit(0)
 
@@ -126,24 +127,24 @@ def cfn_delete(force=False):
         iam = get_connection(IAM)
         iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
 
+
 @task
 def cfn_create():
     stack_name = get_stack_name()
     cfn_config = get_config()
 
     cfn = get_connection(Cloudformation)
-    #Upload any SSL certs that we may need for the stack.
+    # Upload any SSL certs that we may need for the stack.
     if 'ssl' in cfn_config.data:
         iam = get_connection(IAM)
         iam.upload_ssl_certificate(cfn_config.ssl(), stack_name)
-    #Useful for debug
-    #print cfn_config.process()
+    # Useful for debug
+    # print cfn_config.process()
     # Inject security groups in stack template and create stacks.
     stack = cfn.create(stack_name, cfn_config.process())
     print "\n\nSTACK {0} CREATING...".format(stack_name)
 
     if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
-        print stacks
         print 'Running in non blocking mode. Exiting.'
         sys.exit(0)
 
@@ -157,7 +158,7 @@ def cfn_create():
         print 'Successfully built stack {0}.'.format(stack)
     else:
         print 'Failed to create stack: {0}'.format(stack)
-        #So delete the SSL cert that we uploaded
+        # So delete the SSL cert that we uploaded
         if 'ssl' in cfn_config.data:
             iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
 
@@ -213,6 +214,7 @@ def install_minions():
             '/tmp/bootstrap-salt.sh -A `cat /etc/tags/SaltMasterPrvIP` git v2014.1.4')
         env.host_string = 'ubuntu@%s' % master_public_ip
         sudo('salt-key -y -A')
+
 
 @task
 def install_master():
@@ -283,38 +285,32 @@ def rsync():
             print "\n[ERROR] Please specify a config file, e.g 'config:/tmp/sample-application.yaml'"
             sys.exit(1)
 
-    stack_name = get_stack_name()
-
-    ec2 = get_connection(EC2)
-
     work_dir = os.path.join('..', '{0}-deploy'.format(env.application))
-    # LOAD AWS CONFIG FROM ~/.config.yaml
-    aws_config = AWSConfig(env.aws)
 
     project_config = ProjectConfig(env.config, env.environment)
     cfg = project_config.config
 
     local_salt_dir = os.path.join(
         work_dir,
-        cfg.get('salt',{}).get(
+        cfg.get('salt', {}).get(
             'local_salt_dir',
             'salt'),
         '.')
     local_pillar_dir = os.path.join(
         work_dir,
-        cfg.get('salt',{}).get(
+        cfg.get('salt', {}).get(
             'local_pillar_dir',
             'pillar'),
         '.')
     local_vendor_dir = os.path.join(
         work_dir,
-        cfg.get('salt',{}).get(
+        cfg.get('salt', {}).get(
             'local_vendor_dir',
             'vendor'),
         '.')
 
-    remote_state_dir = cfg.get('salt',{}).get('remote_state_dir', '/srv/salt')
-    remote_pillar_dir = cfg.get('salt',{}).get('remote_pillar_dir', '/srv/pillar')
+    remote_state_dir = cfg.get('salt', {}).get('remote_state_dir', '/srv/salt')
+    remote_pillar_dir = cfg.get('salt', {}).get('remote_pillar_dir', '/srv/pillar')
 
     # if not os.path.exists(local_state_dir):
     #    shake(work_dir)
