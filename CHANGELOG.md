@@ -9,6 +9,7 @@
  * Refactor fab_tasks get_config method to not return *every* config item. Also PEP8 fixes and removing unused functions.
  * Change security group input to dictionary so we can create multiple groups that reference each other.
  * Include cloudformation config in salt pillar.
+ * Add SGs for ELBs and default open on 80/443
 
 ## Version 0.1
 

@@ -173,6 +173,7 @@ class TestConfigParser(unittest.TestCase):
                                                                        'LoadBalancerPort': 80,
                                                                        'Protocol': 'TCP'}],
                                                         'AvailabilityZones': {'Fn::GetAZs': ''},
+                                                        'SecurityGroups': [{'Ref':'BaseELBSG'}],
                                                         'Scheme': 'internet-facing',
                                                         'LoadBalancerName': 'ELB-test-dev-internal'}}},
                  {'DNStestdevinternal': {'Type': 'AWS::Route53::RecordSetGroup',
@@ -194,6 +195,7 @@ class TestConfigParser(unittest.TestCase):
                                                                      'LoadBalancerPort': 443,
                                                                      'Protocol': 'TCP'}],
                                                      u'LoadBalancerName': 'ELB-test-dev-external',
+                                                     u'SecurityGroups': [{u'Ref':u'DefaultSGtestdevexternal'}],
                                                      u'Scheme': 'internet-facing',
                                                      u'Subnets': [{u'Ref': u'SubnetA'},
                                                                   {u'Ref': u'SubnetB'},
@@ -212,6 +214,7 @@ class TestConfigParser(unittest.TestCase):
                                                                      'LoadBalancerPort': 80,
                                                                      'Protocol': 'TCP'}],
                                                      u'LoadBalancerName': 'ELB-test-dev-internal',
+                                                     u'SecurityGroups': [{u'Ref':u'BaseELBSG'}],
                                                      u'Scheme': 'internet-facing',
                                                      u'Subnets': [{u'Ref': u'SubnetA'},
                                                                   {u'Ref': u'SubnetB'},
@@ -232,7 +235,8 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'tests/sample-project.yaml',
                 'dev').config,'my-stack-name')
-        self.assertEquals(known, config.elb())
+        elb_cfg, elb_sgs = config.elb()
+        compare(known, elb_cfg)
 
     def test_elb_missing_cert(self):
         from testfixtures import compare
@@ -305,6 +309,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                                                     ':server-certificate/',
                                                                                                                     'my-cert-my-stack-name']]}}],
                                                                'LoadBalancerName': 'ELB-dev_docker-registryservice',
+                                                               'SecurityGroups': [{'Ref':'DefaultSGdev_dockerregistryservice'}],
                                                                'Scheme': 'internet-facing',
                                                                'Subnets': [{'Ref': 'SubnetA'},
                                                                             {'Ref': 'SubnetB'},
@@ -340,7 +345,8 @@ class TestConfigParser(unittest.TestCase):
             ],
         }]
         config = ConfigParser(project_config.config,'my-stack-name')
-        self.assertEquals(known, config.elb())
+        elb_cfg, elb_sgs = config.elb()
+        self.assertEquals(known, elb_cfg)
 
     def test_elb_with_reserved_chars(self):
         from testfixtures import compare
@@ -354,6 +360,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                'LoadBalancerPort': 443,
                                                                                'Protocol': 'TCP'}],
                                                                'LoadBalancerName': 'ELB-dev_docker-registryservice',
+                                                               'SecurityGroups': [{'Ref':'DefaultSGdev_dockerregistryservice'}],
                                                                'Scheme': 'internet-facing',
                                                                'Subnets': [{'Ref': 'SubnetA'},
                                                                             {'Ref': 'SubnetB'},
@@ -388,7 +395,8 @@ class TestConfigParser(unittest.TestCase):
             ],
         }]
         config = ConfigParser(project_config.config,'my-stack-name')
-        self.assertEquals(known, config.elb())
+        elb_cfg, elb_sgs = config.elb()
+        self.assertEquals(known, elb_cfg)
 
     def test_ec2(self):
 

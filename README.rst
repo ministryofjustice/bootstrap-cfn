@@ -122,6 +122,12 @@ The YAML file below highlights what is possible with all the bootstrap-cfn featu
         - name: test-dev-internal
           hosted_zone: my.domain.com.
           scheme: internet-facing
+          security_groups:
+            ELBSecGroup:
+              - IpProtocol: tcp
+                FromPort: 80
+                ToPort: 80
+                CidrIp: 10.0.0.0/0
           listeners:
             - LoadBalancerPort: 80
               InstancePort: 80
@@ -178,8 +184,9 @@ The cloudformation yaml will be automatically uploaded to your pillar as cloudfo
 
     salt-call pillar.get s3:static-bucket-name
 
-SSL certs for ELBs
+ELBs
 ++++++++++++++++++++
+By default the ELBs will have a security group opening them to the world on 80 and 443. You can replace this default SG with your own (see example ``ELBSecGroup`` above).
 
 If you set the protocol on an ELB to HTTPS you must include a key called `certificate_name` in the ELB block (as example above) and matching cert data in a key with the same name as the cert under `ssl` (see example above). The `cert` and `key` are required and the `chain` is optional.
 
