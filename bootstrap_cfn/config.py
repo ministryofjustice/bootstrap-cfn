@@ -232,8 +232,8 @@ class ConfigParser:
                 for sg_name, sg in elb['security_groups'].items():
                     new_sg = deepcopy(elb_sg)
                     new_sg['Properties']['SecurityGroupIngress'] = sg
-                    elb_sgs[sg_name + safe_name] = new_sg
-                template['ElasticLoadBalancer']['Properties']['SecurityGroups'] = [{'Ref': k + safe_name} for k in elb['security_groups'].keys()]
+                    elb_sgs[sg_name] = new_sg
+                template['ElasticLoadBalancer']['Properties']['SecurityGroups'] = [{'Ref': k} for k in elb['security_groups'].keys()]
             else:
                 elb_sgs['DefaultSG' + safe_name] = elb_sg
                 template['ElasticLoadBalancer']['Properties']['SecurityGroups'] = [{'Ref': 'DefaultSG' + safe_name }]
