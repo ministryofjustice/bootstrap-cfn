@@ -1,4 +1,4 @@
-## Version unreleased
+## Version 0.2.0
 
  * Move timeout logic from fabric file into utility decorator.
  * Add wait_for_ssh function to the bootstrap commands. This ensures ssh is up before we bootstrap.
