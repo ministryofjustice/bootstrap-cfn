@@ -5,7 +5,13 @@ apt-get update
 apt-get -y install python-setuptools git
 easy_install boto
 
-cd /usr/local && git clone https://github.com/ministryofjustice/bootstrap-cfn
+# get or update bootstrap-cfn
+if [ -d "/usr/local/bootstrap-cfn" ]; then
+  cd /usr/local/bootstrap-cfn && git pull
+else
+  cd /usr/local && git clone https://github.com/ministryofjustice/bootstrap-cfn
+fi
+
 easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
 chmod 755 /usr/local/bootstrap-cfn/scripts/ec2_tags.py
 chmod 750 /usr/local/bootstrap-cfn/bootstrap_cfn/salt_utils.py
