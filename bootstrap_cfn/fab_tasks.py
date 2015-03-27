@@ -257,17 +257,12 @@ def install_master():
 
 @task
 def rsync():
-    if env.config is None:
-        # check if there is a deploy repo in a predefined location
-        app_yaml = '../{0}-deploy/{0}.yaml'.format(env.application)
-        if os.path.exists(app_yaml):
-            env.config = app_yaml
 
     _validate_fabric_env()
 
-    work_dir = os.path.join('..', '{0}-deploy'.format(env.application))
+    work_dir = os.path.dirname(env.real_fabfile)
 
-    project_config = ProjectConfig(env.config, env.environment)
+    project_config = ProjectConfig(env.config, env.environment, env.stack_passwords)
     stack_name = get_stack_name()
     cfg = project_config.config
     salt_cfg = cfg.get('salt', {})
