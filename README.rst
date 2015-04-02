@@ -160,6 +160,12 @@ The YAML file below highlights what is possible with all the bootstrap-cfn featu
             -----BEGIN CERTIFICATE-----
             blahblahblah
             -----END CERTIFICATE-----
+      salt:
+        local_salt_dir: ./salt
+        local_pillar_dir: ./pillar
+        local_vendor_dir: ./vendor
+        remote_state_dir: /srv/salt
+        remote_pillar_dir: /srv/pillar
 
 
 Salt specific configuration
