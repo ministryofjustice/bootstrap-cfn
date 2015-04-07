@@ -1,3 +1,9 @@
+## Version 0.2.1
+
+* Fix rsync missing passwords yaml from salt-pillar
+* Make bootstrap process pull the bootstrap-cfn repo
+* Document salt config variables.
+
 ## Version 0.2.0
 
  * Move timeout logic from fabric file into utility decorator.
