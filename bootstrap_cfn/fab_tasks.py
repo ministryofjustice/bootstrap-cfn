@@ -1,19 +1,21 @@
 #!/usr/bin/env python
 
+import os
+from StringIO import StringIO
 import sys
 import random
 import yaml
+
+from fabric.api import env, task, sudo, put
+from fabric.contrib.project import upload_project
+from fabric.utils import abort
 
 from bootstrap_cfn.config import ProjectConfig, ConfigParser
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.ec2 import EC2
 from bootstrap_cfn.iam import IAM
 
-import os
-from StringIO import StringIO
 
-from fabric.api import env, task, sudo, put
-from fabric.contrib.project import upload_project
 
 # GLOBAL VARIABLES
 env.application = None
@@ -164,10 +166,10 @@ def cfn_create():
     if stack_evt.resource_status == 'CREATE_COMPLETE':
         print 'Successfully built stack {0}.'.format(stack)
     else:
-        print 'Failed to create stack: {0}'.format(stack)
         # So delete the SSL cert that we uploaded
         if 'ssl' in cfn_config.data:
             iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
+        abort('Failed to create stack: {0}'.format(stack))
 
 
 @task
