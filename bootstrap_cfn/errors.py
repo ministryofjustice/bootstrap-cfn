@@ -22,3 +22,6 @@ class ProfileNotFoundError(BootstrapCfnError):
         super(ProfileNotFoundError, self).__init__(
             "'{0}' not found in ~/.aws/credentials".format(profile_name)
         )
+
+class CloudResourceNotFoundError(BootstrapCfnError):
+    pass

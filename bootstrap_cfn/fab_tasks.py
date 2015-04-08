@@ -2,6 +2,8 @@
 
 import os
 import sys
+import time
+import logging
 
 from fabric.api import env, task
 from fabric.utils import abort
@@ -10,6 +12,7 @@ from fabric.colors import green, red
 from bootstrap_cfn.config import ProjectConfig, ConfigParser
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.iam import IAM
+from bootstrap_cfn.elb import ELB
 from bootstrap_cfn.utils import tail
 
 
@@ -172,3 +175,42 @@ def cfn_create():
         if 'ssl' in cfn_config.data:
             iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
         abort('Failed to create stack: {0}'.format(stack))
+        
+@task
+def update_certs(force=False):
+    """
+    Update the ssl certificates with those in the config file.
+    Also handle settings the certificates on ELB's
+    """
+    if force:
+        logging.info("Forcing certificate updates is enabled...")
+
+    stack_name = get_stack_name()
+    cfn_config = get_config()
+    # Upload any SSL certificates to our EC2 instances
+    updated_count = False
+    if 'ssl' in cfn_config.data:
+        logging.info("Reloading SSL certificates...")
+        iam = get_connection(IAM)
+        updated_count = iam.update_ssl_certificates(cfn_config.ssl(),
+                                                    stack_name,
+                                                    force)
+    else:
+        logging.error("No ssl section found in cloud config file, aborting...")
+        sys.exit(1)
+
+    # Arbitrary wait to allow SSL upload to register with AWS
+    # Otherwise, we can get an ARN for the load balancer certificates
+    # without it being ready to assign
+    time.sleep(3)
+
+    # Set the certificates on ELB's if we have any
+    if updated_count > 0:
+        if 'elb' in cfn_config.data:
+            logging.info("Setting load balancer certificates...")
+            elb = get_connection(ELB)
+            updated_load_balancers = elb.set_ssl_certificates(cfn_config.ssl(), stack_name)
+    else:
+        logging.error("No certificates updated so skipping "
+                      "ELB certificate update...")
+

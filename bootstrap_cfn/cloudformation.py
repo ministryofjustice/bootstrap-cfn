@@ -47,3 +47,23 @@ class Cloudformation:
 
     def wait_for_stack_missing(self, stack_id, timeout=3600, interval=30):
         return utils.timeout(timeout, interval)(self.stack_missing)(stack_id)
+
+    def get_stack_load_balancers(self, stack_name_or_id):
+        """
+        Collect up the load balancer set of stack resources
+
+        Args:
+            stack_name_or_id (string): Name or id used to identify the stack
+
+        Returns:
+            load_balancers: Set of stack resources containing only
+                load balancers for this stack
+        """
+        # get the stack
+        load_balancers = []
+        stack = self.conn_cfn.describe_stacks(stack_name_or_id)
+        if stack:
+            fn = lambda x: x.resource_type == 'AWS::ElasticLoadBalancing::LoadBalancer'
+            # get the load balancers group
+            load_balancers = filter(fn, stack[0].list_resources())
+        return load_balancers
