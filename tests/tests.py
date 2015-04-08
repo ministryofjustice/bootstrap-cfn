@@ -238,6 +238,15 @@ class TestConfigParser(unittest.TestCase):
         elb_cfg, elb_sgs = config.elb()
         compare(known, elb_cfg)
 
+    def test_elb_no_sgs(self):
+        from testfixtures import compare
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        # Assuming there's no ELB defined
+        project_config.config.pop('elb')
+        project_config.config.pop('rds')
+        config = ConfigParser(project_config.config, 'my-stack-name')
+        config.process()
+
     def test_elb_missing_cert(self):
         from testfixtures import compare
 

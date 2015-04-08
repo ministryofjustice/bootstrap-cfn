@@ -81,8 +81,9 @@ class ConfigParser:
         data.update(s3)
         for i in elb:
             data.update(i)
-        for k,v in elb_sgs.items():
-            data[k] = v
+        if 'elb_sgs' in locals():
+            for k, v in elb_sgs.items():
+                data[k] = v
 
         template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/base.json'))
         template['Resources'] = data
