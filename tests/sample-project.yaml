@@ -46,12 +46,6 @@ dev:
     - name: test-dev-internal
       hosted_zone: kyrtest.pf.dsd.io.
       scheme: internet-facing
-      security_groups:
-        BaseELBSG:
-          - IpProtocol: tcp
-            FromPort: 80
-            ToPort: 80
-            CidrIp: 10.0.0.0/0
       listeners:
         - LoadBalancerPort: 80
           InstancePort: 80
