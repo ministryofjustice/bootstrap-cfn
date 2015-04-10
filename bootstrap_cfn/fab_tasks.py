@@ -2,6 +2,7 @@
 
 import os
 from StringIO import StringIO
+from time import sleep
 import sys
 import random
 import yaml
@@ -9,6 +10,7 @@ import yaml
 from fabric.api import env, task, sudo, put
 from fabric.contrib.project import upload_project
 from fabric.utils import abort
+from fabric.colors import green, red, yellow
 
 from bootstrap_cfn.config import ProjectConfig, ConfigParser
 from bootstrap_cfn.cloudformation import Cloudformation
@@ -112,6 +114,62 @@ def get_connection(klass):
     _validate_fabric_env()
     return klass(env.aws, env.aws_region)
 
+
+def get_events(stack, stack_name):
+    """Get the events in batches and return in chronological order"""
+    next = None
+    event_list = []
+    while 1 and not stack.stack_missing(stack_name):
+        try:
+            events = stack.conn_cfn.describe_stack_events(stack_name, next)
+        except:
+            break
+        event_list.append(events)
+        if events.next_token is None:
+            break
+        next = events.next_token
+        sleep(1)
+    return reversed(sum(event_list, []))
+
+
+def tail(stack, stack_name):
+    """Show and then tail the event log"""
+
+    def colorize(e):
+        if e.endswith("_IN_PROGRESS"):
+            return yellow(e)
+        elif e.endswith("_FAILED"):
+            return red(e)
+        elif e.endswith("_COMPLETE"):
+            return green(e)
+        else:
+            return e
+
+    def tail_print(e):
+        print("%s %s %s" % (colorize(e.resource_status).ljust(30), e.resource_type.ljust(50), e.event_id))
+
+    # First dump the full list of events in chronological order and keep
+    # track of the events we've seen already
+    seen = set()
+    initial_events = get_events(stack, stack_name)
+    for e in initial_events:
+        tail_print(e)
+        seen.add(e.event_id)
+
+    # Now keep looping through and dump the new events
+    while 1:
+        if stack.stack_missing(stack_name):
+            break
+        elif stack.stack_done(stack_name):
+            break
+        events = get_events(stack, stack_name)
+        for e in events:
+            if e.event_id not in seen:
+                tail_print(e)
+            seen.add(e.event_id)
+        sleep(2)
+
+
 @task
 def cfn_delete(force=False):
     if not force:
@@ -122,7 +180,7 @@ def cfn_delete(force=False):
     cfn_config = get_config()
     cfn = get_connection(Cloudformation)
     cfn.delete(stack_name)
-    print "\n\nSTACK {0} DELETING...".format(stack_name)
+    print green("\nSTACK {0} DELETING...\n").format(stack_name)
 
     if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
         print 'Running in non blocking mode. Exiting.'
@@ -130,8 +188,14 @@ def cfn_delete(force=False):
 
     # Wait for stacks to delete
     print 'Waiting for stack to delete.'
-    cfn.wait_for_stack_missing(stack_name)
-    print "Stack successfully deleted"
+
+    tail(cfn, stack_name)
+
+    if cfn.stack_missing(stack_name):
+        print green("Stack successfully deleted")
+    else:
+        print red("Stack deletion was unsuccessfull")
+
     if 'ssl' in cfn_config.data:
         iam = get_connection(IAM)
         iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
@@ -148,21 +212,22 @@ def cfn_create():
         iam = get_connection(IAM)
         iam.upload_ssl_certificate(cfn_config.ssl(), stack_name)
     # Useful for debug
-    # print cfn_config.process()
+    #print cfn_config.process()
     # Inject security groups in stack template and create stacks.
-    stack = cfn.create(stack_name, cfn_config.process())
-    print "\n\nSTACK {0} CREATING...".format(stack_name)
+    try:
+        stack = cfn.create(stack_name, cfn_config.process())
+    except Exception as e:
+        abort(red("Failed to create: {error}".format(error=e.message)))
+
+    print green("\nSTACK {0} CREATING...\n").format(stack_name)
 
     if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
         print 'Running in non blocking mode. Exiting.'
         sys.exit(0)
 
-    # Wait for stacks to complete
-    print 'Waiting for stack to complete.'
-    cfn.wait_for_stack_done(stack)
-    print 'Stacks completed, checking results.'
+    tail(cfn, stack_name)
     stack_evt = cfn.get_last_stack_event(stack)
-    print '{0}: {1}'.format(stack_evt.stack_name, stack_evt.resource_status)
+
     if stack_evt.resource_status == 'CREATE_COMPLETE':
         print 'Successfully built stack {0}.'.format(stack)
     else:
