@@ -86,6 +86,8 @@ class ConfigParser:
                 data[k] = v
 
         template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/base.json'))
+        if 'vpc' in self.data:
+            template['Mappings']['SubnetConfig']['VPC'] = self.data['vpc']
         template['Resources'] = data
         template['Outputs'] = {}
         for t in output_templates:
