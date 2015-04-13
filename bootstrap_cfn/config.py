@@ -4,6 +4,8 @@ import pkgutil
 import sys
 import yaml
 import bootstrap_cfn.errors as errors
+import bootstrap_cfn.utils as utils
+
 from copy import deepcopy
 
 class ProjectConfig:
@@ -14,30 +16,12 @@ class ProjectConfig:
         self.config = self.load_yaml(config)[environment]
         if passwords:
             passwords_dict = self.load_yaml(passwords)[environment]
-            self.config = self.dict_merge(self.config, passwords_dict)
+            self.config = utils.dict_merge(self.config, passwords_dict)
 
     @staticmethod
     def load_yaml(fp):
         if os.path.exists(fp):
             return yaml.load(open(fp).read())
-
-    def dict_merge(self, target, *args):
-        # Merge multiple dicts
-        if len(args) > 1:
-            for obj in args:
-                self.dict_merge(target, obj)
-            return target
-
-        # Recursively merge dicts and set non-dict values
-        obj = args[0]
-        if not isinstance(obj, dict):
-            return obj
-        for k, v in obj.iteritems():
-            if k in target and isinstance(target[k], dict):
-                self.dict_merge(target[k], v)
-            else:
-                target[k] = deepcopy(v)
-        return target
 
 
 class ConfigParser:
