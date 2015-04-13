@@ -76,7 +76,7 @@ This tool needs AWS credentials to create stacks and the credentials should be p
 
 Project specific YAML file
 +++++++++++++++++++++++++++
-The YAML file below highlights what is possible with all the bootstrap-cfn features available to date. The minimum requirement is that it must contain an *ec2* block, you **do not** have to use RDS, S3 or ELB's.
+The YAML file below highlights what is possible with all the bootstrap-cfn features available to date. The minimum requirement is that it must contain an *ec2* block, you **do not** have to use RDS, S3 or ELB's. Block devices in EC2 block is non mandatory as well. If no block devices specified, default root device with 20GB space will be created.
 
 ::
 
@@ -95,7 +95,7 @@ The YAML file below highlights what is possible with all the bootstrap-cfn featu
           InstanceType: t2.micro
         block_devices:
           - DeviceName: /dev/sda1
-            VolumeSize: 10
+            VolumeSize: 20
           - DeviceName: /dev/sdf
             VolumeSize: 10
         security_groups:
@@ -173,9 +173,9 @@ Salt specific configuration
 
 In order to rsync your salt states to the salt master you need to add a `salt` section to the top level of your project's YAML file. The following parameters specify the rsync sources and targets:
 
-- **local_salt_dir**: Directory containing all the files you want to have in your salt root (for example top.sls or project specific states). 
+- **local_salt_dir**: Directory containing all the files you want to have in your salt root (for example top.sls or project specific states).
     **Default value**: ./salt
-- **local_pillar_dir**: Directory containing all the files you want to have in your pillar root. 
+- **local_pillar_dir**: Directory containing all the files you want to have in your pillar root.
     **Default value**: ./pillar
 - **local_vendor_dir**: Directory containing formulas cloned by salt-shaker.
     **Default value**: ./vendor
