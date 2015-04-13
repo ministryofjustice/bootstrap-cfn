@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+import sys
+import os
+#We adjust the path here so that this script can be run
+#by a user without changing their PYTHONPATH, useful if they
+#have limited sudo access to run the script.
+sys.path.append(os.path.dirname(__file__) + '/..')
 from bootstrap_cfn import utils
 from bootstrap_cfn import errors
 import salt
@@ -6,7 +12,6 @@ import salt.runner
 import salt.client
 import pprint
 import time
-import sys
 
 def start_highstate(target):
     local = salt.client.LocalClient()
