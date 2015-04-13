@@ -4,6 +4,7 @@ import unittest
 from bootstrap_cfn.config import ProjectConfig, ConfigParser
 import bootstrap_cfn.errors as errors
 from testfixtures import compare
+import json
 
 
 class TestConfig(unittest.TestCase):
@@ -338,6 +339,30 @@ class TestConfigParser(unittest.TestCase):
         [elb] = (e.values()[0] for e in elb_cfg if e.has_key('ELBtestdevexternal'))
         compare(elb['Properties']['SecurityGroups'],
                 [{u'Ref': u'SGName'}])
+
+    def test_cf_includes(self):
+        project_config = ProjectConfig('tests/sample-project.yaml',
+                                       'dev', 
+                                       'tests/sample-project-passwords.yaml')
+        project_config.config['includes'] = ['tests/sample-include.json']
+        known_outputs = {
+          "dbhost": {
+            "Description": "RDS Hostname",
+            "Value": {"Fn::GetAtt" : [ "RDSInstance" , "Endpoint.Address" ]}
+          },
+          "dbport": {
+            "Description": "RDS Port",
+            "Value": {"Fn::GetAtt" : [ "RDSInstance" , "Endpoint.Port" ]}
+          },
+          "someoutput":{
+            "Description": "For tests",
+            "Value": "BLAHBLAH"
+          }
+        }
+        config = ConfigParser(project_config.config, 'my-stack-name')
+        cfg = json.loads(config.process())
+        outputs = cfg['Outputs']
+        compare(known_outputs, outputs)
 
     def test_process_no_elbs_no_rds(self):
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')

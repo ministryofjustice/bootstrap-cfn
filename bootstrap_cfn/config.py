@@ -76,6 +76,10 @@ class ConfigParser:
         template['Outputs'] = {}
         for t in output_templates:
             template['Outputs'].update(json.loads(pkgutil.get_data('bootstrap_cfn', t)))
+        if 'includes' in self.data:
+            for inc_path in self.data['includes']:
+                inc = json.load(open(inc_path))
+                utils.dict_merge(template, inc)
         return json.dumps(
             template, sort_keys=True, indent=4, separators=(',', ': '))
 
