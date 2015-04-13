@@ -262,9 +262,13 @@ class ConfigParser:
 
         # BLOCK DEVICE MAPPING
         devices = []
-        for i in self.data['ec2']['block_devices']:
+        try:
+            for i in self.data['ec2']['block_devices']:
+                devices.append(
+                    {'DeviceName': i['DeviceName'], 'Ebs': {'VolumeSize': i['VolumeSize']}})
+        except KeyError:
             devices.append(
-                {'DeviceName': i['DeviceName'], 'Ebs': {'VolumeSize': i['VolumeSize']}})
+                {'DeviceName': '/dev/sda1', 'Ebs': {'VolumeSize': 20 }})
         template['BaseHostLaunchConfig']['Properties'][
             'BlockDeviceMappings'] = devices
 
