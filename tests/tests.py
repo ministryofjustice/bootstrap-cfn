@@ -545,10 +545,11 @@ class TestConfigParser(unittest.TestCase):
     def test_ec2_with_no_block_device_specified(self):
         from testfixtures import compare
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
-        project_config.config.pop('rds')
         project_config.config['ec2'].pop('block_devices')
         config = ConfigParser(project_config.config, 'my-stack-name')
-        config.process()
+        config_output = config.ec2()['BaseHostLaunchConfig']['Properties']['BlockDeviceMappings']
+        known = [{'DeviceName': '/dev/sda1', 'Ebs': {'VolumeSize': 20}}]
+        self.assertEquals(known, config_output)
 
 if __name__ == '__main__':
     unittest.main()
