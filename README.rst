@@ -109,3 +109,14 @@ By default the ELBs will have a security group opening them to the world on 80 a
 If you set the protocol on an ELB to HTTPS you must include a key called `certificate_name` in the ELB block (as example above) and matching cert data in a key with the same name as the cert under `ssl` (see example above). The `cert` and `key` are required and the `chain` is optional.
 
 The certificate will be uploaded before the stack is created and removed after it is deleted.
+
+Applying a custom s3 policy
+++++++++++++++++++++++++++++
+You can add a custom s3 policy to override bootstrap-cfn's default settings. For example, the sample custom policy defined in this `json file <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/tests/sample-custom-s3-policy.json>`_ can be configured as follows:
+
+::
+
+   s3:
+     static-bucket-name: moj-test-dev-static
+     policy: tests/sample-custom-s3-policy.json
+
