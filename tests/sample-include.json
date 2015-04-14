@@ -1,0 +1,9 @@
+{
+  "Outputs":
+    {
+      "someoutput": {
+        "Description": "For tests",
+        "Value": "BLAHBLAH"
+      }
+   }
+}
