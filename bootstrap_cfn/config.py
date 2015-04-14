@@ -121,7 +121,7 @@ class ConfigParser:
 
         #policy = None
         if 'policy' in present_keys:
-            policy = json.loads(open(self.data['policy']).read())
+            policy = json.loads(open(self.data['s3']['policy']).read())
         else:
              arn = 'arn:aws:s3:::%s/*' % self.data['s3']['static-bucket-name']
              policy = {'Action': ['s3:Get*', 's3:Put*', 's3:List*'], 'Resource': arn, 'Effect': 'Allow', 'Principal' : {'AWS' : '*'}}
