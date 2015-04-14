@@ -105,6 +105,33 @@ class TestConfigParser(unittest.TestCase):
         config = ConfigParser(ProjectConfig('tests/sample-project.yaml', 'dev').config, 'my-stack-name')
         self.assertEquals(known, config.s3())
 
+    def test_custom_s3_policy(self):
+        expected_s3 = [
+            {
+                'Action': [
+                    's3:Get*',
+                    's3:Put*',
+                    's3:List*',
+                    's3:Delete*'],
+                'Resource': 'arn:aws:s3:::moj-test-dev-static/*',
+                            'Effect': 'Allow',
+                            'Principal': {'AWS': '*'}
+            }
+        ]
+
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+
+        project_config.config['s3'] = {
+            'static-bucket-name': 'moj-test-dev-static',
+            'policy': 'tests/sample-custom-s3-policy.json'}
+
+        config = ConfigParser(project_config.config, 'my-stack-name')
+        s3_cfg = config.s3()
+        s3_custom_cfg = s3_cfg['StaticBucketPolicy'][
+            'Properties']['PolicyDocument']['Statement']
+
+        compare(expected_s3, s3_custom_cfg)
+
     def test_rds(self):
         known = {
             'DBSecurityGroup': {
