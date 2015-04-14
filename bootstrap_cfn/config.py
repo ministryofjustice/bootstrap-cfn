@@ -79,7 +79,7 @@ class ConfigParser:
         if 'includes' in self.data:
             for inc_path in self.data['includes']:
                 inc = json.load(open(inc_path))
-                utils.dict_merge(template, inc)
+                template = utils.dict_merge(template, inc)
         return json.dumps(
             template, sort_keys=True, indent=4, separators=(',', ': '))
 

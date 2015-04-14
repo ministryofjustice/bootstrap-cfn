@@ -136,4 +136,4 @@ If you wish to include some static cloudformation json and have it merged with t
     includes:
       - /path/to/cloudformation.json
 
-The tool will then merge this with the generated template *overwriting* any keys in the original template that clash.
+The tool will then perform a deep merge of the includes with the generated template dictionary. Any keys or subkeys in the template dictionary that clash will have their values **overwritten** by the included dictionary or recursively merged if the value is itself a dictionary.

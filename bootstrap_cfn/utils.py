@@ -57,7 +57,7 @@ def dict_merge(target, *args):
     # Merge multiple dicts
     if len(args) > 1:
         for obj in args:
-            self.dict_merge(target, obj)
+            dict_merge(target, obj)
         return target
 
     # Recursively merge dicts and set non-dict values
