@@ -1,4 +1,4 @@
-## Unreleased
+## Version 0.2.2
 
 * Add include functionality for including extra cloudformation json files.
 * Add ability to use cross account IAM roles when authenticating to AWS.
