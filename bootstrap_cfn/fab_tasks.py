@@ -9,12 +9,13 @@ import yaml
 from fabric.api import env, task, sudo, put
 from fabric.contrib.project import upload_project
 from fabric.utils import abort
+from fabric.colors import green, red, yellow
 
 from bootstrap_cfn.config import ProjectConfig, ConfigParser
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.ec2 import EC2
 from bootstrap_cfn.iam import IAM
-
+from bootstrap_cfn.utils import tail
 
 
 # GLOBAL VARIABLES
@@ -112,6 +113,7 @@ def get_connection(klass):
     _validate_fabric_env()
     return klass(env.aws, env.aws_region)
 
+
 @task
 def cfn_delete(force=False):
     if not force:
@@ -122,7 +124,7 @@ def cfn_delete(force=False):
     cfn_config = get_config()
     cfn = get_connection(Cloudformation)
     cfn.delete(stack_name)
-    print "\n\nSTACK {0} DELETING...".format(stack_name)
+    print green("\nSTACK {0} DELETING...\n").format(stack_name)
 
     if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
         print 'Running in non blocking mode. Exiting.'
@@ -130,8 +132,14 @@ def cfn_delete(force=False):
 
     # Wait for stacks to delete
     print 'Waiting for stack to delete.'
-    cfn.wait_for_stack_missing(stack_name)
-    print "Stack successfully deleted"
+
+    tail(cfn, stack_name)
+
+    if cfn.stack_missing(stack_name):
+        print green("Stack successfully deleted")
+    else:
+        print red("Stack deletion was unsuccessfull")
+
     if 'ssl' in cfn_config.data:
         iam = get_connection(IAM)
         iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
@@ -148,21 +156,22 @@ def cfn_create():
         iam = get_connection(IAM)
         iam.upload_ssl_certificate(cfn_config.ssl(), stack_name)
     # Useful for debug
-    # print cfn_config.process()
+    #print cfn_config.process()
     # Inject security groups in stack template and create stacks.
-    stack = cfn.create(stack_name, cfn_config.process())
-    print "\n\nSTACK {0} CREATING...".format(stack_name)
+    try:
+        stack = cfn.create(stack_name, cfn_config.process())
+    except Exception as e:
+        abort(red("Failed to create: {error}".format(error=e.message)))
+
+    print green("\nSTACK {0} CREATING...\n").format(stack_name)
 
     if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
         print 'Running in non blocking mode. Exiting.'
         sys.exit(0)
 
-    # Wait for stacks to complete
-    print 'Waiting for stack to complete.'
-    cfn.wait_for_stack_done(stack)
-    print 'Stacks completed, checking results.'
+    tail(cfn, stack_name)
     stack_evt = cfn.get_last_stack_event(stack)
-    print '{0}: {1}'.format(stack_evt.stack_name, stack_evt.resource_status)
+
     if stack_evt.resource_status == 'CREATE_COMPLETE':
         print 'Successfully built stack {0}.'.format(stack)
     else:
