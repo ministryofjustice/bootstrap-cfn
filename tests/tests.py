@@ -41,7 +41,7 @@ class TestConfig(unittest.TestCase):
 class TestConfigParser(unittest.TestCase):
 
     def setUp(self):
-        self.maxDiff = 3000
+        self.maxDiff = 9000
 
     def test_iam(self):
         known = {'RolePolicies': {'Type': 'AWS::IAM::Policy',
@@ -179,6 +179,7 @@ class TestConfigParser(unittest.TestCase):
                     'MasterUsername': 'testuser',
                     'MultiAZ': False,
                     'PubliclyAccessible': False,
+                    'StorageEncrypted': False,
                     'StorageType': 'gp2'
                 }
             },

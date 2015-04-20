@@ -108,3 +108,15 @@ If you wish to include some static cloudformation json and have it merged with t
       - /path/to/cloudformation.json
 
 The tool will then perform a deep merge of the includes with the generated template dictionary. Any keys or subkeys in the template dictionary that clash will have their values **overwritten** by the included dictionary or recursively merged if the value is itself a dictionary.
+
+
+Enabling RDS encryption
++++++++++++++++++++++++++
+You can enable encryption for your DB by adding the following::
+ 
+  rds:
+     storage-encrypted: true
+     instance-class: db.m3.medium
+
+**NOTE:** AWS does not support RDS encryption for the *db.t2.** instance classes. More details on supported instance classes are available `here <http://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html>`_
+

@@ -159,6 +159,10 @@ class ConfigParser:
             'multi-az': 'MultiAZ'
         }
 
+        optional_fields = {
+            'storage-encrypted': 'StorageEncrypted',
+        }
+
         # LOAD STACK TEMPLATE
         template = json.loads(
             pkgutil.get_data(
@@ -173,6 +177,11 @@ class ConfigParser:
             else:
                 template['RDSInstance']['Properties'][
                     required_fields[i]] = self.data['rds'][i]
+
+        for i in optional_fields.keys():
+            if i in self.data['rds'].keys():
+                template['RDSInstance']['Properties'][
+                    optional_fields[i]] = self.data['rds'][i]
 
         return template
 
