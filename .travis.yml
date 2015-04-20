@@ -3,14 +3,26 @@
 language: python
 
 install:
-  - pip install coveralls
+  - pip install coveralls flake8
 
 python:
   - "2.7"
 
 # command to install dependencies and run tests
-script: 
-  coverage run --source=bootstrap_cfn setup.py test
+script:
+  # If we are a Pull request, check the changes introduced in it for pep8
+  #
+  # Or if we are just on a branch, work out what we've changed since we
+  # branched off master
+  - |
+    set -e -o pipefail;
+    if [ "$TRAVIS_PULL_REQUEST" != "false" ]
+      then git diff $TRAVIS_COMMIT_RANGE | flake8 --diff;
+      else git fetch -q origin master:origin/master && git diff origin/master... | flake8 --diff
+    fi
+
+  # Then run the tests
+  - coverage run --source=bootstrap_cfn setup.py test
 
 after_success:
   coveralls
