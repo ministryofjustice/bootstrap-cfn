@@ -4,6 +4,8 @@ import pkgutil
 import sys
 import yaml
 import bootstrap_cfn.errors as errors
+import bootstrap_cfn.utils as utils
+
 from copy import deepcopy
 
 class ProjectConfig:
@@ -14,30 +16,12 @@ class ProjectConfig:
         self.config = self.load_yaml(config)[environment]
         if passwords:
             passwords_dict = self.load_yaml(passwords)[environment]
-            self.config = self.dict_merge(self.config, passwords_dict)
+            self.config = utils.dict_merge(self.config, passwords_dict)
 
     @staticmethod
     def load_yaml(fp):
         if os.path.exists(fp):
             return yaml.load(open(fp).read())
-
-    def dict_merge(self, target, *args):
-        # Merge multiple dicts
-        if len(args) > 1:
-            for obj in args:
-                self.dict_merge(target, obj)
-            return target
-
-        # Recursively merge dicts and set non-dict values
-        obj = args[0]
-        if not isinstance(obj, dict):
-            return obj
-        for k, v in obj.iteritems():
-            if k in target and isinstance(target[k], dict):
-                self.dict_merge(target[k], v)
-            else:
-                target[k] = deepcopy(v)
-        return target
 
 
 class ConfigParser:
@@ -86,10 +70,16 @@ class ConfigParser:
                 data[k] = v
 
         template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/base.json'))
+        if 'vpc' in self.data:
+            template['Mappings']['SubnetConfig']['VPC'] = self.data['vpc']
         template['Resources'] = data
         template['Outputs'] = {}
         for t in output_templates:
             template['Outputs'].update(json.loads(pkgutil.get_data('bootstrap_cfn', t)))
+        if 'includes' in self.data:
+            for inc_path in self.data['includes']:
+                inc = json.load(open(inc_path))
+                template = utils.dict_merge(template, inc)
         return json.dumps(
             template, sort_keys=True, indent=4, separators=(',', ': '))
 
@@ -119,7 +109,7 @@ class ConfigParser:
 
         #policy = None
         if 'policy' in present_keys:
-            policy = json.loads(open(self.data['policy']).read())
+            policy = json.loads(open(self.data['s3']['policy']).read())
         else:
              arn = 'arn:aws:s3:::%s/*' % self.data['s3']['static-bucket-name']
              policy = {'Action': ['s3:Get*', 's3:Put*', 's3:List*'], 'Resource': arn, 'Effect': 'Allow', 'Principal' : {'AWS' : '*'}}
@@ -262,9 +252,13 @@ class ConfigParser:
 
         # BLOCK DEVICE MAPPING
         devices = []
-        for i in self.data['ec2']['block_devices']:
+        try:
+            for i in self.data['ec2']['block_devices']:
+                devices.append(
+                    {'DeviceName': i['DeviceName'], 'Ebs': {'VolumeSize': i['VolumeSize']}})
+        except KeyError:
             devices.append(
-                {'DeviceName': i['DeviceName'], 'Ebs': {'VolumeSize': i['VolumeSize']}})
+                {'DeviceName': '/dev/sda1', 'Ebs': {'VolumeSize': 20 }})
         template['BaseHostLaunchConfig']['Properties'][
             'BlockDeviceMappings'] = devices
 

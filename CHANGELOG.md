@@ -1,3 +1,8 @@
+## Version 0.2.2
+
+* Add include functionality for including extra cloudformation json files.
+* Add ability to use cross account IAM roles when authenticating to AWS.
+
 ## Version 0.2.1
 
 * Fix rsync missing passwords yaml from salt-pillar

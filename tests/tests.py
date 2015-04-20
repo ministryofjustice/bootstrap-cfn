@@ -4,6 +4,7 @@ import unittest
 from bootstrap_cfn.config import ProjectConfig, ConfigParser
 import bootstrap_cfn.errors as errors
 from testfixtures import compare
+import json
 
 
 class TestConfig(unittest.TestCase):
@@ -105,6 +106,33 @@ class TestConfigParser(unittest.TestCase):
         config = ConfigParser(ProjectConfig('tests/sample-project.yaml', 'dev').config, 'my-stack-name')
         self.assertEquals(known, config.s3())
 
+    def test_custom_s3_policy(self):
+        expected_s3 = [
+            {
+                'Action': [
+                    's3:Get*',
+                    's3:Put*',
+                    's3:List*',
+                    's3:Delete*'],
+                'Resource': 'arn:aws:s3:::moj-test-dev-static/*',
+                            'Effect': 'Allow',
+                            'Principal': {'AWS': '*'}
+            }
+        ]
+
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+
+        project_config.config['s3'] = {
+            'static-bucket-name': 'moj-test-dev-static',
+            'policy': 'tests/sample-custom-s3-policy.json'}
+
+        config = ConfigParser(project_config.config, 'my-stack-name')
+        s3_cfg = config.s3()
+        s3_custom_cfg = s3_cfg['StaticBucketPolicy'][
+            'Properties']['PolicyDocument']['Statement']
+
+        compare(expected_s3, s3_custom_cfg)
+
     def test_rds(self):
         known = {
             'DBSecurityGroup': {
@@ -149,97 +177,194 @@ class TestConfigParser(unittest.TestCase):
         self.assertEquals(known, config.rds())
 
     def test_elb(self):
-        known = [{'ELBtestdevexternal': {'Type': 'AWS::ElasticLoadBalancing::LoadBalancer',
-                                         'Properties': {'Listeners': [{'InstancePort': 80,
-                                                                       'LoadBalancerPort': 80,
-                                                                       'Protocol': 'TCP'},
-                                                                      {'InstancePort': 443,
-                                                                       'LoadBalancerPort': 443,
-                                                                       'Protocol': 'TCP'}],
-                                                        'AvailabilityZones': {'Fn::GetAZs': ''},
-                                                        'Scheme': 'internet-facing',
-                                                        'LoadBalancerName': 'ELB-test-dev-external'}}},
-                 {'DNStestdevexternal': {'Type': 'AWS::Route53::RecordSetGroup',
-                                         'Properties': {'HostedZoneName': 'kyrtest.pf.dsd.io.',
-                                                        'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
-                                                        'RecordSets': [{'AliasTarget': {'HostedZoneId': {'Fn::GetAtt': ['ELBtestdevexternal',
-                                                                                                                        'CanonicalHostedZoneNameID']},
-                                                                                        'DNSName': {'Fn::GetAtt': ['ELBtestdevexternal',
-                                                                                                                   'CanonicalHostedZoneName']}},
-                                                                        'Type': 'A',
-                                                                        'Name': 'test-dev-external.kyrtest.pf.dsd.io.'}]}}},
-                 {'ELBtestdevinternal': {'Type': 'AWS::ElasticLoadBalancing::LoadBalancer',
-                                         'Properties': {'Listeners': [{'InstancePort': 80,
-                                                                       'LoadBalancerPort': 80,
-                                                                       'Protocol': 'TCP'}],
-                                                        'AvailabilityZones': {'Fn::GetAZs': ''},
-                                                        'SecurityGroups': [{'Ref':'BaseELBSG'}],
-                                                        'Scheme': 'internet-facing',
-                                                        'LoadBalancerName': 'ELB-test-dev-internal'}}},
-                 {'DNStestdevinternal': {'Type': 'AWS::Route53::RecordSetGroup',
-                                         'Properties': {'HostedZoneName': 'kyrtest.pf.dsd.io.',
-                                                        'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
-                                                        'RecordSets': [{'AliasTarget': {'HostedZoneId': {'Fn::GetAtt': ['ELBtestdevinternal',
-                                                                                                                        'CanonicalHostedZoneNameID']},
-                                                                                        'DNSName': {'Fn::GetAtt': ['ELBtestdevinternal',
-                                                                                                                   'CanonicalHostedZoneName']}},
-                                                                        'Type': 'A',
-                                                                        'Name': 'test-dev-internal.kyrtest.pf.dsd.io.'}]}}}]
 
+        expected_resources = [
+            {'ELBtestdevexternal': {
+                u'Properties': {
+                    u'Listeners': [
+                        {'InstancePort': 80,
+                         'LoadBalancerPort': 80,
+                         'Protocol': 'TCP'},
+                        {'InstancePort': 443,
+                         'LoadBalancerPort': 443,
+                         'Protocol': 'TCP'}
+                    ],
+                    u'LoadBalancerName': 'ELB-test-dev-external',
+                    u'SecurityGroups': [{u'Ref': u'DefaultSGtestdevexternal'}],
+                    u'Scheme': 'internet-facing',
+                    u'Subnets': [
+                        {u'Ref': u'SubnetA'},
+                        {u'Ref': u'SubnetB'},
+                        {u'Ref': u'SubnetC'}
+                    ],
+                },
+                u'Type': u'AWS::ElasticLoadBalancing::LoadBalancer'}},
+            {'DNStestdevexternal': {
+                u'Properties': {
+                    u'Comment': u'Zone apex alias targeted to ElasticLoadBalancer.',
+                    u'HostedZoneName': 'kyrtest.pf.dsd.io.',
+                    u'RecordSets': [
+                        {u'AliasTarget': {
+                            u'DNSName': {u'Fn::GetAtt': ['ELBtestdevexternal', 'CanonicalHostedZoneName']},
+                            u'HostedZoneId': {u'Fn::GetAtt': ['ELBtestdevexternal', 'CanonicalHostedZoneNameID']}},
+                            u'Name': 'test-dev-external.kyrtest.pf.dsd.io.',
+                            u'Type': u'A'}
+                    ]
+                },
+                u'Type': u'AWS::Route53::RecordSetGroup'}},
+            {'ELBtestdevinternal': {
+                u'Properties': {
+                    u'Listeners': [
+                        {'InstancePort': 80,
+                         'LoadBalancerPort': 80,
+                         'Protocol': 'TCP'}
+                    ],
+                    u'LoadBalancerName': 'ELB-test-dev-internal',
+                    u'SecurityGroups': [{u'Ref': u'DefaultSGtestdevinternal'}],
+                    u'Scheme': 'internet-facing',
+                    u'Subnets': [
+                        {u'Ref': u'SubnetA'},
+                        {u'Ref': u'SubnetB'},
+                        {u'Ref': u'SubnetC'}
+                    ]
+                },
+                u'Type': u'AWS::ElasticLoadBalancing::LoadBalancer'}},
+            {'DNStestdevinternal': {
+                u'Properties': {
+                    u'Comment': u'Zone apex alias targeted to ElasticLoadBalancer.',
+                    u'HostedZoneName': 'kyrtest.pf.dsd.io.',
+                    u'RecordSets': [
+                        {u'AliasTarget': {
+                            u'DNSName': {u'Fn::GetAtt': ['ELBtestdevinternal', 'CanonicalHostedZoneName']},
+                            u'HostedZoneId': {u'Fn::GetAtt': ['ELBtestdevinternal', 'CanonicalHostedZoneNameID']}},
+                            u'Name': 'test-dev-internal.kyrtest.pf.dsd.io.',
+                            u'Type': u'A'}
+                    ]
+                },
+                u'Type': u'AWS::Route53::RecordSetGroup'}},
+        ]
 
-        known = [
-             {'ELBtestdevexternal': {u'Properties': {u'Listeners': [{'InstancePort': 80,
-                                                                     'LoadBalancerPort': 80,
-                                                                     'Protocol': 'TCP'},
-                                                                    {'InstancePort': 443,
-                                                                     'LoadBalancerPort': 443,
-                                                                     'Protocol': 'TCP'}],
-                                                     u'LoadBalancerName': 'ELB-test-dev-external',
-                                                     u'SecurityGroups': [{u'Ref':u'DefaultSGtestdevexternal'}],
-                                                     u'Scheme': 'internet-facing',
-                                                     u'Subnets': [{u'Ref': u'SubnetA'},
-                                                                  {u'Ref': u'SubnetB'},
-                                                                  {u'Ref': u'SubnetC'}]},
-                                     u'Type': u'AWS::ElasticLoadBalancing::LoadBalancer'}},
-             {'DNStestdevexternal': {u'Properties': {u'Comment': u'Zone apex alias targeted to ElasticLoadBalancer.',
-                                                     u'HostedZoneName': 'kyrtest.pf.dsd.io.',
-                                                     u'RecordSets': [{u'AliasTarget': {u'DNSName': {u'Fn::GetAtt': ['ELBtestdevexternal',
-                                                                                                                    'CanonicalHostedZoneName']},
-                                                                                       u'HostedZoneId': {u'Fn::GetAtt': ['ELBtestdevexternal',
-                                                                                                                         'CanonicalHostedZoneNameID']}},
-                                                                      u'Name': 'test-dev-external.kyrtest.pf.dsd.io.',
-                                                                      u'Type': u'A'}]},
-                                     u'Type': u'AWS::Route53::RecordSetGroup'}},
-             {'ELBtestdevinternal': {u'Properties': {u'Listeners': [{'InstancePort': 80,
-                                                                     'LoadBalancerPort': 80,
-                                                                     'Protocol': 'TCP'}],
-                                                     u'LoadBalancerName': 'ELB-test-dev-internal',
-                                                     u'SecurityGroups': [{u'Ref':u'BaseELBSG'}],
-                                                     u'Scheme': 'internet-facing',
-                                                     u'Subnets': [{u'Ref': u'SubnetA'},
-                                                                  {u'Ref': u'SubnetB'},
-                                                                  {u'Ref': u'SubnetC'}]},
-                                     u'Type': u'AWS::ElasticLoadBalancing::LoadBalancer'}},
-             {'DNStestdevinternal': {u'Properties': {u'Comment': u'Zone apex alias targeted to ElasticLoadBalancer.',
-                                                     u'HostedZoneName': 'kyrtest.pf.dsd.io.',
-                                                     u'RecordSets': [{u'AliasTarget': {u'DNSName': {u'Fn::GetAtt': ['ELBtestdevinternal',
-                                                                                                                    'CanonicalHostedZoneName']},
-                                                                                       u'HostedZoneId': {u'Fn::GetAtt': ['ELBtestdevinternal',
-                                                                                                                         'CanonicalHostedZoneNameID']}},
-                                                                      u'Name': 'test-dev-internal.kyrtest.pf.dsd.io.',
-                                                                      u'Type': u'A'}]},
-                                     u'Type': u'AWS::Route53::RecordSetGroup'}}
-            ]
+        expected_sgs = {
+            'DefaultSGtestdevexternal': {
+                'Properties': {
+                    u'SecurityGroupIngress': [
+                        {'ToPort': 443,
+                         'IpProtocol': 'tcp',
+                         'CidrIp': '0.0.0.0/0',
+                         'FromPort': 443},
+                        {'ToPort': 80,
+                         'IpProtocol': 'tcp',
+                         'CidrIp': '0.0.0.0/0',
+                         'FromPort': 80}
+                    ],
+                    'VpcId': {'Ref': 'VPC'},
+                    'GroupDescription': 'DefaultELBSecurityGroup'
+                },
+                'Type': u'AWS::EC2::SecurityGroup',
+            },
+            'DefaultSGtestdevinternal': {
+                'Properties': {
+                    u'SecurityGroupIngress': [
+                        {'ToPort': 443,
+                         'IpProtocol': 'tcp',
+                         'CidrIp': '0.0.0.0/0',
+                         'FromPort': 443},
+                        {'ToPort': 80,
+                         'IpProtocol': 'tcp',
+                         'CidrIp': '0.0.0.0/0',
+                         'FromPort': 80}
+                    ],
+                    'VpcId': {'Ref': 'VPC'},
+                    'GroupDescription': 'DefaultELBSecurityGroup'
+                },
+                'Type': 'AWS::EC2::SecurityGroup',
+            }
+        }
 
         config = ConfigParser(
             ProjectConfig(
                 'tests/sample-project.yaml',
                 'dev').config,'my-stack-name')
         elb_cfg, elb_sgs = config.elb()
-        compare(known, elb_cfg)
 
-    def test_elb_no_sgs(self):
-        from testfixtures import compare
+        compare(expected_resources, elb_cfg)
+
+        compare(expected_sgs, elb_sgs)
+
+    def test_elb_custom_sg(self):
+
+        expected_sgs = {
+            'SGName': {
+                'Properties': {
+                    u'SecurityGroupIngress': [
+                        {'ToPort': 443,
+                         'IpProtocol': 'tcp',
+                         'CidrIp': '1.2.3.4/32',
+                         'FromPort': 443},
+                    ],
+                    'VpcId': {'Ref': 'VPC'},
+                    'GroupDescription': 'DefaultELBSecurityGroup'
+                },
+                'Type': u'AWS::EC2::SecurityGroup',
+            },
+        }
+
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+
+        # Remove the "test-dev-internal" ELB
+        project_config.config['elb'] = [{
+            'name': 'test-dev-external',
+            'hosted_zone': 'kyrtest.pf.x',
+            'scheme': 'internet-facing',
+            'listeners': [
+                {'LoadBalancerPort': 443,
+                 'InstancePort': 443,
+                 'Protocol': 'TCP'}
+            ],
+            'security_groups': {
+                'SGName': [
+                    {'IpProtocol': 'tcp',
+                     'FromPort': 443,
+                     'ToPort': 443,
+                     'CidrIp': '1.2.3.4/32'},
+                ]
+            }
+        }]
+
+        config = ConfigParser(project_config.config, 'my-stack-name')
+        elb_cfg, elb_sgs = config.elb()
+
+        compare(expected_sgs, elb_sgs)
+
+        [elb] = (e.values()[0] for e in elb_cfg if e.has_key('ELBtestdevexternal'))
+        compare(elb['Properties']['SecurityGroups'],
+                [{u'Ref': u'SGName'}])
+
+    def test_cf_includes(self):
+        project_config = ProjectConfig('tests/sample-project.yaml',
+                                       'dev', 
+                                       'tests/sample-project-passwords.yaml')
+        project_config.config['includes'] = ['tests/sample-include.json']
+        known_outputs = {
+          "dbhost": {
+            "Description": "RDS Hostname",
+            "Value": {"Fn::GetAtt" : [ "RDSInstance" , "Endpoint.Address" ]}
+          },
+          "dbport": {
+            "Description": "RDS Port",
+            "Value": {"Fn::GetAtt" : [ "RDSInstance" , "Endpoint.Port" ]}
+          },
+          "someoutput":{
+            "Description": "For tests",
+            "Value": "BLAHBLAH"
+          }
+        }
+        config = ConfigParser(project_config.config, 'my-stack-name')
+        cfg = json.loads(config.process())
+        outputs = cfg['Outputs']
+        compare(known_outputs, outputs)
+
+    def test_process_no_elbs_no_rds(self):
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         # Assuming there's no ELB defined
         project_config.config.pop('elb')
@@ -248,7 +373,6 @@ class TestConfigParser(unittest.TestCase):
         config.process()
 
     def test_elb_missing_cert(self):
-        from testfixtures import compare
 
         self.maxDiff = None
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
@@ -275,7 +399,6 @@ class TestConfigParser(unittest.TestCase):
             config.elb()
 
     def test_elb_missing_cert_name(self):
-        from testfixtures import compare
 
         self.maxDiff = None
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
@@ -300,7 +423,6 @@ class TestConfigParser(unittest.TestCase):
             config.elb()
 
     def test_elb_with_ssl(self):
-        from testfixtures import compare
 
         self.maxDiff = None
 
@@ -358,7 +480,6 @@ class TestConfigParser(unittest.TestCase):
         self.assertEquals(known, elb_cfg)
 
     def test_elb_with_reserved_chars(self):
-        from testfixtures import compare
 
         self.maxDiff = None
         known = [
@@ -473,6 +594,14 @@ class TestConfigParser(unittest.TestCase):
                 'dev').config, 'my-stack-name')
         compare(known, config.ec2())
 
+    def test_ec2_with_no_block_device_specified(self):
+        from testfixtures import compare
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        project_config.config['ec2'].pop('block_devices')
+        config = ConfigParser(project_config.config, 'my-stack-name')
+        config_output = config.ec2()['BaseHostLaunchConfig']['Properties']['BlockDeviceMappings']
+        known = [{'DeviceName': '/dev/sda1', 'Ebs': {'VolumeSize': 20}}]
+        self.assertEquals(known, config_output)
 
 if __name__ == '__main__':
     unittest.main()

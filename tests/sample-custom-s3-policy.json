@@ -1,0 +1,5 @@
+{   "Action": ["s3:Get*", "s3:Put*", "s3:List*", "s3:Delete*"],
+    "Resource": "arn:aws:s3:::moj-test-dev-static/*",
+    "Effect": "Allow",
+    "Principal": { "AWS": "*" }
+}
