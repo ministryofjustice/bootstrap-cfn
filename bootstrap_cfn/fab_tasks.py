@@ -3,9 +3,9 @@
 import os
 import sys
 
-from fabric.api import env, task, sudo, put
+from fabric.api import env, task
 from fabric.utils import abort
-from fabric.colors import green, red, yellow
+from fabric.colors import green, red
 
 from bootstrap_cfn.config import ProjectConfig, ConfigParser
 from bootstrap_cfn.cloudformation import Cloudformation
