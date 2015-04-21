@@ -1,3 +1,9 @@
+## Version 0.3.0
+
+* Extract all the salt specific code into bootstrap-salt which lives in a
+  seperate repo. We have tested this but it might break a few things for some
+  projects. Sry **BREAKING CHANGE**
+
 ## Version 0.2.2
 
 * Add include functionality for including extra cloudformation json files.
