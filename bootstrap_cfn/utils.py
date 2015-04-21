@@ -6,7 +6,6 @@ import time
 import os
 
 import bootstrap_cfn.errors as errors
-from fabric.colors import green, red, yellow
 from copy import deepcopy
 
 
@@ -75,6 +74,7 @@ def dict_merge(target, *args):
 
 
 def tail(stack, stack_name):
+    from fabric.colors import green, red, yellow
     """Show and then tail the event log"""
 
     def colorize(e):

@@ -31,9 +31,13 @@ dev:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 4505
+          ToPort: 4506
+          CidrIp: 10.0.0.0/16
   elb:
     - name: test-dev-external
-      hosted_zone: kyrtest.pf.dsd.io.
+      hosted_zone: integration.dsd.io.
       scheme: internet-facing
       listeners:
         - LoadBalancerPort: 80
@@ -42,15 +46,8 @@ dev:
         - LoadBalancerPort: 443
           InstancePort: 443
           Protocol: TCP
-    - name: test-dev-internal
-      hosted_zone: kyrtest.pf.dsd.io.
-      scheme: internet-facing
-      listeners:
-        - LoadBalancerPort: 80
-          InstancePort: 80
-          Protocol: TCP
   s3:
-    static-bucket-name: moj-test-dev-static
+    static-bucket-name: moj-test-dev-static-integration
   rds:
     storage: 5
     storage-type: gp2
@@ -62,23 +59,17 @@ dev:
     multi-az: false
     db-engine: postgres
     db-engine-version: 9.3.5
-  ssl:
-    my-cert:
-      cert: |
-        -----BEGIN CERTIFICATE-----
-        blahblahblah
-        -----END CERTIFICATE-----
-      key: |
-        -----BEGIN RSA PRIVATE KEY-----
-        blahblahblah
-        -----END RSA PRIVATE KEY-----
-      chain: |
-        -----BEGIN CERTIFICATE-----
-        blahblahblah
-        -----END CERTIFICATE-----
-  salt:
-    local_salt_dir: ./salt
-    local_pillar_dir: ./pillar
-    local_vendor_dir: ./vendor
-    remote_state_dir: /srv/salt
-    remote_pillar_dir: /srv/pillar
+#  ssl:
+#    my-cert:
+#      cert: |
+#        -----BEGIN CERTIFICATE-----
+#        blahblahblah
+#        -----END CERTIFICATE-----
+#      key: |
+#        -----BEGIN RSA PRIVATE KEY-----
+#        blahblahblah
+#        -----END RSA PRIVATE KEY-----
+#      chain: |
+#        -----BEGIN CERTIFICATE-----
+#        blahblahblah
+#        -----END CERTIFICATE-----
