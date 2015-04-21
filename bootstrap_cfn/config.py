@@ -220,7 +220,7 @@ class ConfigParser:
                 'CanonicalHostedZoneNameID']
             target_dns = [
                 'ELB%s' % safe_name,
-                'CanonicalHostedZoneName']
+                'DNSName']
             template['DNSRecord']['Properties']['RecordSets'][0][
                 'AliasTarget']['HostedZoneId']['Fn::GetAtt'] = target_zone
             template['DNSRecord']['Properties']['RecordSets'][0][

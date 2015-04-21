@@ -205,7 +205,7 @@ class TestConfigParser(unittest.TestCase):
                     u'HostedZoneName': 'kyrtest.pf.dsd.io.',
                     u'RecordSets': [
                         {u'AliasTarget': {
-                            u'DNSName': {u'Fn::GetAtt': ['ELBtestdevexternal', 'CanonicalHostedZoneName']},
+                            u'DNSName': {u'Fn::GetAtt': ['ELBtestdevexternal', 'DNSName']},
                             u'HostedZoneId': {u'Fn::GetAtt': ['ELBtestdevexternal', 'CanonicalHostedZoneNameID']}},
                             u'Name': 'test-dev-external.kyrtest.pf.dsd.io.',
                             u'Type': u'A'}
@@ -221,7 +221,7 @@ class TestConfigParser(unittest.TestCase):
                     ],
                     u'LoadBalancerName': 'ELB-test-dev-internal',
                     u'SecurityGroups': [{u'Ref': u'DefaultSGtestdevinternal'}],
-                    u'Scheme': 'internet-facing',
+                    u'Scheme': 'internal',
                     u'Subnets': [
                         {u'Ref': u'SubnetA'},
                         {u'Ref': u'SubnetB'},
@@ -235,7 +235,7 @@ class TestConfigParser(unittest.TestCase):
                     u'HostedZoneName': 'kyrtest.pf.dsd.io.',
                     u'RecordSets': [
                         {u'AliasTarget': {
-                            u'DNSName': {u'Fn::GetAtt': ['ELBtestdevinternal', 'CanonicalHostedZoneName']},
+                            u'DNSName': {u'Fn::GetAtt': ['ELBtestdevinternal', 'DNSName']},
                             u'HostedZoneId': {u'Fn::GetAtt': ['ELBtestdevinternal', 'CanonicalHostedZoneNameID']}},
                             u'Name': 'test-dev-internal.kyrtest.pf.dsd.io.',
                             u'Type': u'A'}
@@ -449,7 +449,7 @@ class TestConfigParser(unittest.TestCase):
              {'DNSdev_dockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
                                                                'HostedZoneName': 'kyrtest.foo.bar.',
                                                                'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                              'CanonicalHostedZoneName']},
+                                                                                                                              'DNSName']},
                                                                                                  'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
                                                                                                                                    'CanonicalHostedZoneNameID']}},
                                                                                 'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
@@ -499,7 +499,7 @@ class TestConfigParser(unittest.TestCase):
              {'DNSdev_dockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
                                                                'HostedZoneName': 'kyrtest.foo.bar.',
                                                                'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                              'CanonicalHostedZoneName']},
+                                                                                                                              'DNSName']},
                                                                                                  'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
                                                                                                                                    'CanonicalHostedZoneNameID']}},
                                                                                 'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
