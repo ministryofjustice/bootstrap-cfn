@@ -40,30 +40,6 @@ class Cloudformation:
     def get_last_stack_event(self, stack_id):
         return self.conn_cfn.describe_stack_events(stack_id)[0]
 
-    def get_stack_instances(self, stack_name_or_id):
-        # get the stack
-        stack = self.conn_cfn.describe_stacks(stack_name_or_id)
-        if not stack:
-            print 'Empty stack'
-            return []
-        fn = lambda x: x.resource_type == 'AWS::AutoScaling::AutoScalingGroup'
-        # get the scaling group
-        scaling_group = filter(fn, stack[0].list_resources())
-        if not scaling_group:
-            print 'No scaling group found'
-            return []
-        scaling_group_id = scaling_group[0].physical_resource_id
-
-        asc = utils.connect_to_aws(autoscale, self)
-
-        # get the instance IDs for all instances in the scaling group
-        instances = asc.get_all_groups(names=[scaling_group_id])[0].instances
-        return instances
-
-    def get_stack_instance_ids(self, stack_name_or_id):
-        return [
-            x.instance_id for x in self.get_stack_instances(stack_name_or_id)]
-
     def stack_missing(self, stack_name):
         ''' Returns True if stack not found'''
         stacks = self.conn_cfn.describe_stacks()
