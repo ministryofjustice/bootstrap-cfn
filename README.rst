@@ -53,11 +53,6 @@ If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabr
 - **environment:dev** - The ``dev`` section will be read from the projects YAML file (line 1 in the example below)
 - **config:/path/to/file.yaml** - The location to the project YAML file
 
-If you also want to bootstrap the salt master and minions, you can do this::
-
-    fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create install_master install_minions
-
-
 Example Configuration
 ======================
 AWS Account Configuration
@@ -86,30 +81,6 @@ And when you run the tool you must set the ARN ID of the role in the separate ac
 Project specific YAML file
 +++++++++++++++++++++++++++
 The `YAML file <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/docs/sample-project.yaml>`_ highlights what is possible with all the bootstrap-cfn features available to date. The minimum requirement is that it must contain an *ec2* block, you **do not** have to use RDS, S3 or ELB's.
-
-
-
-Salt specific configuration
-++++++++++++++++++++++++++++
-
-In order to rsync your salt states to the salt master you need to add a `salt` section to the top level of your project's YAML file. The following parameters specify the rsync sources and targets:
-
-- **local_salt_dir**: Directory containing all the files you want to have in your salt root (for example top.sls or project specific states).
-    **Default value**: ./salt
-- **local_pillar_dir**: Directory containing all the files you want to have in your pillar root.
-    **Default value**: ./pillar
-- **local_vendor_dir**: Directory containing formulas cloned by salt-shaker.
-    **Default value**: ./vendor
-- **remote_state_dir**: Salt root on the master.
-    **Default value**: /srv/salt
-- **remote_pillar_dir**: Pillar root on the master.
-    **Default value**: /srv/pillar
-
-The cloudformation yaml will be automatically uploaded to your pillar as cloudformation.sls. So if you include ``-cloudformation`` in your pillar top file you can do things like:
-
-::
-
-    salt-call pillar.get s3:static-bucket-name
 
 ELBs
 ++++++++++++++++++++
