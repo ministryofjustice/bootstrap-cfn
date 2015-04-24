@@ -20,7 +20,7 @@ class TestConfig(unittest.TestCase):
         self.assertEquals(
             sorted(
                 config.config.keys()), [
-                'ec2', 'elb', 'rds', 's3','ssl'])
+                'ec2', 'elb', 'rds', 's3', 'ssl'])
 
     def test_project_config_merge_password(self):
         '''
@@ -103,7 +103,11 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'tests/sample-project.yaml',
                 'dev').config, 'my-stack-name')
-        config = ConfigParser(ProjectConfig('tests/sample-project.yaml', 'dev').config, 'my-stack-name')
+        config = ConfigParser(
+            ProjectConfig(
+                'tests/sample-project.yaml',
+                'dev').config,
+            'my-stack-name')
         self.assertEquals(known, config.s3())
 
     def test_custom_s3_policy(self):
@@ -137,43 +141,42 @@ class TestConfigParser(unittest.TestCase):
         known = {
             'DBSecurityGroup': {
                 'Properties': {
-                    'DBSecurityGroupIngress': [{'CIDRIP': { 'Fn::FindInMap': ['SubnetConfig', 'VPC', 'CIDR'] }}],
-                        'EC2VpcId': {'Ref': 'VPC'},
-                        'GroupDescription': 'EC2 Access'},
-                        'Type': 'AWS::RDS::DBSecurityGroup'},
-                'RDSInstance': {
-                      'DependsOn': 'DBSecurityGroup',
-                      'Properties': {
-                                  'AllocatedStorage': 5,
-                                  'AllowMajorVersionUpgrade': False,
-                                  'AutoMinorVersionUpgrade': False,
-                                  'BackupRetentionPeriod': 1,
-                                  'DBInstanceClass': 'db.t2.micro',
-                                  'DBInstanceIdentifier': 'test-dev',
-                                  'DBName': 'test',
-                                  'DBSecurityGroups': [{'Ref': 'DBSecurityGroup'}],
-                                  'DBSubnetGroupName': {'Ref': 'RDSSubnetGroup'},
-                                  'Engine': 'postgres',
-                                  'EngineVersion': '9.3.5',
-                                  'MasterUserPassword': 'testpassword',
-                                  'MasterUsername': 'testuser',
-                                  'MultiAZ': False,
-                                  'PubliclyAccessible': False,
-                                  'StorageType': 'gp2'},
-                      'Type': 'AWS::RDS::DBInstance'},
-                'RDSSubnetGroup': {
-                    'Properties': {
-                                  'DBSubnetGroupDescription': 'VPC Subnets',
-                                  'SubnetIds': [{'Ref': 'SubnetA'}, {'Ref': 'SubnetB'}, {'Ref': 'SubnetC'}]},
-                     'Type': 'AWS::RDS::DBSubnetGroup'}
-            }
-
+                    'DBSecurityGroupIngress': [{'CIDRIP': {'Fn::FindInMap': ['SubnetConfig', 'VPC', 'CIDR']}}],
+                    'EC2VpcId': {'Ref': 'VPC'},
+                    'GroupDescription': 'EC2 Access'},
+                'Type': 'AWS::RDS::DBSecurityGroup'},
+            'RDSInstance': {
+                'DependsOn': 'DBSecurityGroup',
+                'Properties': {
+                    'AllocatedStorage': 5,
+                    'AllowMajorVersionUpgrade': False,
+                    'AutoMinorVersionUpgrade': False,
+                    'BackupRetentionPeriod': 1,
+                    'DBInstanceClass': 'db.t2.micro',
+                    'DBInstanceIdentifier': 'test-dev',
+                    'DBName': 'test',
+                    'DBSecurityGroups': [{'Ref': 'DBSecurityGroup'}],
+                    'DBSubnetGroupName': {'Ref': 'RDSSubnetGroup'},
+                    'Engine': 'postgres',
+                    'EngineVersion': '9.3.5',
+                    'MasterUserPassword': 'testpassword',
+                    'MasterUsername': 'testuser',
+                    'MultiAZ': False,
+                    'PubliclyAccessible': False,
+                    'StorageType': 'gp2'},
+                'Type': 'AWS::RDS::DBInstance'},
+            'RDSSubnetGroup': {
+                'Properties': {
+                    'DBSubnetGroupDescription': 'VPC Subnets',
+                    'SubnetIds': [{'Ref': 'SubnetA'}, {'Ref': 'SubnetB'}, {'Ref': 'SubnetC'}]},
+                'Type': 'AWS::RDS::DBSubnetGroup'}
+        }
 
         config = ConfigParser(
             ProjectConfig(
                 'tests/sample-project.yaml',
                 'dev',
-                'tests/sample-project-passwords.yaml').config,'my-stack-name')
+                'tests/sample-project-passwords.yaml').config, 'my-stack-name')
         self.assertEquals(known, config.rds())
 
     def test_elb(self):
@@ -284,7 +287,7 @@ class TestConfigParser(unittest.TestCase):
         config = ConfigParser(
             ProjectConfig(
                 'tests/sample-project.yaml',
-                'dev').config,'my-stack-name')
+                'dev').config, 'my-stack-name')
         elb_cfg, elb_sgs = config.elb()
 
         compare(expected_resources, elb_cfg)
@@ -336,28 +339,28 @@ class TestConfigParser(unittest.TestCase):
 
         compare(expected_sgs, elb_sgs)
 
-        [elb] = (e.values()[0] for e in elb_cfg if e.has_key('ELBtestdevexternal'))
+        [elb] = (e.values()[0] for e in elb_cfg if 'ELBtestdevexternal' in e)
         compare(elb['Properties']['SecurityGroups'],
                 [{u'Ref': u'SGName'}])
 
     def test_cf_includes(self):
         project_config = ProjectConfig('tests/sample-project.yaml',
-                                       'dev', 
+                                       'dev',
                                        'tests/sample-project-passwords.yaml')
         project_config.config['includes'] = ['tests/sample-include.json']
         known_outputs = {
-          "dbhost": {
-            "Description": "RDS Hostname",
-            "Value": {"Fn::GetAtt" : [ "RDSInstance" , "Endpoint.Address" ]}
-          },
-          "dbport": {
-            "Description": "RDS Port",
-            "Value": {"Fn::GetAtt" : [ "RDSInstance" , "Endpoint.Port" ]}
-          },
-          "someoutput":{
-            "Description": "For tests",
-            "Value": "BLAHBLAH"
-          }
+            "dbhost": {
+                "Description": "RDS Hostname",
+                "Value": {"Fn::GetAtt": ["RDSInstance", "Endpoint.Address"]}
+            },
+            "dbport": {
+                "Description": "RDS Port",
+                "Value": {"Fn::GetAtt": ["RDSInstance", "Endpoint.Port"]}
+            },
+            "someoutput": {
+                "Description": "For tests",
+                "Value": "BLAHBLAH"
+            }
         }
         config = ConfigParser(project_config.config, 'my-stack-name')
         cfg = json.loads(config.process())
@@ -384,17 +387,17 @@ class TestConfigParser(unittest.TestCase):
             'certificate_name': 'my-cert',
             'scheme': 'internet-facing',
             'listeners': [
-                { 'LoadBalancerPort': 80,
-                  'InstancePort': 80,
-                  'Protocol': 'TCP'
-                },
-                { 'LoadBalancerPort': 443,
-                  'InstancePort': 443,
-                  'Protocol': 'HTTPS'
-                },
+                {'LoadBalancerPort': 80,
+                 'InstancePort': 80,
+                 'Protocol': 'TCP'
+                 },
+                {'LoadBalancerPort': 443,
+                 'InstancePort': 443,
+                 'Protocol': 'HTTPS'
+                 },
             ],
         }]
-        config = ConfigParser(project_config.config,'my-stack-name')
+        config = ConfigParser(project_config.config, 'my-stack-name')
         with self.assertRaises(errors.CfnConfigError):
             config.elb()
 
@@ -408,17 +411,17 @@ class TestConfigParser(unittest.TestCase):
             'hosted_zone': 'kyrtest.foo.bar.',
             'scheme': 'internet-facing',
             'listeners': [
-                { 'LoadBalancerPort': 80,
-                  'InstancePort': 80,
-                  'Protocol': 'TCP'
-                },
-                { 'LoadBalancerPort': 443,
-                  'InstancePort': 443,
-                  'Protocol': 'HTTPS'
-                },
+                {'LoadBalancerPort': 80,
+                 'InstancePort': 80,
+                 'Protocol': 'TCP'
+                 },
+                {'LoadBalancerPort': 443,
+                 'InstancePort': 443,
+                 'Protocol': 'HTTPS'
+                 },
             ],
         }]
-        config = ConfigParser(project_config.config,'my-stack-name')
+        config = ConfigParser(project_config.config, 'my-stack-name')
         with self.assertRaises(errors.CfnConfigError):
             config.elb()
 
@@ -426,36 +429,35 @@ class TestConfigParser(unittest.TestCase):
 
         self.maxDiff = None
 
-
         known = [
             {'ELBdev_dockerregistryservice': {'Properties': {'Listeners': [{'InstancePort': 80,
-                                                                               'LoadBalancerPort': 80,
-                                                                               'Protocol': 'TCP'},
-                                                                              {'InstancePort': 443,
+                                                                            'LoadBalancerPort': 80,
+                                                                            'Protocol': 'TCP'},
+                                                                           {'InstancePort': 443,
                                                                                'LoadBalancerPort': 443,
                                                                                'Protocol': 'HTTPS',
                                                                                'SSLCertificateId': {'Fn::Join': ['',
-                                                                                                                   ['arn:aws:iam::',
-                                                                                                                    {'Ref': 'AWS::AccountId'},
-                                                                                                                    ':server-certificate/',
-                                                                                                                    'my-cert-my-stack-name']]}}],
-                                                               'LoadBalancerName': 'ELB-dev_docker-registryservice',
-                                                               'SecurityGroups': [{'Ref':'DefaultSGdev_dockerregistryservice'}],
-                                                               'Scheme': 'internet-facing',
-                                                               'Subnets': [{'Ref': 'SubnetA'},
-                                                                            {'Ref': 'SubnetB'},
-                                                                            {'Ref': 'SubnetC'}]},
-                                               'Type': 'AWS::ElasticLoadBalancing::LoadBalancer'}},
-             {'DNSdev_dockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
-                                                               'HostedZoneName': 'kyrtest.foo.bar.',
-                                                               'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                              'DNSName']},
-                                                                                                 'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                                   'CanonicalHostedZoneNameID']}},
-                                                                                'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
-                                                                                'Type': 'A'}]},
-                                               'Type': 'AWS::Route53::RecordSetGroup'}}
-            ]
+                                                                                                                 ['arn:aws:iam::',
+                                                                                                                  {'Ref': 'AWS::AccountId'},
+                                                                                                                  ':server-certificate/',
+                                                                                                                  'my-cert-my-stack-name']]}}],
+                                                             'LoadBalancerName': 'ELB-dev_docker-registryservice',
+                                                             'SecurityGroups': [{'Ref': 'DefaultSGdev_dockerregistryservice'}],
+                                                             'Scheme': 'internet-facing',
+                                                             'Subnets': [{'Ref': 'SubnetA'},
+                                                                         {'Ref': 'SubnetB'},
+                                                                         {'Ref': 'SubnetC'}]},
+                                              'Type': 'AWS::ElasticLoadBalancing::LoadBalancer'}},
+            {'DNSdev_dockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
+                                                             'HostedZoneName': 'kyrtest.foo.bar.',
+                                                             'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
+                                                                                                                        'DNSName']},
+                                                                                             'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
+                                                                                                                             'CanonicalHostedZoneNameID']}},
+                                                                               'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
+                                                                             'Type': 'A'}]},
+                                              'Type': 'AWS::Route53::RecordSetGroup'}}
+        ]
 
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         # Ugh. Fixtures please?
@@ -465,17 +467,17 @@ class TestConfigParser(unittest.TestCase):
             'scheme': 'internet-facing',
             'certificate_name': 'my-cert',
             'listeners': [
-                { 'LoadBalancerPort': 80,
-                  'InstancePort': 80,
-                  'Protocol': 'TCP'
-                },
-                { 'LoadBalancerPort': 443,
-                  'InstancePort': 443,
-                  'Protocol': 'HTTPS'
-                },
+                {'LoadBalancerPort': 80,
+                 'InstancePort': 80,
+                 'Protocol': 'TCP'
+                 },
+                {'LoadBalancerPort': 443,
+                 'InstancePort': 443,
+                 'Protocol': 'HTTPS'
+                 },
             ],
         }]
-        config = ConfigParser(project_config.config,'my-stack-name')
+        config = ConfigParser(project_config.config, 'my-stack-name')
         elb_cfg, elb_sgs = config.elb()
         self.assertEquals(known, elb_cfg)
 
@@ -484,28 +486,28 @@ class TestConfigParser(unittest.TestCase):
         self.maxDiff = None
         known = [
             {'ELBdev_dockerregistryservice': {'Properties': {'Listeners': [{'InstancePort': 80,
-                                                                               'LoadBalancerPort': 80,
-                                                                               'Protocol': 'TCP'},
-                                                                              {'InstancePort': 443,
+                                                                            'LoadBalancerPort': 80,
+                                                                            'Protocol': 'TCP'},
+                                                                           {'InstancePort': 443,
                                                                                'LoadBalancerPort': 443,
                                                                                'Protocol': 'TCP'}],
-                                                               'LoadBalancerName': 'ELB-dev_docker-registryservice',
-                                                               'SecurityGroups': [{'Ref':'DefaultSGdev_dockerregistryservice'}],
-                                                               'Scheme': 'internet-facing',
-                                                               'Subnets': [{'Ref': 'SubnetA'},
-                                                                            {'Ref': 'SubnetB'},
-                                                                            {'Ref': 'SubnetC'}]},
-                                               'Type': 'AWS::ElasticLoadBalancing::LoadBalancer'}},
-             {'DNSdev_dockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
-                                                               'HostedZoneName': 'kyrtest.foo.bar.',
-                                                               'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                              'DNSName']},
-                                                                                                 'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                                   'CanonicalHostedZoneNameID']}},
-                                                                                'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
-                                                                                'Type': 'A'}]},
-                                               'Type': 'AWS::Route53::RecordSetGroup'}}
-            ]
+                                                             'LoadBalancerName': 'ELB-dev_docker-registryservice',
+                                                             'SecurityGroups': [{'Ref': 'DefaultSGdev_dockerregistryservice'}],
+                                                             'Scheme': 'internet-facing',
+                                                             'Subnets': [{'Ref': 'SubnetA'},
+                                                                         {'Ref': 'SubnetB'},
+                                                                         {'Ref': 'SubnetC'}]},
+                                              'Type': 'AWS::ElasticLoadBalancing::LoadBalancer'}},
+            {'DNSdev_dockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
+                                                             'HostedZoneName': 'kyrtest.foo.bar.',
+                                                             'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
+                                                                                                                        'DNSName']},
+                                                                                             'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
+                                                                                                                             'CanonicalHostedZoneNameID']}},
+                                                                               'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
+                                                                             'Type': 'A'}]},
+                                              'Type': 'AWS::Route53::RecordSetGroup'}}
+        ]
 
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         # Ugh. Fixtures please?
@@ -514,17 +516,17 @@ class TestConfigParser(unittest.TestCase):
             'hosted_zone': 'kyrtest.foo.bar.',
             'scheme': 'internet-facing',
             'listeners': [
-                { 'LoadBalancerPort': 80,
-                  'InstancePort': 80,
-                  'Protocol': 'TCP'
-                },
-                { 'LoadBalancerPort': 443,
-                  'InstancePort': 443,
-                  'Protocol': 'TCP'
-                },
+                {'LoadBalancerPort': 80,
+                 'InstancePort': 80,
+                 'Protocol': 'TCP'
+                 },
+                {'LoadBalancerPort': 443,
+                 'InstancePort': 443,
+                 'Protocol': 'TCP'
+                 },
             ],
         }]
-        config = ConfigParser(project_config.config,'my-stack-name')
+        config = ConfigParser(project_config.config, 'my-stack-name')
         elb_cfg, elb_sgs = config.elb()
         self.assertEquals(known, elb_cfg)
 
@@ -532,26 +534,25 @@ class TestConfigParser(unittest.TestCase):
 
         self.maxDiff = None
 
-
         known = {
-         'BaseHostLaunchConfig': {'Properties': {'AssociatePublicIpAddress': 'true',
-                                                   'BlockDeviceMappings': [{'DeviceName': '/dev/sda1',
+            'BaseHostLaunchConfig': {'Properties': {'AssociatePublicIpAddress': 'true',
+                                                    'BlockDeviceMappings': [{'DeviceName': '/dev/sda1',
                                                                              'Ebs': {'VolumeSize': 10}},
                                                                             {'DeviceName': '/dev/sdf',
                                                                              'Ebs': {'VolumeSize': 10}}],
-                                                   'IamInstanceProfile': {'Ref': 'InstanceProfile'},
-                                                   'ImageId': {'Fn::FindInMap': ['AWSRegion2AMI',
-                                                                                   {'Ref': 'AWS::Region'},
-                                                                                   'AMI']},
-                                                   'InstanceType': 't2.micro',
-                                                   'KeyName': 'default',
-                                                   'SecurityGroups': [{'Ref':'BaseHostSG'},{'Ref':'AnotherSG'}],
-                                                   'UserData': {'Fn::Base64': {'Fn::Join': ['',
-                                                                                               ['#!/bin/bash -xe\n',
-                                                                                                '#do nothing for now']]}}},
-                                   'Type': 'AWS::AutoScaling::LaunchConfiguration'},
-         'BaseHostSG': {'Properties': {'GroupDescription': 'BaseHost Security Group',
-                                         'SecurityGroupIngress': [{'CidrIp': '0.0.0.0/0',
+                                                    'IamInstanceProfile': {'Ref': 'InstanceProfile'},
+                                                    'ImageId': {'Fn::FindInMap': ['AWSRegion2AMI',
+                                                                                  {'Ref': 'AWS::Region'},
+                                                                                  'AMI']},
+                                                    'InstanceType': 't2.micro',
+                                                    'KeyName': 'default',
+                                                    'SecurityGroups': [{'Ref': 'BaseHostSG'}, {'Ref': 'AnotherSG'}],
+                                                    'UserData': {'Fn::Base64': {'Fn::Join': ['',
+                                                                                             ['#!/bin/bash -xe\n',
+                                                                                              '#do nothing for now']]}}},
+                                     'Type': 'AWS::AutoScaling::LaunchConfiguration'},
+            'BaseHostSG': {'Properties': {'GroupDescription': 'BaseHost Security Group',
+                                          'SecurityGroupIngress': [{'CidrIp': '0.0.0.0/0',
                                                                     'FromPort': 22,
                                                                     'IpProtocol': 'tcp',
                                                                     'ToPort': 22},
@@ -559,21 +560,21 @@ class TestConfigParser(unittest.TestCase):
                                                                     'FromPort': 80,
                                                                     'IpProtocol': 'tcp',
                                                                     'ToPort': 80}],
+                                          'VpcId': {'Ref': 'VPC'}},
+                           'Type': 'AWS::EC2::SecurityGroup'},
+            'AnotherSG': {'Properties': {'GroupDescription': 'BaseHost Security Group',
+                                         'SecurityGroupIngress': [{'SourceSecurityGroupName': {'Ref': 'BaseHostSG'},
+                                                                   'FromPort': 443,
+                                                                   'IpProtocol': 'tcp',
+                                                                   'ToPort': 443}],
                                          'VpcId': {'Ref': 'VPC'}},
-                         'Type': 'AWS::EC2::SecurityGroup'},
-         'AnotherSG': {'Properties': {'GroupDescription': 'BaseHost Security Group',
-                                         'SecurityGroupIngress': [{ 'SourceSecurityGroupName': {'Ref':'BaseHostSG'},
-                                                                    'FromPort': 443,
-                                                                    'IpProtocol': 'tcp',
-                                                                    'ToPort': 443}],
-                                         'VpcId': {'Ref': 'VPC'}},
-                         'Type': 'AWS::EC2::SecurityGroup'},
-         'ScalingGroup': {'Properties': {'AvailabilityZones': {'Fn::GetAZs': ''},
-                                           'DesiredCapacity': 1,
-                                           'LaunchConfigurationName': {'Ref': 'BaseHostLaunchConfig'},
-                                           'MaxSize': 3,
-                                           'MinSize': 0,
-                                           'Tags': [{'Key': 'Role',
+                          'Type': 'AWS::EC2::SecurityGroup'},
+            'ScalingGroup': {'Properties': {'AvailabilityZones': {'Fn::GetAZs': ''},
+                                            'DesiredCapacity': 1,
+                                            'LaunchConfigurationName': {'Ref': 'BaseHostLaunchConfig'},
+                                            'MaxSize': 3,
+                                            'MinSize': 0,
+                                            'Tags': [{'Key': 'Role',
                                                       'PropagateAtLaunch': True,
                                                       'Value': 'docker'},
                                                      {'Key': 'Apps',
@@ -582,11 +583,11 @@ class TestConfigParser(unittest.TestCase):
                                                      {'Key': 'Env',
                                                       'PropagateAtLaunch': True,
                                                       'Value': 'dev'}],
-                                           'VPCZoneIdentifier': [{'Ref': 'SubnetA'},
+                                            'VPCZoneIdentifier': [{'Ref': 'SubnetA'},
                                                                   {'Ref': 'SubnetB'},
                                                                   {'Ref': 'SubnetC'}]},
-                           'Type': 'AWS::AutoScaling::AutoScalingGroup'}
-          }
+                             'Type': 'AWS::AutoScaling::AutoScalingGroup'}
+        }
 
         config = ConfigParser(
             ProjectConfig(
@@ -599,7 +600,8 @@ class TestConfigParser(unittest.TestCase):
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         project_config.config['ec2'].pop('block_devices')
         config = ConfigParser(project_config.config, 'my-stack-name')
-        config_output = config.ec2()['BaseHostLaunchConfig']['Properties']['BlockDeviceMappings']
+        config_output = config.ec2()['BaseHostLaunchConfig'][
+            'Properties']['BlockDeviceMappings']
         known = [{'DeviceName': '/dev/sda1', 'Ebs': {'VolumeSize': 20}}]
         self.assertEquals(known, config_output)
 
