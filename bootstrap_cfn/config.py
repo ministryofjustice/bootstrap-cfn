@@ -8,6 +8,7 @@ import bootstrap_cfn.utils as utils
 
 from copy import deepcopy
 
+
 class ProjectConfig:
 
     config = None
@@ -69,13 +70,20 @@ class ConfigParser:
             for k, v in elb_sgs.items():
                 data[k] = v
 
-        template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/base.json'))
+        template = json.loads(
+            pkgutil.get_data(
+                'bootstrap_cfn',
+                'stacks/base.json'))
         if 'vpc' in self.data:
             template['Mappings']['SubnetConfig']['VPC'] = self.data['vpc']
         template['Resources'] = data
         template['Outputs'] = {}
         for t in output_templates:
-            template['Outputs'].update(json.loads(pkgutil.get_data('bootstrap_cfn', t)))
+            template['Outputs'].update(
+                json.loads(
+                    pkgutil.get_data(
+                        'bootstrap_cfn',
+                        t)))
         if 'includes' in self.data:
             for inc_path in self.data['includes']:
                 inc = json.load(open(inc_path))
@@ -98,7 +106,10 @@ class ConfigParser:
         }
 
         # LOAD STACK TEMPLATE
-        template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/s3.json'))
+        template = json.loads(
+            pkgutil.get_data(
+                'bootstrap_cfn',
+                'stacks/s3.json'))
 
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         present_keys = self.data['s3'].keys()
@@ -111,11 +122,21 @@ class ConfigParser:
         if 'policy' in present_keys:
             policy = json.loads(open(self.data['s3']['policy']).read())
         else:
-             arn = 'arn:aws:s3:::%s/*' % self.data['s3']['static-bucket-name']
-             policy = {'Action': ['s3:Get*', 's3:Put*', 's3:List*'], 'Resource': arn, 'Effect': 'Allow', 'Principal' : {'AWS' : '*'}}
+            arn = 'arn:aws:s3:::%s/*' % self.data['s3']['static-bucket-name']
+            policy = {
+                'Action': [
+                    's3:Get*',
+                    's3:Put*',
+                    's3:List*'],
+                'Resource': arn,
+                'Effect': 'Allow',
+                'Principal': {
+                    'AWS': '*'}}
 
-        template['StaticBucket']['Properties']['BucketName'] = self.data['s3']['static-bucket-name']
-        template['StaticBucketPolicy']['Properties']['PolicyDocument']['Statement'][0] = policy
+        template['StaticBucket']['Properties'][
+            'BucketName'] = self.data['s3']['static-bucket-name']
+        template['StaticBucketPolicy']['Properties'][
+            'PolicyDocument']['Statement'][0] = policy
 
         return template
 
@@ -139,7 +160,10 @@ class ConfigParser:
         }
 
         # LOAD STACK TEMPLATE
-        template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/rds.json'))
+        template = json.loads(
+            pkgutil.get_data(
+                'bootstrap_cfn',
+                'stacks/rds.json'))
 
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         for i in required_fields.keys():
@@ -173,25 +197,33 @@ class ConfigParser:
                     sys.exit(1)
 
             # LOAD STACK TEMPLATE
-            template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/elb.json'))
+            template = json.loads(
+                pkgutil.get_data(
+                    'bootstrap_cfn',
+                    'stacks/elb.json'))
 
             # LOAD SSL TEMPLATE
-            ssl_template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/elb_ssl.json'))
+            ssl_template = json.loads(
+                pkgutil.get_data(
+                    'bootstrap_cfn',
+                    'stacks/elb_ssl.json'))
 
             for listener in elb['listeners']:
                 if listener['Protocol'] == 'HTTPS':
                     try:
                         cert_name = elb['certificate_name']
                     except KeyError:
-                        raise errors.CfnConfigError("HTTPS listener but no certificate_name specified")
+                        raise errors.CfnConfigError(
+                            "HTTPS listener but no certificate_name specified")
                     try:
                         self.ssl()[cert_name]['cert']
                         self.ssl()[cert_name]['key']
                     except KeyError:
-                        raise errors.CfnConfigError("Couldn't find ssl cert {0} in config file".format(cert_name))
-                    ssl_template["SSLCertificateId"]['Fn::Join'][1].append("{0}-{1}".format(cert_name, self.stack_name))
+                        raise errors.CfnConfigError(
+                            "Couldn't find ssl cert {0} in config file".format(cert_name))
+                    ssl_template["SSLCertificateId"]['Fn::Join'][1].append(
+                        "{0}-{1}".format(cert_name, self.stack_name))
                     listener.update(ssl_template)
-
 
             elb_sg = template.pop('DefaultELBSecurityGroup')
             if 'security_groups' in elb:
@@ -199,10 +231,12 @@ class ConfigParser:
                     new_sg = deepcopy(elb_sg)
                     new_sg['Properties']['SecurityGroupIngress'] = sg
                     elb_sgs[sg_name] = new_sg
-                template['ElasticLoadBalancer']['Properties']['SecurityGroups'] = [{'Ref': k} for k in elb['security_groups'].keys()]
+                template['ElasticLoadBalancer']['Properties']['SecurityGroups'] = [
+                    {'Ref': k} for k in elb['security_groups'].keys()]
             else:
                 elb_sgs['DefaultSG' + safe_name] = elb_sg
-                template['ElasticLoadBalancer']['Properties']['SecurityGroups'] = [{'Ref': 'DefaultSG' + safe_name }]
+                template['ElasticLoadBalancer']['Properties'][
+                    'SecurityGroups'] = [{'Ref': 'DefaultSG' + safe_name}]
 
             # CONFIGURE THE LISTENERS, ELB NAME AND ROUTE53 RECORDS
             template['ElasticLoadBalancer']['Properties'][
@@ -220,7 +254,7 @@ class ConfigParser:
                 'CanonicalHostedZoneNameID']
             target_dns = [
                 'ELB%s' % safe_name,
-                'CanonicalHostedZoneName']
+                'DNSName']
             template['DNSRecord']['Properties']['RecordSets'][0][
                 'AliasTarget']['HostedZoneId']['Fn::GetAtt'] = target_zone
             template['DNSRecord']['Properties']['RecordSets'][0][
@@ -235,7 +269,10 @@ class ConfigParser:
 
     def ec2(self):
         # LOAD STACK TEMPLATE
-        template = json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/ec2.json'))
+        template = json.loads(
+            pkgutil.get_data(
+                'bootstrap_cfn',
+                'stacks/ec2.json'))
 
         # SET SECURITY GROUPS, DEFAULT KEY AND INSTANCE TYPE
         sg_t = template.pop('BaseHostSG')
@@ -244,7 +281,8 @@ class ConfigParser:
             new_sg['Properties']['SecurityGroupIngress'] = sg
             template[sg_name] = new_sg
 
-        template['BaseHostLaunchConfig']['Properties']['SecurityGroups'] = [{'Ref': k} for k in self.data['ec2']['security_groups'].keys()]
+        template['BaseHostLaunchConfig']['Properties']['SecurityGroups'] = [
+            {'Ref': k} for k in self.data['ec2']['security_groups'].keys()]
         template['BaseHostLaunchConfig']['Properties'][
             'KeyName'] = self.data['ec2']['parameters']['KeyName']
         template['BaseHostLaunchConfig']['Properties'][
@@ -258,7 +296,7 @@ class ConfigParser:
                     {'DeviceName': i['DeviceName'], 'Ebs': {'VolumeSize': i['VolumeSize']}})
         except KeyError:
             devices.append(
-                {'DeviceName': '/dev/sda1', 'Ebs': {'VolumeSize': 20 }})
+                {'DeviceName': '/dev/sda1', 'Ebs': {'VolumeSize': 20}})
         template['BaseHostLaunchConfig']['Properties'][
             'BlockDeviceMappings'] = devices
 

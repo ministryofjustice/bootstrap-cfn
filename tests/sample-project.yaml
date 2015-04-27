@@ -45,7 +45,7 @@ dev:
           Protocol: TCP
     - name: test-dev-internal
       hosted_zone: kyrtest.pf.dsd.io.
-      scheme: internet-facing
+      scheme: internal
       listeners:
         - LoadBalancerPort: 80
           InstancePort: 80
