@@ -1,3 +1,8 @@
+## Version 0.3.1
+
+* Fixed the internal ELB bug
+* Fixed the RDS storage-type bug
+
 ## Version 0.3.0
 
 * Extract all the salt specific code into bootstrap-salt which lives in a
