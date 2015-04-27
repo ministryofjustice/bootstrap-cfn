@@ -139,14 +139,30 @@ class TestConfigParser(unittest.TestCase):
 
     def test_rds(self):
         known = {
-            'DBSecurityGroup': {
+            'DatabaseSG': {
+                'Type': 'AWS::EC2::SecurityGroup',
                 'Properties': {
-                    'DBSecurityGroupIngress': [{'CIDRIP': {'Fn::FindInMap': ['SubnetConfig', 'VPC', 'CIDR']}}],
-                    'EC2VpcId': {'Ref': 'VPC'},
-                    'GroupDescription': 'EC2 Access'},
-                'Type': 'AWS::RDS::DBSecurityGroup'},
+                    'VpcId': {'Ref': 'VPC'},
+                    'GroupDescription': 'SG for EC2 Access to RDS',
+                    'SecurityGroupIngress': [
+                        {
+                            'CidrIp': {'Fn::FindInMap': ['SubnetConfig', 'VPC', 'CIDR']},
+                            'IpProtocol': 'tcp',
+                            'FromPort': 5432,
+                            'ToPort': 5432
+                        },
+                        {
+                            'CidrIp': {'Fn::FindInMap': ['SubnetConfig', 'VPC', 'CIDR']},
+                            'IpProtocol': 'tcp',
+                            'FromPort': 3306,
+                            'ToPort': 3306
+                        }
+                    ]
+                }
+            },
             'RDSInstance': {
-                'DependsOn': 'DBSecurityGroup',
+                'DependsOn': 'DatabaseSG',
+                'Type': 'AWS::RDS::DBInstance',
                 'Properties': {
                     'AllocatedStorage': 5,
                     'AllowMajorVersionUpgrade': False,
@@ -155,7 +171,7 @@ class TestConfigParser(unittest.TestCase):
                     'DBInstanceClass': 'db.t2.micro',
                     'DBInstanceIdentifier': 'test-dev',
                     'DBName': 'test',
-                    'DBSecurityGroups': [{'Ref': 'DBSecurityGroup'}],
+                    'VPCSecurityGroups': [{'Fn::GetAtt': ['DatabaseSG', 'GroupId']}],
                     'DBSubnetGroupName': {'Ref': 'RDSSubnetGroup'},
                     'Engine': 'postgres',
                     'EngineVersion': '9.3.5',
@@ -163,13 +179,25 @@ class TestConfigParser(unittest.TestCase):
                     'MasterUsername': 'testuser',
                     'MultiAZ': False,
                     'PubliclyAccessible': False,
-                    'StorageType': 'gp2'},
-                'Type': 'AWS::RDS::DBInstance'},
+                    'StorageType': 'gp2'
+                }
+            },
             'RDSSubnetGroup': {
                 'Properties': {
-                    'DBSubnetGroupDescription': 'VPC Subnets',
-                    'SubnetIds': [{'Ref': 'SubnetA'}, {'Ref': 'SubnetB'}, {'Ref': 'SubnetC'}]},
-                'Type': 'AWS::RDS::DBSubnetGroup'}
+                    'DBSubnetGroupDescription': 'VPC Subnets', 'SubnetIds': [
+                        {
+                            'Ref': 'SubnetA'
+                        },
+                        {
+                            'Ref': 'SubnetB'
+                        },
+                        {
+                            'Ref': 'SubnetC'
+                        }
+                    ]
+                },
+                'Type': 'AWS::RDS::DBSubnetGroup'
+            }
         }
 
         config = ConfigParser(
