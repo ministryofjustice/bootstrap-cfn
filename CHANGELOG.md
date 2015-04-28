@@ -1,3 +1,7 @@
+## Version 0.3.2
+
+* Bump release version (broken release)
+
 ## Version 0.3.1
 
 * Fixed the internal ELB bug
