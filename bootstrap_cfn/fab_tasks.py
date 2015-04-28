@@ -13,12 +13,16 @@ from bootstrap_cfn.iam import IAM
 from bootstrap_cfn.utils import tail
 
 
+# Default fab config. Set via the tasks below or --set
+env.setdefault('application')
+env.setdefault('environment')
+env.setdefault('aws')
+env.setdefault('config')
+env.setdefault('password')
+env.setdefault('blocking', True)
+env.setdefault('aws_region', 'eu-west-1')
+
 # GLOBAL VARIABLES
-env.application = None
-env.environment = None
-env.aws = None
-env.config = None
-env.password = None
 TIMEOUT = 3600
 RETRY_INTERVAL = 10
 
@@ -55,7 +59,7 @@ def passwords(x):
 
 @task
 def blocking(x):
-    env.blocking = str(x).lower()
+    env.blocking = str(x).lower() in ("yes", "true", "t", "1")
 
 
 @task
@@ -83,15 +87,9 @@ def _validate_fabric_env():
         print "\n[ERROR] Please specify a config file, e.g 'config:/tmp/sample-application.yaml'"
         sys.exit(1)
 
-    if hasattr(env, 'stack_passwords') and env.stack_passwords is not None:
-        if not os.path.exists(env.stack_passwords):
-            print >> sys.stderr, "\n[ERROR] Passwords file '{0}' doesn't exist!".format(env.stack_passwords)
-            sys.exit(1)
-    else:
-        env.stack_passwords = None
-
-    if not hasattr(env, 'aws_region'):
-        env.aws_region = 'eu-west-1'
+    if env.stack_passwords is not None and not os.path.exists(env.stack_passwords):
+        print >> sys.stderr, "\n[ERROR] Passwords file '{0}' doesn't exist!".format(env.stack_passwords)
+        sys.exit(1)
 
 
 def get_config():
@@ -121,7 +119,7 @@ def cfn_delete(force=False):
     cfn.delete(stack_name)
     print green("\nSTACK {0} DELETING...\n").format(stack_name)
 
-    if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
+    if not env.blocking:
         print 'Running in non blocking mode. Exiting.'
         sys.exit(0)
 
@@ -160,7 +158,7 @@ def cfn_create():
 
     print green("\nSTACK {0} CREATING...\n").format(stack_name)
 
-    if hasattr(env, 'blocking') and env.blocking.lower() == 'false':
+    if not env.blocking:
         print 'Running in non blocking mode. Exiting.'
         sys.exit(0)
 
