@@ -18,7 +18,7 @@ env.setdefault('application')
 env.setdefault('environment')
 env.setdefault('aws')
 env.setdefault('config')
-env.setdefault('password')
+env.setdefault('stack_passwords')
 env.setdefault('blocking', True)
 env.setdefault('aws_region', 'eu-west-1')
 
