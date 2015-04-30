@@ -77,10 +77,11 @@ def tail(stack, stack_name):
     from fabric.colors import green, red, yellow
     """Show and then tail the event log"""
 
+
     def colorize(e):
         if e.endswith("_IN_PROGRESS"):
             return yellow(e)
-        elif e.endswith("_FAILED"):
+        elif e.endswith("_FAILED") or e.startswith("ROLLBACK"):
             return red(e)
         elif e.endswith("_COMPLETE"):
             return green(e)
@@ -89,6 +90,8 @@ def tail(stack, stack_name):
 
     def tail_print(e):
         print("%s %s %s" % (colorize(e.resource_status).ljust(30), e.resource_type.ljust(50), e.event_id))
+        if e.resource_status_reason:
+            print(e.resource_status_reason)
 
     # First dump the full list of events in chronological order and keep
     # track of the events we've seen already
