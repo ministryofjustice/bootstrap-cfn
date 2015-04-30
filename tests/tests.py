@@ -227,6 +227,7 @@ class TestConfigParser(unittest.TestCase):
                     u'LoadBalancerName': 'ELB-test-dev-external',
                     u'SecurityGroups': [{u'Ref': u'DefaultSGtestdevexternal'}],
                     u'Scheme': 'internet-facing',
+                    u'ConnectionDrainingPolicy': {u'Enabled': True, u'Timeout': 120},
                     u'Subnets': [
                         {u'Ref': u'SubnetA'},
                         {u'Ref': u'SubnetB'},
@@ -247,18 +248,22 @@ class TestConfigParser(unittest.TestCase):
                     ]
                 },
                 u'Type': u'AWS::Route53::RecordSetGroup'}},
-            {'Policytestdevexternal': {u'Properties': {u'PolicyDocument': {u'Statement': [{u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
-                                                                                            u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
-                                                                                u'Effect': u'Allow',
-                                                                                u'Resource': [{u'Fn::Join': [u'',
-                                                                                                             [u'arn:aws:elasticloadbalancing:',
-                                                                                                              {u'Ref': u'AWS::Region'},
-                                                                                                              u':',
-                                                                                                              {u'Ref': u'AWS::AccountId'},
-                                                                                                              ':loadbalancer/ELBtest-dev-external']]}]}]},
-                                            u'PolicyName': 'testdevexternalBaseHost',
-                                            u'Roles': [{u'Ref': u'BaseHostRole'}]},
-                            u'Type': u'AWS::IAM::Policy'}},
+            {'Policytestdevexternal': {
+                u'Properties': {
+                    u'PolicyDocument': {
+                        u'Statement': [{
+                            u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
+                                        u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
+                            u'Effect': u'Allow',
+                            u'Resource': [{u'Fn::Join': [u'',
+                                                         [u'arn:aws:elasticloadbalancing:',
+                                                          {u'Ref': u'AWS::Region'},
+                                                          u':',
+                                                          {u'Ref': u'AWS::AccountId'},
+                                                          ':loadbalancer/ELBtest-dev-external']]}]}]},
+                    u'PolicyName': 'testdevexternalBaseHost',
+                    u'Roles': [{u'Ref': u'BaseHostRole'}]},
+                u'Type': u'AWS::IAM::Policy'}},
             {'ELBtestdevinternal': {
                 u'Properties': {
                     u'Listeners': [
@@ -268,6 +273,7 @@ class TestConfigParser(unittest.TestCase):
                     ],
                     u'LoadBalancerName': 'ELB-test-dev-internal',
                     u'SecurityGroups': [{u'Ref': u'DefaultSGtestdevinternal'}],
+                    u'ConnectionDrainingPolicy': {u'Enabled': True, u'Timeout': 120},
                     u'Scheme': 'internal',
                     u'Subnets': [
                         {u'Ref': u'SubnetA'},
@@ -289,18 +295,21 @@ class TestConfigParser(unittest.TestCase):
                     ]
                 },
                 u'Type': u'AWS::Route53::RecordSetGroup'}},
-            {'Policytestdevinternal': {u'Properties': {u'PolicyDocument': {u'Statement': [{u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
-                                                                                            u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
-                                                                                u'Effect': u'Allow',
-                                                                                u'Resource': [{u'Fn::Join': [u'',
-                                                                                                             [u'arn:aws:elasticloadbalancing:',
-                                                                                                              {u'Ref': u'AWS::Region'},
-                                                                                                              u':',
-                                                                                                              {u'Ref': u'AWS::AccountId'},
-                                                                                                              ':loadbalancer/ELBtest-dev-internal']]}]}]},
-                                            u'PolicyName': 'testdevinternalBaseHost',
-                                            u'Roles': [{u'Ref': u'BaseHostRole'}]},
-                            u'Type': u'AWS::IAM::Policy'}}
+            {'Policytestdevinternal': {u'Properties': {
+                u'PolicyDocument': {
+                    u'Statement': [{
+                        u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
+                                    u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
+                        u'Effect': u'Allow',
+                        u'Resource': [{u'Fn::Join': [u'',
+                                                     [u'arn:aws:elasticloadbalancing:',
+                                                      {u'Ref': u'AWS::Region'},
+                                                      u':',
+                                                      {u'Ref': u'AWS::AccountId'},
+                                                      ':loadbalancer/ELBtest-dev-internal']]}]}]},
+                        u'PolicyName': 'testdevinternalBaseHost',
+                        u'Roles': [{u'Ref': u'BaseHostRole'}]},
+                u'Type': u'AWS::IAM::Policy'}}
         ]
 
         expected_sgs = {
@@ -499,6 +508,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                                                   'my-cert-my-stack-name']]}}],
                                                              'LoadBalancerName': 'ELB-dev_docker-registryservice',
                                                              'SecurityGroups': [{'Ref': 'DefaultSGdev_dockerregistryservice'}],
+                                                             u'ConnectionDrainingPolicy': {u'Enabled': True, u'Timeout': 120},
                                                              'Scheme': 'internet-facing',
                                                              'Subnets': [{'Ref': 'SubnetA'},
                                                                          {'Ref': 'SubnetB'},
@@ -513,18 +523,19 @@ class TestConfigParser(unittest.TestCase):
                                                                                'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
                                                                              'Type': 'A'}]},
                                               'Type': 'AWS::Route53::RecordSetGroup'}},
-            {'Policydev_dockerregistryservice': {u'Properties': {u'PolicyDocument': {u'Statement': [{u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
-                                                                                                             u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
-                                                                                                 u'Effect': u'Allow',
-                                                                                                 u'Resource': [{u'Fn::Join': [u'',
-                                                                                                                              [u'arn:aws:elasticloadbalancing:',
-                                                                                                                               {u'Ref': u'AWS::Region'},
-                                                                                                                               u':',
-                                                                                                                               {u'Ref': u'AWS::AccountId'},
-                                                                                                                               ':loadbalancer/ELBdev_docker-registryservice']]}]}]},
-                                                             u'PolicyName': 'dev_dockerregistryserviceBaseHost',
-                                                             u'Roles': [{u'Ref': u'BaseHostRole'}]},
-                                             u'Type': u'AWS::IAM::Policy'}}
+            {'Policydev_dockerregistryservice': {
+                u'Properties': {u'PolicyDocument': {u'Statement': [{u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
+                                                                                u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
+                                                                    u'Effect': u'Allow',
+                                                                    u'Resource': [{u'Fn::Join': [u'',
+                                                                                                 [u'arn:aws:elasticloadbalancing:',
+                                                                                                  {u'Ref': u'AWS::Region'},
+                                                                                                  u':',
+                                                                                                  {u'Ref': u'AWS::AccountId'},
+                                                                                                  ':loadbalancer/ELBdev_docker-registryservice']]}]}]},
+                                u'PolicyName': 'dev_dockerregistryserviceBaseHost',
+                                u'Roles': [{u'Ref': u'BaseHostRole'}]},
+                u'Type': u'AWS::IAM::Policy'}}
         ]
 
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
@@ -560,6 +571,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                'Protocol': 'TCP'}],
                                                              'LoadBalancerName': 'ELB-dev_docker-registryservice',
                                                              'SecurityGroups': [{'Ref': 'DefaultSGdev_dockerregistryservice'}],
+                                                             u'ConnectionDrainingPolicy': {u'Enabled': True, u'Timeout': 120},
                                                              'HealthCheck': {
                                                                  'HealthyThreshold': 10,
                                                                  'Interval': 2,
@@ -579,7 +591,21 @@ class TestConfigParser(unittest.TestCase):
                                                                                                                              'CanonicalHostedZoneNameID']}},
                                                                                'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
                                                                              'Type': 'A'}]},
-                                              'Type': 'AWS::Route53::RecordSetGroup'}}
+                                              'Type':
+                                              'AWS::Route53::RecordSetGroup'}},
+            {'Policydev_dockerregistryservice': {u'Properties': {u'PolicyDocument': {
+                u'Statement': [{u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
+                                            u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
+                                u'Effect': u'Allow',
+                                u'Resource': [{u'Fn::Join': [u'',
+                                                             [u'arn:aws:elasticloadbalancing:',
+                                                                 {u'Ref': u'AWS::Region'},
+                                                                 u':',
+                                                                 {u'Ref': u'AWS::AccountId'},
+                                                                 ':loadbalancer/ELBdev_docker-registryservice']]}]}]},
+                u'PolicyName': 'dev_dockerregistryserviceBaseHost',
+                u'Roles': [{u'Ref': u'BaseHostRole'}]},
+                u'Type': u'AWS::IAM::Policy'}}
         ]
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         project_config.config['elb'] = [{
@@ -620,6 +646,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                'Protocol': 'TCP'}],
                                                              'LoadBalancerName': 'ELB-dev_docker-registryservice',
                                                              'SecurityGroups': [{'Ref': 'DefaultSGdev_dockerregistryservice'}],
+                                                             u'ConnectionDrainingPolicy': {u'Enabled': True, u'Timeout': 120},
                                                              'Scheme': 'internet-facing',
                                                              'Subnets': [{'Ref': 'SubnetA'},
                                                                          {'Ref': 'SubnetB'},
@@ -634,18 +661,19 @@ class TestConfigParser(unittest.TestCase):
                                                                                'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
                                                                              'Type': 'A'}]},
                                               'Type': 'AWS::Route53::RecordSetGroup'}},
-            {'Policydev_dockerregistryservice': {u'Properties': {u'PolicyDocument': {u'Statement': [{u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
-                                                                                                             u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
-                                                                                                 u'Effect': u'Allow',
-                                                                                                 u'Resource': [{u'Fn::Join': [u'',
-                                                                                                                              [u'arn:aws:elasticloadbalancing:',
-                                                                                                                               {u'Ref': u'AWS::Region'},
-                                                                                                                               u':',
-                                                                                                                               {u'Ref': u'AWS::AccountId'},
-                                                                                                                               ':loadbalancer/ELBdev_docker-registryservice']]}]}]},
-                                                             u'PolicyName': 'dev_dockerregistryserviceBaseHost',
-                                                             u'Roles': [{u'Ref': u'BaseHostRole'}]},
-                                             u'Type': u'AWS::IAM::Policy'}}
+            {'Policydev_dockerregistryservice': {
+                u'Properties': {u'PolicyDocument': {u'Statement': [{u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
+                                                                                u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
+                                                                    u'Effect': u'Allow',
+                                                                    u'Resource': [{u'Fn::Join': [u'',
+                                                                                                 [u'arn:aws:elasticloadbalancing:',
+                                                                                                  {u'Ref': u'AWS::Region'},
+                                                                                                  u':',
+                                                                                                  {u'Ref': u'AWS::AccountId'},
+                                                                                                  ':loadbalancer/ELBdev_docker-registryservice']]}]}]},
+                                u'PolicyName': 'dev_dockerregistryserviceBaseHost',
+                                u'Roles': [{u'Ref': u'BaseHostRole'}]},
+                u'Type': u'AWS::IAM::Policy'}}
         ]
 
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')

@@ -4,6 +4,10 @@
         "Properties" : {
             "LoadBalancerName": "",
             "Scheme" : "internet-facing",
+            "ConnectionDrainingPolicy": {
+                "Enabled" : true,
+                "Timeout" : 120 
+             },
             "Subnets": [{ "Ref" : "SubnetA" }, { "Ref" : "SubnetB" }, { "Ref" : "SubnetC" }],
             "SecurityGroups": [{ "Ref": "DefaultELBSecurityGroup" }],
             "Listeners" : [
