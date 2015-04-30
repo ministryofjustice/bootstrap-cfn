@@ -37,6 +37,7 @@
       "MasterUsername": "",
       "MasterUserPassword": "",
       "AllocatedStorage": "",
+      "StorageEncrypted": false,
       "StorageType": "",
       "Engine": "",
       "EngineVersion": "",
