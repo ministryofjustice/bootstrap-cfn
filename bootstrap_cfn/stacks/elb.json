@@ -10,6 +10,36 @@
             ]
         }
     },
+    "ELBRolePolicies": {
+        "Type": "AWS::IAM::Policy",
+        "Properties": {
+            "PolicyName": "ELBBaseHost",
+            "PolicyDocument": {
+                "Statement": [
+                    { "Action" : [
+                          "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                          "elasticloadbalancing:RegisterInstancesWithLoadBalancer"
+                      ],
+                      "Resource" : [
+                           {
+                               "Fn::Join": [
+                                   "",
+                                      [
+                                          "arn:aws:elasticloadbalancing:",
+                                          { "Ref" : "AWS::Region" },
+                                          ":",
+                                          { "Ref":"AWS::AccountId" },
+                                          "This is overwritten in config.py"
+                                      ]
+                               ]
+                           }
+                       ],
+                      "Effect": "Allow" }
+                ]
+            },
+            "Roles": [ { "Ref": "BaseHostRole" } ]
+        }
+    },
     "DefaultELBSecurityGroup" : {
        "Type" : "AWS::EC2::SecurityGroup",
        "Properties" :
