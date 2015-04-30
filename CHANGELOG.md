@@ -1,3 +1,7 @@
+## Version 0.3.3
+
+* Add RDS encryption support
+
 ## Version 0.3.2
 
 * Bump release version (broken release)
