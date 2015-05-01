@@ -268,6 +268,9 @@ class ConfigParser:
                 'AliasTarget']['HostedZoneId']['Fn::GetAtt'] = target_zone
             template['DNSRecord']['Properties']['RecordSets'][0][
                 'AliasTarget']['DNSName']['Fn::GetAtt'] = target_dns
+            if 'health_check' in elb:
+                template['ElasticLoadBalancer']['Properties'][
+                    'HealthCheck'] = elb['health_check']
 
             elb_list.append(
                 {'ELB%s' % safe_name: template['ElasticLoadBalancer']})

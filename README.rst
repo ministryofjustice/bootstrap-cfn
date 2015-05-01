@@ -90,6 +90,15 @@ If you set the protocol on an ELB to HTTPS you must include a key called `certif
 
 The certificate will be uploaded before the stack is created and removed after it is deleted.
 
+It is possilbe to define a custom health check for an ELB like follows::
+
+    health_check:
+      HealthyThreshold: 5
+      Interval: 10
+      Target: HTTP:80/ping.json
+      Timeout: 5
+      UnhealthyThreshold: 2
+
 Applying a custom s3 policy
 ++++++++++++++++++++++++++++
 You can add a custom s3 policy to override bootstrap-cfn's default settings. For example, the sample custom policy defined in this `json file <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/tests/sample-custom-s3-policy.json>`_ can be configured as follows:

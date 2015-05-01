@@ -510,6 +510,65 @@ class TestConfigParser(unittest.TestCase):
         elb_cfg, elb_sgs = config.elb()
         self.assertEquals(known, elb_cfg)
 
+    def test_elb_with_healthcheck(self):
+        self.maxDiff = None
+        known = [
+            {'ELBdev_dockerregistryservice': {'Properties': {'Listeners': [{'InstancePort': 80,
+                                                                            'LoadBalancerPort': 80,
+                                                                            'Protocol': 'TCP'},
+                                                                           {'InstancePort': 443,
+                                                                               'LoadBalancerPort': 443,
+                                                                               'Protocol': 'TCP'}],
+                                                             'LoadBalancerName': 'ELB-dev_docker-registryservice',
+                                                             'SecurityGroups': [{'Ref': 'DefaultSGdev_dockerregistryservice'}],
+                                                             'HealthCheck': {
+                                                                 'HealthyThreshold': 10,
+                                                                 'Interval': 2,
+                                                                 'Target': 'HTTPS:80/blah',
+                                                                 'Timeout': 5,
+                                                                 'UnhealthyThreshold': 2},
+                                                             'Scheme': 'internet-facing',
+                                                             'Subnets': [{'Ref': 'SubnetA'},
+                                                                         {'Ref': 'SubnetB'},
+                                                                         {'Ref': 'SubnetC'}]},
+                                              'Type': 'AWS::ElasticLoadBalancing::LoadBalancer'}},
+            {'DNSdev_dockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
+                                                             'HostedZoneName': 'kyrtest.foo.bar.',
+                                                             'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
+                                                                                                                        'DNSName']},
+                                                                                             'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
+                                                                                                                             'CanonicalHostedZoneNameID']}},
+                                                                               'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
+                                                                             'Type': 'A'}]},
+                                              'Type': 'AWS::Route53::RecordSetGroup'}}
+        ]
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        project_config.config['elb'] = [{
+            'name': 'dev_docker-registry.service',
+            'hosted_zone': 'kyrtest.foo.bar.',
+            'scheme': 'internet-facing',
+            'listeners': [
+                {'LoadBalancerPort': 80,
+                 'InstancePort': 80,
+                 'Protocol': 'TCP'
+                 },
+                {'LoadBalancerPort': 443,
+                 'InstancePort': 443,
+                 'Protocol': 'TCP'
+                 },
+            ],
+            'health_check': {
+                'HealthyThreshold': 10,
+                'Interval': 2,
+                'Target': 'HTTPS:80/blah',
+                'Timeout': 5,
+                'UnhealthyThreshold': 2
+            }
+        }]
+        config = ConfigParser(project_config.config, 'my-stack-name')
+        elb_cfg, elb_sgs = config.elb()
+        compare(elb_cfg, known)
+
     def test_elb_with_reserved_chars(self):
 
         self.maxDiff = None
@@ -625,7 +684,6 @@ class TestConfigParser(unittest.TestCase):
         compare(known, config.ec2())
 
     def test_ec2_with_no_block_device_specified(self):
-        from testfixtures import compare
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         project_config.config['ec2'].pop('block_devices')
         config = ConfigParser(project_config.config, 'my-stack-name')
