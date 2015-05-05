@@ -1,3 +1,7 @@
+## Version x
+
+* Add custom ELB healthchecks so you can point an ELB at a URL (not just a port)
+
 ## Version 0.3.3
 
 * Add RDS encryption support

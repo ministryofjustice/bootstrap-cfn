@@ -39,6 +39,12 @@ dev:
     - name: test-dev-external
       hosted_zone: integration.dsd.io.
       scheme: internet-facing
+      health_check:
+        HealthyThreshold: 5
+        Interval: 10
+        Target: HTTP:80/ping.json
+        Timeout: 5
+        UnhealthyThreshold: 2
       listeners:
         - LoadBalancerPort: 80
           InstancePort: 80
