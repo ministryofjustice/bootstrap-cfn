@@ -260,7 +260,7 @@ class TestConfigParser(unittest.TestCase):
                                                           {u'Ref': u'AWS::Region'},
                                                           u':',
                                                           {u'Ref': u'AWS::AccountId'},
-                                                          ':loadbalancer/ELBtest-dev-external']]}]}]},
+                                                          ':loadbalancer/ELB-test-dev-external']]}]}]},
                     u'PolicyName': 'testdevexternalBaseHost',
                     u'Roles': [{u'Ref': u'BaseHostRole'}]},
                 u'Type': u'AWS::IAM::Policy'}},
@@ -306,7 +306,7 @@ class TestConfigParser(unittest.TestCase):
                                                       {u'Ref': u'AWS::Region'},
                                                       u':',
                                                       {u'Ref': u'AWS::AccountId'},
-                                                      ':loadbalancer/ELBtest-dev-internal']]}]}]},
+                                                      ':loadbalancer/ELB-test-dev-internal']]}]}]},
                         u'PolicyName': 'testdevinternalBaseHost',
                         u'Roles': [{u'Ref': u'BaseHostRole'}]},
                 u'Type': u'AWS::IAM::Policy'}}
@@ -532,7 +532,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                                   {u'Ref': u'AWS::Region'},
                                                                                                   u':',
                                                                                                   {u'Ref': u'AWS::AccountId'},
-                                                                                                  ':loadbalancer/ELBdev_docker-registryservice']]}]}]},
+                                                                                                  ':loadbalancer/ELB-dev_docker-registryservice']]}]}]},
                                 u'PolicyName': 'dev_dockerregistryserviceBaseHost',
                                 u'Roles': [{u'Ref': u'BaseHostRole'}]},
                 u'Type': u'AWS::IAM::Policy'}}
@@ -602,7 +602,7 @@ class TestConfigParser(unittest.TestCase):
                                                                  {u'Ref': u'AWS::Region'},
                                                                  u':',
                                                                  {u'Ref': u'AWS::AccountId'},
-                                                                 ':loadbalancer/ELBdev_docker-registryservice']]}]}]},
+                                                                 ':loadbalancer/ELB-dev_docker-registryservice']]}]}]},
                 u'PolicyName': 'dev_dockerregistryserviceBaseHost',
                 u'Roles': [{u'Ref': u'BaseHostRole'}]},
                 u'Type': u'AWS::IAM::Policy'}}
@@ -670,7 +670,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                                   {u'Ref': u'AWS::Region'},
                                                                                                   u':',
                                                                                                   {u'Ref': u'AWS::AccountId'},
-                                                                                                  ':loadbalancer/ELBdev_docker-registryservice']]}]}]},
+                                                                                                  ':loadbalancer/ELB-dev_docker-registryservice']]}]}]},
                                 u'PolicyName': 'dev_dockerregistryserviceBaseHost',
                                 u'Roles': [{u'Ref': u'BaseHostRole'}]},
                 u'Type': u'AWS::IAM::Policy'}}

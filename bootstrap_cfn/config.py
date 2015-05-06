@@ -258,7 +258,7 @@ class ConfigParser:
                 'PolicyName'] = safe_name + "BaseHost"
             template['ELBRolePolicies']['Properties'][
                 'PolicyDocument']['Statement'][0][
-                'Resource'][0]['Fn::Join'][-1][-1] = ':loadbalancer/ELB%s' % elb['name'].replace('.', '')
+                'Resource'][0]['Fn::Join'][-1][-1] = ':loadbalancer/ELB-%s' % elb['name'].replace('.', '')
             template['DNSRecord']['Properties'][
                 'HostedZoneName'] = elb['hosted_zone']
             template['DNSRecord']['Properties']['RecordSets'][0][
