@@ -1,3 +1,11 @@
+## Version 0.4.x (Unreleased)
+
+* Fix dist to not include tests/ folder
+
+  This would cause problems for downstream modules (i.e. bootstrap-salt) as
+  they would then try to run our tests, but wouldn't have half the needed test
+  modules.
+
 ## Version 0.4.0
 
 First release to PyPi

@@ -1,4 +1,0 @@
-include CHANGELOG.md LICENSE AUTHORS
-recursive-include scripts *
-recursive-include docs *
-recursive-include tests *
