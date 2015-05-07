@@ -1,4 +1,4 @@
-## Version 0.4.x (Unreleased)
+## Version 0.4.1
 
 * Fix dist to not include tests/ folder
 

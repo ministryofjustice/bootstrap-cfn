@@ -27,7 +27,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='bootstrap_cfn',
-    version='0.4.0',
+    version='0.4.1',
     url='http://github.com/ministryofjustice/bootstrap_cfn/',
     license='LICENSE',
     author='MOJDS',
