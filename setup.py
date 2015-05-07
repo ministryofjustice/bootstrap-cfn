@@ -43,6 +43,8 @@ setup(
         'Fabric>=1.10.1',
         'PyYAML>=3.11',
         'boto>=2.36.0',
+    ],
+    setup_requires=[
         'mock>=1.0.1',
         'testfixtures>=4.1.2',
         'nose',
