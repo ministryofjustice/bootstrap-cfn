@@ -1,7 +1,5 @@
 import boto.iam
 from boto.connection import AWSQueryConnection
-from boto.exception import NoAuthHandlerFound
-from boto.provider import ProfileNotFoundError
 from bootstrap_cfn import utils
 import logging
 from bootstrap_cfn.errors import CloudResourceNotFoundError
@@ -31,18 +29,18 @@ class IAM:
         for cert_name, ssl_data in ssl_config.items():
             self.delete_certificate(cert_name,
                                     stack_name,
-                                    ssl_data,
-                                    force=True)
+                                    ssl_data)
         return True
 
     def update_ssl_certificates(self, ssl_config, stack_name):
         """
-        Update all the ssl certificates in the identified stack. Raise an 
+        Update all the ssl certificates in the identified stack. Raise an
         exception if we try to update a non-existent certificate
 
         Args:
-            ssl_config(dictionary): A dictionary of ssl configuration data organised by
-                cert_name to a dictionary with the config data in it
+            ssl_config(dictionary): A dictionary of ssl configuration data
+                organised by cert_name to a dictionary with the config
+                data in it
             stack_name(string): The name of the stack
 
         Returns:
@@ -71,7 +69,7 @@ class IAM:
                     else:
                         msg = ("IAM::update_ssl_certificates: "
                                "Could not update certificate '%s': "
-                               "Certificate does not exist remotely" 
+                               "Certificate does not exist remotely"
                                % (cert_name))
                         raise CloudResourceNotFoundError(msg)
 
@@ -118,7 +116,7 @@ class IAM:
                                                    None),
             }
             return remote_cert_data
-        # Handle any problems connecting to the remote AWS 
+        # Handle any problems connecting to the remote AWS
         except AWSQueryConnection.ResponseError as error:
                     logging.info("IAM::get_remote_certificate: "
                                  "Could not find certificate '%s': "
@@ -174,7 +172,7 @@ class IAM:
                              "certificate id '%s' "
                              % (cert_id))
                 return False
-        # Handle any problems connecting to the remote AWS 
+        # Handle any problems connecting to the remote AWS
         except AWSQueryConnection.ResponseError as error:
                     logging.info("IAM::get_remote_certificate: "
                                  "Could not find certificate '%s': "
@@ -201,8 +199,7 @@ class IAM:
         """
 
         are_equal = False
-        certs_are_equal = self.compare_certs_body(
-                                                  cert_data1.get("cert", None),
+        certs_are_equal = self.compare_certs_body(cert_data1.get("cert", None),
                                                   cert_data2.get("cert", None))
         if not certs_are_equal:
             logging.info("IAM::compare_certificate_data: "
@@ -259,8 +256,8 @@ class IAM:
 
         try:
             if force or not self.get_remote_certificate(cert_name,
-                                                                 stack_name,
-                                                                 ssl_data):
+                                                        stack_name,
+                                                        ssl_data):
                 self.conn_iam.upload_server_cert(cert_id, cert_body,
                                                  private_key,
                                                  cert_chain)

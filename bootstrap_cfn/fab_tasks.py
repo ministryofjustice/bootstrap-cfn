@@ -105,6 +105,7 @@ def get_config():
     cfn_config = ConfigParser(project_config.config, get_stack_name())
     return cfn_config
 
+
 def get_connection(klass):
     _validate_fabric_env()
     return klass(env.aws, env.aws_region)
@@ -152,7 +153,7 @@ def cfn_create():
         iam = get_connection(IAM)
         iam.upload_ssl_certificate(cfn_config.ssl(), stack_name)
     # Useful for debug
-    #print cfn_config.process()
+    # print cfn_config.process()
     # Inject security groups in stack template and create stacks.
     try:
         stack = cfn.create(stack_name, cfn_config.process())
@@ -175,15 +176,14 @@ def cfn_create():
         if 'ssl' in cfn_config.data:
             iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
         abort('Failed to create stack: {0}'.format(stack))
-        
+
+
 @task
-def update_certs(force=False):
+def update_certs():
     """
     Update the ssl certificates with those in the config file.
     Also handle settings the certificates on ELB's
     """
-    if force:
-        logging.info("Forcing certificate updates is enabled...")
 
     stack_name = get_stack_name()
     cfn_config = get_config()
@@ -193,8 +193,7 @@ def update_certs(force=False):
         logging.info("Reloading SSL certificates...")
         iam = get_connection(IAM)
         updated_count = iam.update_ssl_certificates(cfn_config.ssl(),
-                                                    stack_name,
-                                                    force)
+                                                    stack_name)
     else:
         logging.error("No ssl section found in cloud config file, aborting...")
         sys.exit(1)
@@ -209,8 +208,7 @@ def update_certs(force=False):
         if 'elb' in cfn_config.data:
             logging.info("Setting load balancer certificates...")
             elb = get_connection(ELB)
-            updated_load_balancers = elb.set_ssl_certificates(cfn_config.ssl(), stack_name)
+            elb.set_ssl_certificates(cfn_config.ssl(), stack_name)
     else:
         logging.error("No certificates updated so skipping "
                       "ELB certificate update...")
-

@@ -1,4 +1,3 @@
-import bootstrap_cfn
 from bootstrap_cfn import iam
 import unittest
 from nose.tools import raises
@@ -72,25 +71,26 @@ class TestIAM(unittest.TestCase):
         }
 
     cert1_remote_get_certificate_response = \
-    {
-        "get_server_certificate_response":
+        {
+            "get_server_certificate_response":
             {
-             "get_server_certificate_result": 
+                "get_server_certificate_result":
                 {
-                    "server_certificate": {
-                                           "certificate_body": ("-----BEGIN CERTIFICATE-----"
-                                                                "CERT1CERT1CERT1CERT1CERT1CER"
-                                                                "-----END CERTIFICATE-----"),
-                                           "certificate_chain": ("-----BEGIN CERTIFICATE-----"
-                                                                 "CHAIN1CHAIN1CHAIN1CHAIN1CHA"
-                                                                 "-----END CERTIFICATE-----"),
-                                           "certificate_key": ("-----BEGIN PRIVATE KEY-----"
-                                                               "KEY1KEY1KEY1KEY1KEY1KEY1KEY"
-                                                               "-----END PRIVATE KEY-----")
-                                           }
-                 }
-             }
-    }
+                    "server_certificate":
+                    {
+                        "certificate_body": ("-----BEGIN CERTIFICATE-----"
+                                             "CERT1CERT1CERT1CERT1CERT1CER"
+                                             "-----END CERTIFICATE-----"),
+                        "certificate_chain": ("-----BEGIN CERTIFICATE-----"
+                                              "CHAIN1CHAIN1CHAIN1CHAIN1CHA"
+                                              "-----END CERTIFICATE-----"),
+                        "certificate_key": ("-----BEGIN PRIVATE KEY-----"
+                                            "KEY1KEY1KEY1KEY1KEY1KEY1KEY"
+                                            "-----END PRIVATE KEY-----"),
+                        }
+                    }
+                }
+            }
     successful_response = \
         {
             "status": 200,
@@ -128,7 +128,7 @@ class TestIAM(unittest.TestCase):
         stack_name = "test_stack"
 
         update_list = self.mock_iam.update_ssl_certificates(ssl_config,
-                                                             stack_name)
+                                                            stack_name)
         self.assertEqual(len(update_list),
                          2,
                          "TestIAM::test_update_ssl_certificates_force: "
@@ -148,9 +148,9 @@ class TestIAM(unittest.TestCase):
         non existing certificates
         """
         mock_get_remote_certificate.side_effect = [True,
-                                                            False,
-                                                            False,
-                                                            None]
+                                                   False,
+                                                   False,
+                                                   None]
         mock_upload_server_cert.side_effect = [self.successful_response,
                                                self.unsuccessful_response,
                                                None]
@@ -170,8 +170,8 @@ class TestIAM(unittest.TestCase):
     @patch("boto.iam.IAMConnection.upload_server_cert")
     @patch("bootstrap_cfn.iam.IAM.get_remote_certificate")
     def test_upload_certificate_not_exists(self,
-                                mock_get_remote_certificate,
-                                mock_upload_server_cert):
+                                           mock_get_remote_certificate,
+                                           mock_upload_server_cert):
         """
         Test that we can upload a certificate if it doesnt exist remotely
         """
@@ -180,8 +180,9 @@ class TestIAM(unittest.TestCase):
         cert_name = "cert1"
         stack_name = "test_stack"
         ssl_data = self.test_certs["test_cert_1"]
-        force = False
-        success = self.mock_iam.upload_certificate(cert_name, stack_name, ssl_data, force)
+        success = self.mock_iam.upload_certificate(cert_name,
+                                                   stack_name,
+                                                   ssl_data)
         self.assertTrue(success,
                         "TestIAM::test_upload_certificate_exists: "
                         "Should be able to upload a non existent cert "
@@ -190,8 +191,8 @@ class TestIAM(unittest.TestCase):
     @patch("boto.iam.IAMConnection.upload_server_cert")
     @patch("bootstrap_cfn.iam.IAM.get_remote_certificate")
     def test_upload_certificate_exists(self,
-                                mock_get_remote_certificate,
-                                mock_upload_server_cert):
+                                       mock_get_remote_certificate,
+                                       mock_upload_server_cert):
         """
         Test that we cannot upload a certificate if it exists remotely
         """
@@ -200,13 +201,14 @@ class TestIAM(unittest.TestCase):
         cert_name = "cert1"
         stack_name = "test_stack"
         ssl_data = self.test_certs["test_cert_1"]
-        force = False
-        success = self.mock_iam.upload_certificate(cert_name, stack_name, ssl_data, force)
+        success = self.mock_iam.upload_certificate(cert_name,
+                                                   stack_name,
+                                                   ssl_data)
         self.assertFalse(success,
-                        "TestIAM::test_upload_certificate_exists: "
-                        "Should not be able to upload an existent cert "
-                        )
-        
+                         "TestIAM::test_upload_certificate_exists: "
+                         "Should not be able to upload an existent cert "
+                         )
+
     @patch("boto.iam.IAMConnection.delete_server_cert")
     @patch("bootstrap_cfn.iam.IAM.get_remote_certificate")
     def test_delete_certificate_exists(self,
@@ -221,11 +223,13 @@ class TestIAM(unittest.TestCase):
         stack_name = "test_stack"
         ssl_data = self.test_certs["test_cert_1"]
 
-        success = self.mock_iam.delete_certificate(cert_name, stack_name, ssl_data)
+        success = self.mock_iam.delete_certificate(cert_name,
+                                                   stack_name,
+                                                   ssl_data)
         self.assertTrue(success,
-                         "TestIAM::test_delete_certificate_exists: "
-                         "Should only be able to delete an existent cert "
-                         )
+                        "TestIAM::test_delete_certificate_exists: "
+                        "Should only be able to delete an existent cert "
+                        )
 
     @patch("boto.iam.IAMConnection.delete_server_cert")
     @patch("bootstrap_cfn.iam.IAM.get_remote_certificate")
@@ -241,7 +245,9 @@ class TestIAM(unittest.TestCase):
         stack_name = "test_stack"
         ssl_data = self.test_certs["test_cert_1"]
 
-        success = self.mock_iam.delete_certificate(cert_name, stack_name, ssl_data)
+        success = self.mock_iam.delete_certificate(cert_name,
+                                                   stack_name,
+                                                   ssl_data)
         self.assertFalse(success,
                          "TestIAM::test_delete_certificate_not_exists: "
                          "Should not be able to delete "
@@ -251,15 +257,15 @@ class TestIAM(unittest.TestCase):
         local_cert_data = self.test_certs["test_cert_1"]
         remote_cert = self.remote_test_certs["test_cert_1"]
         remote_cert_data = \
-        {
-         "cert": remote_cert["certificate_body"],
-         "chain": remote_cert["certificate_chain"],
-         "key": remote_cert["certificate_key"],
-         }
-        certs_equal = self.mock_iam.compare_certificate_data(local_cert_data, 
+            {
+                "cert": remote_cert["certificate_body"],
+                "chain": remote_cert["certificate_chain"],
+                "key": remote_cert["certificate_key"],
+            }
+        certs_equal = self.mock_iam.compare_certificate_data(local_cert_data,
                                                              remote_cert_data)
 
-        self.assertTrue(certs_equal, 
+        self.assertTrue(certs_equal,
                         "Local and remote certificates should be equal")
 
     def test_compare_certificates_unequal(self):
@@ -269,10 +275,10 @@ class TestIAM(unittest.TestCase):
 
         # Test when cert is different
         remote_cert_data = \
-        {
-         "cert": remote_cert2["certificate_body"],
-         "chain": remote_cert1["certificate_chain"],
-         }
+            {
+                "cert": remote_cert2["certificate_body"],
+                "chain": remote_cert1["certificate_chain"],
+            }
         certs_equal = self.mock_iam.compare_certificate_data(local_cert_data,
                                                              remote_cert_data)
 
@@ -282,10 +288,10 @@ class TestIAM(unittest.TestCase):
 
         # Test when chain is different
         remote_cert_data = \
-        {
-         "cert": remote_cert1["certificate_body"],
-         "chain": remote_cert2["certificate_chain"],
-         }
+            {
+                "cert": remote_cert1["certificate_body"],
+                "chain": remote_cert2["certificate_chain"],
+            }
         certs_equal = self.mock_iam.compare_certificate_data(local_cert_data,
                                                              remote_cert_data)
 
