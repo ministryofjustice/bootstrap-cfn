@@ -1,28 +1,5 @@
 #!/usr/bin/env python
 
-"""
-bootstrap_cfn
------
-
-bootstrap_cfn is MOJ Digital Services Cloudformation stack
-
-Setup
-`````````````````
-
-And run it:
-
-.. code:: bash
-
-    $ pip install -r requirements.txt
-
-Links
-`````
-
-* `documentation <http://github.com/ministryofjustice/bootstrap-cfn/docs>`_
-* `development version
-  <http://github.com/ministryofjustice/bootstrap-cfn>`_
-
-"""
 from setuptools import setup, find_packages
 
 setup(
@@ -33,7 +10,7 @@ setup(
     author='MOJDS',
     author_email='tools@digital.justice.gov.uk',
     description='MOJDS cloudformation bootstrap tool',
-    long_description=__doc__,
+    long_description="",
     packages=find_packages(exclude=["tests"]),
     package_data={'bootstrap_cfn': ['stacks/*']},
     zip_safe=False,
