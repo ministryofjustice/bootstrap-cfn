@@ -45,6 +45,7 @@ setup(
         'boto>=2.36.0',
         'mock>=1.0.1',
         'testfixtures>=4.1.2',
+        'nose',
     ],
     classifiers=[
         'Development Status :: 1 - Alpha',
