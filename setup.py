@@ -34,7 +34,7 @@ setup(
     author_email='tools@digital.justice.gov.uk',
     description='MOJDS cloudformation bootstrap tool',
     long_description=__doc__,
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests"]),
     package_data={'bootstrap_cfn': ['stacks/*']},
     zip_safe=False,
     platforms='any',
