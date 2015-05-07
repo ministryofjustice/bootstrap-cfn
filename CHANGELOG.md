@@ -1,4 +1,6 @@
-## Version x
+## Version 0.4.0
+
+First release to PyPi
 
 * Add custom ELB healthchecks so you can point an ELB at a URL (not just a port)
 
