@@ -50,7 +50,7 @@ setup(
         'nose',
     ],
     classifiers=[
-        'Development Status :: 1 - Alpha',
+        'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',
         'Intended Audience :: System Administrators',
         'Intended Audience :: Developers',
