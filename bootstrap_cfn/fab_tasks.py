@@ -78,17 +78,15 @@ def get_stack_name():
 
 def _validate_fabric_env():
     if env.aws is None:
-        print "\n[ERROR] Please specify an AWS account, e.g 'aws:dev'"
-        sys.exit(1)
+        sys.exit("\n[ERROR] Please specify an AWS account, e.g 'aws:dev'")
     if env.environment is None:
-        print "\n[ERROR] Please specify an environment, e.g 'environment:dev'"
-        sys.exit(1)
+        sys.exit("\n[ERROR] Please specify an environment, e.g 'environment:dev'")
     if env.application is None:
-        print "\n[ERROR] Please specify an application, e.g 'application:peoplefinder'"
-        sys.exit(1)
+        sys.exit("\n[ERROR] Please specify an application, e.g 'application:peoplefinder'")
     if env.config is None:
-        print "\n[ERROR] Please specify a config file, e.g 'config:/tmp/sample-application.yaml'"
-        sys.exit(1)
+        sys.exit("\n[ERROR] Please specify a config file, e.g 'config:/tmp/sample-application.yaml'")
+    elif not os.path.isfile(env.config):
+        sys.exit("\n[ERROR] Config file %s does not exist" % str(env.config))
 
     if env.stack_passwords is not None and not os.path.exists(env.stack_passwords):
         print >> sys.stderr, "\n[ERROR] Passwords file '{0}' doesn't exist!".format(env.stack_passwords)
