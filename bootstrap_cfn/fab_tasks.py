@@ -36,41 +36,125 @@ sys.path.append(os.path.dirname(path))
 
 
 @task
-def aws(x):
-    env.aws = str(x).lower()
+def aws(profile_name):
+    """
+    Set the AWS account to use
+
+    Sets the environment variable 'aws' to the name of the
+    account to use in the AWS config file (~/.aws/credentials.yaml)
+
+    Args:
+        profile_name(string): The string to set the environment
+        variable to
+    """
+    env.aws = str(profile_name).lower()
 
 
 @task
-def environment(x):
-    env.environment = str(x).lower()
+def environment(environment_name):
+    """
+    Set the environment section to be read from the project config
+    file
+
+    Sets the environment variable 'environment'.
+    The named section will be read from the project's YAML file
+
+    Args:
+        environment_name(string): The string to set the
+        variable to
+    """
+    env.environment = str(environment_name).lower()
 
 
 @task
-def application(x):
-    env.application = str(x).lower()
+def application(application_name):
+    """
+    Set the application name
+
+    Sets the environment variable 'application' to
+    an application name. Which is just a name to
+    associate with Cloudformation stack
+
+    Args:
+        application_name(string): The string to set the
+        variable to
+    """
+    env.application = str(application_name).lower()
 
 
 @task
-def config(x):
-    env.config = str(x).lower()
+def config(config_file):
+    """
+    Set the location of the project's YAML file
+
+    Sets the environment variable 'config' to be
+    the location of the project's YAML config
+    file
+
+    Args:
+        config_file(string): The string to set the
+        variable to
+    """
+    env.config = str(config_file).lower()
 
 
 @task
-def passwords(x):
-    env.stack_passwords = str(x).lower()
+def passwords(passwords_file):
+    """
+    Set the path to the project's password YAML config file
+
+    Set the environment variable 'stack_passwords' to the
+    path of the project's password file. This will be used
+    to load in a dictionary of passwords to use with the
+    project's components
+
+    Args:
+        passwords_file(string): The string to set the
+        variable to
+    """
+    env.stack_passwords = str(passwords_file).lower()
 
 
 @task
-def blocking(x):
-    env.blocking = str(x).lower() in ("yes", "true", "t", "1")
+def blocking(block):
+    """
+    Set to block while waiting for stack creation or deletion to complete
+
+    Sets the environment variable 'blocking' to True to wait on stack
+    creation or deletion to complete before returning from the script.
+    If false the cloudformation task will be started and the script
+    will immediately exit
+
+    Args:
+        block(string): The string to set the
+        variable to. Must be one of yes, true,
+        t or 1
+    """
+    env.blocking = str(block).lower() in ("yes", "true", "t", "1")
 
 
 @task
-def user(x):
-    env.user = x
+def user(username):
+    """
+    Sets the username to use for ssh to created instances
+
+    Sets the environment variable 'user' to the ssh username
+    to use when trying to connect to a remote instance
+
+    Args:
+        username(string): The string to set the
+        variable to.
+    """
+    env.user = username
 
 
 def get_stack_name():
+    """
+    Get the name of the stack
+
+    The name of the stack is a combination
+    of the application and environment names
+    """
     if hasattr(env, 'stack_name'):
         return env.stack_name
     return "%s-%s" % (env.application, env.environment)
@@ -111,6 +195,15 @@ def get_connection(klass):
 
 @task
 def cfn_delete(force=False):
+    """
+    Delete the AWS Cloudformation stack
+
+    Deletes the stack and the associated SSL certificates
+
+    Args:
+        force(bool): True to destroy the stack without any further
+            input, False to require confirmation before deletion
+    """
     if not force:
         x = raw_input("Are you really sure you want to blow away the whole stack!? (y/n)\n")
         if x not in ['y', 'Y', 'Yes', 'yes']:
@@ -142,6 +235,13 @@ def cfn_delete(force=False):
 
 @task
 def cfn_create():
+    """
+    Create the AWS cloudformation stack.
+
+    Using the configuration files, a full cloudformation
+    specification will be generated and used to create a
+    stack on AWS.
+    """
     stack_name = get_stack_name()
     cfn_config = get_config()
 
@@ -179,8 +279,11 @@ def cfn_create():
 @task
 def update_certs():
     """
-    Update the ssl certificates with those in the config file.
-    Also handle settings the certificates on ELB's
+    Update the ssl certificates
+
+    This will read in the certificates from the config
+    file, update them in AWS Iam, and then also handle
+    setting the certificates on ELB's
     """
 
     stack_name = get_stack_name()
