@@ -254,6 +254,11 @@ class ConfigParser:
                 'LoadBalancerName'] = 'ELB-%s' % elb['name'].replace('.', '')
             template['ElasticLoadBalancer'][
                 'Properties']['Scheme'] = elb['scheme']
+            template['ELBRolePolicies']['Properties'][
+                'PolicyName'] = safe_name + "BaseHost"
+            template['ELBRolePolicies']['Properties'][
+                'PolicyDocument']['Statement'][0][
+                'Resource'][0]['Fn::Join'][-1][-1] = ':loadbalancer/ELB-%s' % elb['name'].replace('.', '')
             template['DNSRecord']['Properties'][
                 'HostedZoneName'] = elb['hosted_zone']
             template['DNSRecord']['Properties']['RecordSets'][0][
@@ -276,6 +281,8 @@ class ConfigParser:
                 {'ELB%s' % safe_name: template['ElasticLoadBalancer']})
             elb_list.append(
                 {'DNS%s' % safe_name: template['DNSRecord']})
+            elb_list.append(
+                {'Policy%s' % safe_name: template['ELBRolePolicies']})
 
         return elb_list, elb_sgs
 

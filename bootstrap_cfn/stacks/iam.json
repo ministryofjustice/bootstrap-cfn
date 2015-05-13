@@ -15,6 +15,7 @@
                     { "Action": [ "autoscaling:Describe*" ], "Resource": "*", "Effect": "Allow" },
                     { "Action": [ "ec2:Describe*" ], "Resource": "*", "Effect": "Allow" },
                     { "Action": [ "rds:Describe*" ], "Resource": "*", "Effect": "Allow" },
+                    { "Action": [ "elasticloadbalancing:Describe*" ], "Resource": "*", "Effect": "Allow" },
                     { "Action": [ "elasticache:Describe*" ], "Resource": "*", "Effect": "Allow" },
                     { "Action": [ "cloudformation:Describe*" ], "Resource": "*", "Effect": "Allow" },
                     { "Action": [ "s3:List*" ], "Resource": "*", "Effect": "Allow" }
