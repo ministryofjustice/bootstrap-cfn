@@ -198,7 +198,7 @@ class ConfigParser:
         elb_sgs = {}
         # COULD HAVE MULTIPLE ELB'S (PUBLIC / PRIVATE etc)
         for elb in self.data['elb']:
-            safe_name = elb['name'].replace('-', '').replace('.', '')
+            safe_name = elb['name'].replace('-', '').replace('.', '').replace('_', '')
             # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
             for i in required_fields.keys():
                 if i not in elb.keys():

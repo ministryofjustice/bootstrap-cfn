@@ -209,7 +209,7 @@ class TestConfigParser(unittest.TestCase):
                 'tests/sample-project.yaml',
                 'dev',
                 'tests/sample-project-passwords.yaml').config, 'my-stack-name')
-        self.assertEquals(known, config.rds())
+        compare(known, config.rds())
 
     def test_elb(self):
 
@@ -447,7 +447,7 @@ class TestConfigParser(unittest.TestCase):
         # Ugh. Fixtures please?
         project_config.config.pop('ssl')
         project_config.config['elb'] = [{
-            'name': 'dev_docker-registry.service',
+            'name': 'docker-registry.service',
             'hosted_zone': 'kyrtest.foo.bar.',
             'certificate_name': 'my-cert',
             'scheme': 'internet-facing',
@@ -472,7 +472,7 @@ class TestConfigParser(unittest.TestCase):
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         # Ugh. Fixtures please?
         project_config.config['elb'] = [{
-            'name': 'dev_docker-registry.service',
+            'name': 'docker-registry.service',
             'hosted_zone': 'kyrtest.foo.bar.',
             'scheme': 'internet-facing',
             'listeners': [
@@ -495,35 +495,35 @@ class TestConfigParser(unittest.TestCase):
         self.maxDiff = None
 
         known = [
-            {'ELBdev_dockerregistryservice': {'Properties': {'Listeners': [{'InstancePort': 80,
-                                                                            'LoadBalancerPort': 80,
-                                                                            'Protocol': 'TCP'},
-                                                                           {'InstancePort': 443,
-                                                                               'LoadBalancerPort': 443,
-                                                                               'Protocol': 'HTTPS',
-                                                                               'SSLCertificateId': {'Fn::Join': ['',
-                                                                                                                 ['arn:aws:iam::',
-                                                                                                                  {'Ref': 'AWS::AccountId'},
-                                                                                                                  ':server-certificate/',
-                                                                                                                  'my-cert-my-stack-name']]}}],
-                                                             'LoadBalancerName': 'ELB-dev_docker-registryservice',
-                                                             'SecurityGroups': [{'Ref': 'DefaultSGdev_dockerregistryservice'}],
-                                                             u'ConnectionDrainingPolicy': {u'Enabled': True, u'Timeout': 120},
-                                                             'Scheme': 'internet-facing',
-                                                             'Subnets': [{'Ref': 'SubnetA'},
-                                                                         {'Ref': 'SubnetB'},
-                                                                         {'Ref': 'SubnetC'}]},
-                                              'Type': 'AWS::ElasticLoadBalancing::LoadBalancer'}},
-            {'DNSdev_dockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
-                                                             'HostedZoneName': 'kyrtest.foo.bar.',
-                                                             'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                        'DNSName']},
-                                                                                             'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                             'CanonicalHostedZoneNameID']}},
-                                                                               'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
-                                                                             'Type': 'A'}]},
-                                              'Type': 'AWS::Route53::RecordSetGroup'}},
-            {'Policydev_dockerregistryservice': {
+            {'ELBdockerregistryservice': {'Properties': {'Listeners': [{'InstancePort': 80,
+                                                                        'LoadBalancerPort': 80,
+                                                                        'Protocol': 'TCP'},
+                                                                       {'InstancePort': 443,
+                                                                           'LoadBalancerPort': 443,
+                                                                           'Protocol': 'HTTPS',
+                                                                           'SSLCertificateId': {'Fn::Join': ['',
+                                                                                                             ['arn:aws:iam::',
+                                                                                                              {'Ref': 'AWS::AccountId'},
+                                                                                                              ':server-certificate/',
+                                                                                                              'my-cert-my-stack-name']]}}],
+                                                         'LoadBalancerName': 'ELB-docker-registryservice',
+                                                         'SecurityGroups': [{'Ref': 'DefaultSGdockerregistryservice'}],
+                                                         u'ConnectionDrainingPolicy': {u'Enabled': True, u'Timeout': 120},
+                                                         'Scheme': 'internet-facing',
+                                                         'Subnets': [{'Ref': 'SubnetA'},
+                                                                     {'Ref': 'SubnetB'},
+                                                                     {'Ref': 'SubnetC'}]},
+                                          'Type': 'AWS::ElasticLoadBalancing::LoadBalancer'}},
+            {'DNSdockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
+                                                         'HostedZoneName': 'kyrtest.foo.bar.',
+                                                         'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdockerregistryservice',
+                                                                                                                    'DNSName']},
+                                                                                         'HostedZoneId': {'Fn::GetAtt': ['ELBdockerregistryservice',
+                                                                                                                         'CanonicalHostedZoneNameID']}},
+                                                                           'Name': 'docker-registry.service.kyrtest.foo.bar.',
+                                                                         'Type': 'A'}]},
+                                          'Type': 'AWS::Route53::RecordSetGroup'}},
+            {'Policydockerregistryservice': {
                 u'Properties': {u'PolicyDocument': {u'Statement': [{u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
                                                                                 u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
                                                                     u'Effect': u'Allow',
@@ -532,8 +532,8 @@ class TestConfigParser(unittest.TestCase):
                                                                                                   {u'Ref': u'AWS::Region'},
                                                                                                   u':',
                                                                                                   {u'Ref': u'AWS::AccountId'},
-                                                                                                  ':loadbalancer/ELB-dev_docker-registryservice']]}]}]},
-                                u'PolicyName': 'dev_dockerregistryserviceBaseHost',
+                                                                                                  ':loadbalancer/ELB-docker-registryservice']]}]}]},
+                                u'PolicyName': 'dockerregistryserviceBaseHost',
                                 u'Roles': [{u'Ref': u'BaseHostRole'}]},
                 u'Type': u'AWS::IAM::Policy'}}
         ]
@@ -541,7 +541,7 @@ class TestConfigParser(unittest.TestCase):
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         # Ugh. Fixtures please?
         project_config.config['elb'] = [{
-            'name': 'dev_docker-registry.service',
+            'name': 'docker-registry.service',
             'hosted_zone': 'kyrtest.foo.bar.',
             'scheme': 'internet-facing',
             'certificate_name': 'my-cert',
@@ -558,42 +558,42 @@ class TestConfigParser(unittest.TestCase):
         }]
         config = ConfigParser(project_config.config, 'my-stack-name')
         elb_cfg, elb_sgs = config.elb()
-        self.assertEquals(known, elb_cfg)
+        compare(known, elb_cfg)
 
     def test_elb_with_healthcheck(self):
         self.maxDiff = None
         known = [
-            {'ELBdev_dockerregistryservice': {'Properties': {'Listeners': [{'InstancePort': 80,
-                                                                            'LoadBalancerPort': 80,
-                                                                            'Protocol': 'TCP'},
-                                                                           {'InstancePort': 443,
-                                                                               'LoadBalancerPort': 443,
-                                                                               'Protocol': 'TCP'}],
-                                                             'LoadBalancerName': 'ELB-dev_docker-registryservice',
-                                                             'SecurityGroups': [{'Ref': 'DefaultSGdev_dockerregistryservice'}],
-                                                             u'ConnectionDrainingPolicy': {u'Enabled': True, u'Timeout': 120},
-                                                             'HealthCheck': {
-                                                                 'HealthyThreshold': 10,
-                                                                 'Interval': 2,
-                                                                 'Target': 'HTTPS:80/blah',
-                                                                 'Timeout': 5,
-                                                                 'UnhealthyThreshold': 2},
-                                                             'Scheme': 'internet-facing',
-                                                             'Subnets': [{'Ref': 'SubnetA'},
-                                                                         {'Ref': 'SubnetB'},
-                                                                         {'Ref': 'SubnetC'}]},
-                                              'Type': 'AWS::ElasticLoadBalancing::LoadBalancer'}},
-            {'DNSdev_dockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
-                                                             'HostedZoneName': 'kyrtest.foo.bar.',
-                                                             'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                        'DNSName']},
-                                                                                             'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                             'CanonicalHostedZoneNameID']}},
-                                                                               'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
-                                                                             'Type': 'A'}]},
-                                              'Type':
-                                              'AWS::Route53::RecordSetGroup'}},
-            {'Policydev_dockerregistryservice': {u'Properties': {u'PolicyDocument': {
+            {'ELBdockerregistryservice': {'Properties': {'Listeners': [{'InstancePort': 80,
+                                                                        'LoadBalancerPort': 80,
+                                                                        'Protocol': 'TCP'},
+                                                                       {'InstancePort': 443,
+                                                                           'LoadBalancerPort': 443,
+                                                                           'Protocol': 'TCP'}],
+                                                         'LoadBalancerName': 'ELB-docker-registryservice',
+                                                         'SecurityGroups': [{'Ref': 'DefaultSGdockerregistryservice'}],
+                                                         u'ConnectionDrainingPolicy': {u'Enabled': True, u'Timeout': 120},
+                                                         'HealthCheck': {
+                                                             'HealthyThreshold': 10,
+                                                             'Interval': 2,
+                                                             'Target': 'HTTPS:80/blah',
+                                                             'Timeout': 5,
+                                                             'UnhealthyThreshold': 2},
+                                                         'Scheme': 'internet-facing',
+                                                         'Subnets': [{'Ref': 'SubnetA'},
+                                                                     {'Ref': 'SubnetB'},
+                                                                     {'Ref': 'SubnetC'}]},
+                                          'Type': 'AWS::ElasticLoadBalancing::LoadBalancer'}},
+            {'DNSdockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
+                                                         'HostedZoneName': 'kyrtest.foo.bar.',
+                                                         'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdockerregistryservice',
+                                                                                                                    'DNSName']},
+                                                                                         'HostedZoneId': {'Fn::GetAtt': ['ELBdockerregistryservice',
+                                                                                                                         'CanonicalHostedZoneNameID']}},
+                                                                           'Name': 'docker-registry.service.kyrtest.foo.bar.',
+                                                                         'Type': 'A'}]},
+                                          'Type':
+                                          'AWS::Route53::RecordSetGroup'}},
+            {'Policydockerregistryservice': {u'Properties': {u'PolicyDocument': {
                 u'Statement': [{u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
                                             u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
                                 u'Effect': u'Allow',
@@ -602,14 +602,14 @@ class TestConfigParser(unittest.TestCase):
                                                                  {u'Ref': u'AWS::Region'},
                                                                  u':',
                                                                  {u'Ref': u'AWS::AccountId'},
-                                                                 ':loadbalancer/ELB-dev_docker-registryservice']]}]}]},
-                u'PolicyName': 'dev_dockerregistryserviceBaseHost',
+                                                                 ':loadbalancer/ELB-docker-registryservice']]}]}]},
+                u'PolicyName': 'dockerregistryserviceBaseHost',
                 u'Roles': [{u'Ref': u'BaseHostRole'}]},
                 u'Type': u'AWS::IAM::Policy'}}
         ]
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         project_config.config['elb'] = [{
-            'name': 'dev_docker-registry.service',
+            'name': 'docker-registry.service',
             'hosted_zone': 'kyrtest.foo.bar.',
             'scheme': 'internet-facing',
             'listeners': [
@@ -635,33 +635,31 @@ class TestConfigParser(unittest.TestCase):
         compare(elb_cfg, known)
 
     def test_elb_with_reserved_chars(self):
-
-        self.maxDiff = None
         known = [
-            {'ELBdev_dockerregistryservice': {'Properties': {'Listeners': [{'InstancePort': 80,
-                                                                            'LoadBalancerPort': 80,
-                                                                            'Protocol': 'TCP'},
-                                                                           {'InstancePort': 443,
-                                                                               'LoadBalancerPort': 443,
-                                                                               'Protocol': 'TCP'}],
-                                                             'LoadBalancerName': 'ELB-dev_docker-registryservice',
-                                                             'SecurityGroups': [{'Ref': 'DefaultSGdev_dockerregistryservice'}],
-                                                             u'ConnectionDrainingPolicy': {u'Enabled': True, u'Timeout': 120},
-                                                             'Scheme': 'internet-facing',
-                                                             'Subnets': [{'Ref': 'SubnetA'},
-                                                                         {'Ref': 'SubnetB'},
-                                                                         {'Ref': 'SubnetC'}]},
-                                              'Type': 'AWS::ElasticLoadBalancing::LoadBalancer'}},
-            {'DNSdev_dockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
-                                                             'HostedZoneName': 'kyrtest.foo.bar.',
-                                                             'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                        'DNSName']},
-                                                                                             'HostedZoneId': {'Fn::GetAtt': ['ELBdev_dockerregistryservice',
-                                                                                                                             'CanonicalHostedZoneNameID']}},
-                                                                               'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
-                                                                             'Type': 'A'}]},
-                                              'Type': 'AWS::Route53::RecordSetGroup'}},
-            {'Policydev_dockerregistryservice': {
+            {'ELBdevdockerregistryservice': {'Properties': {'Listeners': [{'InstancePort': 80,
+                                                                           'LoadBalancerPort': 80,
+                                                                           'Protocol': 'TCP'},
+                                                                          {'InstancePort': 443,
+                                                                           'LoadBalancerPort': 443,
+                                                                           'Protocol': 'TCP'}],
+                                                            'LoadBalancerName': 'ELB-dev_docker-registryservice',
+                                                            'SecurityGroups': [{'Ref': 'DefaultSGdevdockerregistryservice'}],
+                                                            'ConnectionDrainingPolicy': {u'Enabled': True, u'Timeout': 120},
+                                                            'Scheme': 'internet-facing',
+                                                            'Subnets': [{'Ref': 'SubnetA'},
+                                                                        {'Ref': 'SubnetB'},
+                                                                        {'Ref': 'SubnetC'}]},
+                                             'Type': 'AWS::ElasticLoadBalancing::LoadBalancer'}},
+            {'DNSdevdockerregistryservice': {'Properties': {'Comment': 'Zone apex alias targeted to ElasticLoadBalancer.',
+                                                            'HostedZoneName': 'kyrtest.foo.bar.',
+                                                            'RecordSets': [{'AliasTarget': {'DNSName': {'Fn::GetAtt': ['ELBdevdockerregistryservice',
+                                                                                                                       'DNSName']},
+                                                                                            'HostedZoneId': {'Fn::GetAtt': ['ELBdevdockerregistryservice',
+                                                                                                                            'CanonicalHostedZoneNameID']}},
+                                                                            'Name': 'dev_docker-registry.service.kyrtest.foo.bar.',
+                                                                            'Type': 'A'}]},
+                                             'Type': 'AWS::Route53::RecordSetGroup'}},
+            {'Policydevdockerregistryservice': {
                 u'Properties': {u'PolicyDocument': {u'Statement': [{u'Action': [u'elasticloadbalancing:DeregisterInstancesFromLoadBalancer',
                                                                                 u'elasticloadbalancing:RegisterInstancesWithLoadBalancer'],
                                                                     u'Effect': u'Allow',
@@ -671,7 +669,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                                   u':',
                                                                                                   {u'Ref': u'AWS::AccountId'},
                                                                                                   ':loadbalancer/ELB-dev_docker-registryservice']]}]}]},
-                                u'PolicyName': 'dev_dockerregistryserviceBaseHost',
+                                u'PolicyName': 'devdockerregistryserviceBaseHost',
                                 u'Roles': [{u'Ref': u'BaseHostRole'}]},
                 u'Type': u'AWS::IAM::Policy'}}
         ]
@@ -695,7 +693,7 @@ class TestConfigParser(unittest.TestCase):
         }]
         config = ConfigParser(project_config.config, 'my-stack-name')
         elb_cfg, elb_sgs = config.elb()
-        self.assertEquals(known, elb_cfg)
+        compare(known, elb_cfg)
 
     def test_ec2(self):
 
