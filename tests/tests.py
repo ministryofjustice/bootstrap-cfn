@@ -77,7 +77,7 @@ class TestConfigParser(unittest.TestCase):
                                                                                              'Effect': 'Allow',
                                                                                              'Principal': {'Service': ['ec2.amazonaws.com']}}]}}}}
         config = ConfigParser(None, 'my-stack-name')
-        self.assertEquals(known, config.iam())
+        compare(known, config.iam())
 
     def test_s3(self):
         known = {
@@ -105,13 +105,9 @@ class TestConfigParser(unittest.TestCase):
         config = ConfigParser(
             ProjectConfig(
                 'tests/sample-project.yaml',
-                'dev').config, 'my-stack-name')
-        config = ConfigParser(
-            ProjectConfig(
-                'tests/sample-project.yaml',
                 'dev').config,
             'my-stack-name')
-        self.assertEquals(known, config.s3())
+        compare(known, config.s3())
 
     def test_custom_s3_policy(self):
         expected_s3 = [
@@ -431,6 +427,112 @@ class TestConfigParser(unittest.TestCase):
         cfg = json.loads(config.process())
         outputs = cfg['Outputs']
         compare(known_outputs, outputs)
+
+    def test_process(self):
+        """
+        This isn't the best test, but we at least check that we have the right
+        Resource names returned
+        """
+        project_config = ProjectConfig(
+            'tests/sample-project.yaml',
+            'dev',
+            'tests/sample-project-passwords.yaml')
+        config = ConfigParser(project_config.config, 'my-stack-name')
+
+        cfn_template = json.loads(config.process())
+
+        wanted = [
+            "AnotherSG", "AttachGateway", "BaseHostLaunchConfig",
+            "BaseHostRole", "BaseHostSG", "DNStestdevexternal",
+            "DNStestdevinternal", "DatabaseSG", "DefaultSGtestdevexternal",
+            "DefaultSGtestdevinternal", "ELBtestdevexternal",
+            "ELBtestdevinternal", "InstanceProfile", "InternetGateway",
+            "Policytestdevexternal", "Policytestdevinternal", "PublicRoute",
+            "PublicRouteTable", "RDSInstance", "RDSSubnetGroup",
+            "RolePolicies", "ScalingGroup", "StaticBucket",
+            "StaticBucketPolicy", "SubnetA", "SubnetB", "SubnetC",
+            "SubnetRouteTableAssociationA", "SubnetRouteTableAssociationB",
+            "SubnetRouteTableAssociationC", "VPC"
+        ]
+
+        resource_names = cfn_template['Resources'].keys()
+        resource_names.sort()
+        compare(resource_names, wanted)
+
+        wanted = ["dbhost", "dbport"]
+        output_names = cfn_template['Outputs'].keys()
+        output_names.sort()
+        compare(output_names, wanted)
+
+        mappings = cfn_template['Mappings']
+        expected = {
+            'AWSRegion2AMI': {'eu-west-1': {'AMI': 'ami-f0b11187'}},
+            'SubnetConfig': {
+                'VPC': {
+                    'CIDR': '10.0.0.0/16',
+                    'SubnetA': '10.0.0.0/20',
+                    'SubnetB': '10.0.16.0/20',
+                    'SubnetC': '10.0.32.0/20',
+                }
+            }
+        }
+        compare(mappings, expected)
+
+    def test_process_with_vpc_config(self):
+        """
+        This isn't the best test, but we at least check that we have the right
+        Resource names returned
+        """
+        project_config = ProjectConfig(
+            'tests/sample-project.yaml',
+            'dev',
+            'tests/sample-project-passwords.yaml')
+        project_config.config['vpc'] = {
+            'CIDR': '172.22.0.0/16',
+            'SubnetA': '172.22.1.0/24',
+            'SubnetB': '172.22.2.0/24',
+            'SubnetC': '172.22.3.0/24',
+        }
+        config = ConfigParser(project_config.config, 'my-stack-name')
+
+        cfn_template = json.loads(config.process())
+
+        wanted = [
+            "AnotherSG", "AttachGateway", "BaseHostLaunchConfig",
+            "BaseHostRole", "BaseHostSG", "DNStestdevexternal",
+            "DNStestdevinternal", "DatabaseSG", "DefaultSGtestdevexternal",
+            "DefaultSGtestdevinternal", "ELBtestdevexternal",
+            "ELBtestdevinternal", "InstanceProfile", "InternetGateway",
+            "Policytestdevexternal", "Policytestdevinternal", "PublicRoute",
+            "PublicRouteTable", "RDSInstance", "RDSSubnetGroup",
+            "RolePolicies", "ScalingGroup", "StaticBucket",
+            "StaticBucketPolicy", "SubnetA", "SubnetB", "SubnetC",
+            "SubnetRouteTableAssociationA", "SubnetRouteTableAssociationB",
+            "SubnetRouteTableAssociationC", "VPC"
+        ]
+
+        resource_names = cfn_template['Resources'].keys()
+        resource_names.sort()
+        compare(resource_names, wanted)
+
+        wanted = ["dbhost", "dbport"]
+        output_names = cfn_template['Outputs'].keys()
+        output_names.sort()
+        compare(output_names, wanted)
+
+        mappings = cfn_template['Mappings']
+        expected = {
+            'AWSRegion2AMI': {'eu-west-1': {'AMI': 'ami-f0b11187'}},
+            'SubnetConfig': {
+                'VPC': {
+                    'CIDR': '172.22.0.0/16',
+                    'SubnetA': '172.22.1.0/24',
+                    'SubnetB': '172.22.2.0/24',
+                    'SubnetC': '172.22.3.0/24',
+                }
+            }
+        }
+        compare(mappings, expected)
 
     def test_process_no_elbs_no_rds(self):
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
