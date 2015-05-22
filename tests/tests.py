@@ -164,8 +164,8 @@ class TestConfigParser(unittest.TestCase):
                 'Type': 'AWS::RDS::DBInstance',
                 'Properties': {
                     'AllocatedStorage': 5,
-                    'AllowMajorVersionUpgrade': False,
-                    'AutoMinorVersionUpgrade': False,
+                    'AllowMajorVersionUpgrade': 'false',
+                    'AutoMinorVersionUpgrade': 'false',
                     'BackupRetentionPeriod': 1,
                     'DBInstanceClass': 'db.t2.micro',
                     'DBInstanceIdentifier': 'test-dev',
@@ -176,9 +176,9 @@ class TestConfigParser(unittest.TestCase):
                     'EngineVersion': '9.3.5',
                     'MasterUserPassword': 'testpassword',
                     'MasterUsername': 'testuser',
-                    'MultiAZ': False,
-                    'PubliclyAccessible': False,
-                    'StorageEncrypted': False,
+                    'MultiAZ': 'false',
+                    'PubliclyAccessible': 'false',
+                    'StorageEncrypted': 'false',
                     'StorageType': 'gp2'
                 }
             },
@@ -367,7 +367,7 @@ class TestConfigParser(unittest.TestCase):
                          'FromPort': 443},
                     ],
                     'VpcId': {'Ref': 'VPC'},
-                    'GroupDescription': 'DefaultELBSecurityGroup'
+                    'GroupDescription': 'SGName'
                 },
                 'Type': u'AWS::EC2::SecurityGroup',
             },

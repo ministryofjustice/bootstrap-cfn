@@ -7,6 +7,8 @@
 * Enable connection draining on ELBs
 * Add IAM permissions so an instance can register/deregister itself from ELB.
 * Add custom ELB healthchecks so you can point an ELB at a URL (not just a port)
+* Replace internals with Troposphere - no more JSON loading and deep dict
+  munging. This should be a transparent change to consumers of this module
 
 ## Version 0.4.1
 
