@@ -1,4 +1,4 @@
-## Version unreleased
+## Version 0.5.0
 
 * Enable connection draining on ELBs
 * Add IAM permissions so an instance can register/deregister itself from ELB.
