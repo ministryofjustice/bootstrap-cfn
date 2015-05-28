@@ -53,6 +53,24 @@ If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabr
 - **environment:dev** - The ``dev`` section will be read from the projects YAML file (line 1 in the example below)
 - **config:/path/to/file.yaml** - The location to the project YAML file
 
+Multiple Stacks
+=================
+
+If you want to run multiple stacks with the same name and environment place the following in the yaml configuration::
+
+    master_zone:
+      my-zone.dsd.io
+
+Then when you create a stack you can specify a tag before cfn_create, like::
+
+    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml tag:active cfn_create
+
+NB active is the default.
+
+Then you can refer to this stack by it's tag in the future. In this way it is easier to bring up two stacks from the same config. If you want to swap the names of the stacks you can do the following::
+
+    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml swap_tags:inactive,active
+
 Example Configuration
 =====================
 AWS Account Configuration
