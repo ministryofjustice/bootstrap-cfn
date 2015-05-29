@@ -169,43 +169,6 @@ def user(username):
     env.user = username
 
 
-def generate_stack_name():
-    """
-    Used to generate new stack name.
-
-    Format <application>-<environment>-<tag>
-
-    tag is optional and defaults to 'active'
-    """
-    if hasattr(env, 'tag'):
-        tag = env.tag
-    else:
-        tag = 'active'
-        env.tag = tag
-    legacy_name = "{0}-{1}".format(env.application, env.environment)
-    cfn_config = get_config()
-    try:
-        r53_conn = get_connection(R53)
-        zone_name = cfn_config.data['master_zone']
-        zone_id = r53_conn.get_hosted_zone_id(zone_name)
-        record_name = "stack.{0}.{1}".format(tag, legacy_name)
-        stack_suffix = uuid.uuid4().__str__()[-8:]
-        record = "{0}.{1}".format(record_name, zone_name)
-        r53_conn.update_dns_record(zone_id, record, 'TXT', '"{0}"'.format(stack_suffix))
-        env.stack_name = "{0}-{1}".format(legacy_name, stack_suffix)
-    except KeyError:
-        logging.warn("No master_zone in yaml, unable to create DNS records for "
-                     "stack name, will fallback to legacy stack names: "
-                     "application-environment")
-        env.stack_name = legacy_name
-    except DNSServerError:
-        logging.warn("Couldn't create DNS entry for stack suffix, "
-                     "stack name, will fallback to legacy stack names: "
-                     "application-environment")
-        env.stack_name = legacy_name
-    return env.stack_name
-
-
 @task
 def swap_tags(tag1, tag2):
     """
@@ -229,7 +192,7 @@ def swap_tags(tag1, tag2):
     r53_conn.update_dns_record(zone_id, fqdn2, 'TXT', '"{0}"'.format(stack_suffix1))
 
 
-def get_stack_name():
+def get_stack_name(new=False):
     """
     Get the name of the stack
 
@@ -240,13 +203,16 @@ def get_stack_name():
     The env.tag dictates which randomly generated suffix
     the default env.tag is 'active'
 
+    If new=True we generate a new stack_name and create the
+    dns records to retreive it in the future.
+
     """
     if hasattr(env, 'tag'):
         tag = env.tag
     else:
         tag = 'active'
         env.tag = tag
-    if not hasattr(env, 'stack_name'):
+    if not hasattr(env, 'stack_name') or new:
         legacy_name = "{0}-{1}".format(env.application, env.environment)
         # get_config needs a stack_name so this is a hack because we don't
         # know it yet...
@@ -257,22 +223,26 @@ def get_stack_name():
             zone_name = cfn_config.data['master_zone']
             zone_id = r53_conn.get_hosted_zone_id(zone_name)
             record_name = "stack.{0}.{1}".format(tag, legacy_name)
-            stack_suffix = r53_conn.get_record(zone_name, zone_id, record_name, 'TXT')
+            if new:
+                stack_suffix = uuid.uuid4().__str__()[-8:]
+                record = "{0}.{1}".format(record_name, zone_name)
+                r53_conn.update_dns_record(zone_id, record, 'TXT', '"{0}"'.format(stack_suffix))
+            else:
+                stack_suffix = r53_conn.get_record(zone_name, zone_id, record_name, 'TXT')
             if stack_suffix:
                 env.stack_name = "{0}-{1}".format(legacy_name, stack_suffix)
             else:
                 env.stack_name = legacy_name
-        except (DNSServerError, KeyError):
-            logging.warn("No master_zone in yaml, unable to create DNS records for "
+        except KeyError:
+            logging.warn("No master_zone in yaml, unable to create/find DNS records for "
                          "stack name, will fallback to legacy stack names: "
                          "application-environment")
             env.stack_name = legacy_name
         except DNSServerError:
-            logging.warn("Couldn't find DNS entry for stack suffix, "
+            logging.warn("Couldn't find/create DNS entry for stack suffix, "
                          "stack name, will fallback to legacy stack names: "
                          "application-environment")
             env.stack_name = legacy_name
-    print env.stack_name
     return env.stack_name
 
 
@@ -358,7 +328,7 @@ def cfn_create():
     specification will be generated and used to create a
     stack on AWS.
     """
-    stack_name = generate_stack_name()
+    stack_name = get_stack_name(new=True)
     cfn_config = get_config()
 
     cfn = get_connection(Cloudformation)
