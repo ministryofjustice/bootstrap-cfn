@@ -1,3 +1,7 @@
+##
+
+* Make it possible to create multiple stacks with the same app and env.
+
 ## Version 0.5.0
 
 * Enable connection draining on ELBs
