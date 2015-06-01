@@ -1,4 +1,4 @@
-##
+## Version 0.5.1
 
 * Make it possible to create multiple stacks with the same app and env.
 
