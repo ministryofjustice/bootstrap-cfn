@@ -34,17 +34,17 @@ class ConfigParser:
         self.data = data
 
     def process(self):
+        from troposphere import Output, GetAtt
+
         vpc = self.vpc()
         iam = self.iam()
         ec2 = self.ec2()
         rds = {}
         s3 = {}
         elb = {}
-        output_templates = []
 
         if 'rds' in self.data:
             rds = self.rds()
-            output_templates.append('stacks/rds_out.json')
         if 's3' in self.data:
             s3 = self.s3()
         if 'elb' in self.data:
@@ -59,31 +59,37 @@ class ConfigParser:
                 'LoadBalancerNames'] = elb_name_list
 
         # LOAD BASE TEMPLATE AND INSERT AWS SERVICES
-        data = iam
-        data.update(vpc)
-        data.update(ec2)
-        data.update(rds)
-        data.update(s3)
+
+        template = self.base_template()
+
+        if 'rds' in self.data:
+            template.add_output(Output(
+                "dbhost",
+                Description="RDS Hostname",
+                Value=GetAtt("RDSInstance", "Endpoint.Address")
+            ))
+            template.add_output(Output(
+                "dbport",
+                Description="RDS Port",
+                Value=GetAtt("RDSInstance", "Endpoint.Port")
+            ))
+
+        # Convert to a data structure. Later this should be removed once we
+        # remove the 'json' include
+        template = json.loads(template.to_json())
+
+        template['Resources'].update(iam)
+        template['Resources'].update(vpc)
+        template['Resources'].update(ec2)
+        template['Resources'].update(rds)
+        template['Resources'].update(s3)
+
         for i in elb:
-            data.update(i)
+            template['Resources'].update(i)
         if 'elb_sgs' in locals():
             for k, v in elb_sgs.items():
-                data[k] = v
+                template['Resources'][k] = v
 
-        template = json.loads(
-            pkgutil.get_data(
-                'bootstrap_cfn',
-                'stacks/base.json'))
-        if 'vpc' in self.data:
-            template['Mappings']['SubnetConfig']['VPC'] = self.data['vpc']
-        template['Resources'] = data
-        template['Outputs'] = {}
-        for t in output_templates:
-            template['Outputs'].update(
-                json.loads(
-                    pkgutil.get_data(
-                        'bootstrap_cfn',
-                        t)))
         if 'includes' in self.data:
             for inc_path in self.data['includes']:
                 inc = json.load(open(inc_path))
@@ -91,25 +97,176 @@ class ConfigParser:
         return json.dumps(
             template, sort_keys=True, indent=4, separators=(',', ': '))
 
+    def base_template(self):
+        from troposphere import Template
+
+        t = Template()
+
+        t.add_mapping("AWSRegion2AMI", {
+            "eu-west-1": {"AMI": "ami-f0b11187"},
+        })
+
+        if 'vpc' in self.data:
+            t.add_mapping("SubnetConfig", {
+                "VPC": self.data['vpc']
+            })
+        else:
+            t.add_mapping("SubnetConfig", {
+                "VPC": {
+                    "CIDR": "10.0.0.0/16",
+                    "SubnetA": "10.0.0.0/20",
+                    "SubnetB": "10.0.16.0/20",
+                    "SubnetC": "10.0.32.0/20"
+                }
+            })
+
+        return t
+
     def vpc(self):
-        # LOAD STACK TEMPLATE
-        return json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/vpc.json'))
+        from troposphere import Ref, FindInMap, Tags, awsencode
+        from troposphere.ec2 import Route, Subnet, InternetGateway, VPC, VPCGatewayAttachment, SubnetRouteTableAssociation, RouteTable
+
+        vpc = VPC(
+            "VPC",
+            InstanceTenancy="default",
+            EnableDnsSupport="true",
+            CidrBlock=FindInMap("SubnetConfig", "VPC", "CIDR"),
+            EnableDnsHostnames="true",
+        )
+
+        subnet_a = Subnet(
+            "SubnetA",
+            VpcId=Ref(vpc),
+            AvailabilityZone="eu-west-1a",
+            CidrBlock=FindInMap("SubnetConfig", "VPC", "SubnetA"),
+            Tags=Tags(
+                Application=Ref("AWS::StackId"),
+                Network="Public",
+            ),
+        )
+
+        subnet_b = Subnet(
+            "SubnetB",
+            VpcId=Ref(vpc),
+            AvailabilityZone="eu-west-1b",
+            CidrBlock=FindInMap("SubnetConfig", "VPC", "SubnetB"),
+            Tags=Tags(
+                Application=Ref("AWS::StackId"),
+                Network="Public",
+            ),
+        )
+
+        subnet_c = Subnet(
+            "SubnetC",
+            VpcId=Ref(vpc),
+            AvailabilityZone="eu-west-1c",
+            CidrBlock=FindInMap("SubnetConfig", "VPC", "SubnetC"),
+            Tags=Tags(
+                Application=Ref("AWS::StackId"),
+                Network="Public",
+            ),
+        )
+
+        igw = InternetGateway(
+            "InternetGateway",
+            Tags=Tags(
+                Application=Ref("AWS::StackId"),
+                Network="Public",
+            ),
+        )
+
+        gw_attachment = VPCGatewayAttachment(
+            "AttachGateway",
+            VpcId=Ref(vpc),
+            InternetGatewayId=Ref(igw),
+        )
+
+        route_table = RouteTable(
+            "PublicRouteTable",
+            VpcId=Ref(vpc),
+            Tags=Tags(
+                Application=Ref("AWS::StackId"),
+                Network="Public",
+            ),
+        )
+
+        public_route = Route(
+            "PublicRoute",
+            GatewayId=Ref(igw),
+            DestinationCidrBlock="0.0.0.0/0",
+            RouteTableId=Ref(route_table),
+            DependsOn=gw_attachment.title
+        )
+
+        subnet_a_route_assoc = SubnetRouteTableAssociation(
+            "SubnetRouteTableAssociationA",
+            SubnetId=Ref(subnet_a),
+            RouteTableId=Ref(route_table),
+        )
+
+        subnet_b_route_assoc = SubnetRouteTableAssociation(
+            "SubnetRouteTableAssociationB",
+            SubnetId=Ref(subnet_b),
+            RouteTableId=Ref(route_table),
+        )
+
+        subnet_c_route_assoc = SubnetRouteTableAssociation(
+            "SubnetRouteTableAssociationC",
+            SubnetId=Ref(subnet_c),
+            RouteTableId=Ref(route_table),
+        )
+
+        resources = [vpc, subnet_a, subnet_b, subnet_c, igw, gw_attachment,
+                     public_route, route_table, subnet_a_route_assoc,
+                     subnet_b_route_assoc, subnet_c_route_assoc]
+
+        # Hack until we return troposphere objects directly
+        return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
 
     def iam(self):
-        # LOAD STACK TEMPLATE
-        return json.loads(pkgutil.get_data('bootstrap_cfn', 'stacks/iam.json'))
+        from troposphere import Ref, awsencode
+        from troposphere.iam import Role, PolicyType, InstanceProfile
+        role = Role(
+            "BaseHostRole",
+            Path="/",
+            AssumeRolePolicyDocument={
+                "Statement": [{
+                    "Action": ["sts:AssumeRole"],
+                    "Effect": "Allow",
+                    "Principal": {"Service": ["ec2.amazonaws.com"]}
+                }]
+            },
+        )
+
+        role_policies = PolicyType(
+            "RolePolicies",
+            PolicyName="BaseHost",
+            PolicyDocument={"Statement": [
+                {"Action": ["autoscaling:Describe*"], "Resource": "*", "Effect": "Allow"},
+                {"Action": ["ec2:Describe*"], "Resource": "*", "Effect": "Allow"},
+                {"Action": ["rds:Describe*"], "Resource": "*", "Effect": "Allow"},
+                {"Action": ["elasticloadbalancing:Describe*"], "Resource": "*", "Effect": "Allow"},
+                {"Action": ["elasticache:Describe*"], "Resource": "*", "Effect": "Allow"},
+                {"Action": ["cloudformation:Describe*"], "Resource": "*", "Effect": "Allow"},
+                {"Action": ["s3:List*"], "Resource": "*", "Effect": "Allow"}
+            ]},
+            Roles=[Ref(role)],
+        )
+        instance_profile = InstanceProfile(
+            "InstanceProfile",
+            Path="/",
+            Roles=[Ref(role)],
+        )
+
+        resources = [role, role_policies, instance_profile]
+        # Hack until we return troposphere objects directly
+        return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
 
     def s3(self):
         # REQUIRED FIELDS AND MAPPING
         required_fields = {
             'static-bucket-name': 'BucketName'
         }
-
-        # LOAD STACK TEMPLATE
-        template = json.loads(
-            pkgutil.get_data(
-                'bootstrap_cfn',
-                'stacks/s3.json'))
 
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         present_keys = self.data['s3'].keys()
@@ -118,7 +275,15 @@ class ConfigParser:
                 print "\n\n[ERROR] Missing S3 fields [%s]" % i
                 sys.exit(1)
 
-        #policy = None
+        from troposphere import Ref, awsencode
+        from troposphere.s3 import Bucket, BucketPolicy
+
+        bucket = Bucket(
+            "StaticBucket",
+            AccessControl="BucketOwnerFullControl",
+            BucketName=self.data['s3']['static-bucket-name'],
+        )
+
         if 'policy' in present_keys:
             policy = json.loads(open(self.data['s3']['policy']).read())
         else:
@@ -133,12 +298,15 @@ class ConfigParser:
                 'Principal': {
                     'AWS': '*'}}
 
-        template['StaticBucket']['Properties'][
-            'BucketName'] = self.data['s3']['static-bucket-name']
-        template['StaticBucketPolicy']['Properties'][
-            'PolicyDocument']['Statement'][0] = policy
+        bucket_policy = BucketPolicy(
+            "StaticBucketPolicy",
+            Bucket=Ref(bucket),
+            PolicyDocument={"Statement": [policy]},
+        )
 
-        return template
+        resources = [bucket, bucket_policy]
+        # Hack until we return troposphere objects directly
+        return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
 
     def ssl(self):
         return self.data['ssl']
@@ -164,26 +332,60 @@ class ConfigParser:
         }
 
         # LOAD STACK TEMPLATE
-        template = json.loads(
-            pkgutil.get_data(
-                'bootstrap_cfn',
-                'stacks/rds.json'))
+        from troposphere import Ref, FindInMap, GetAtt, awsencode
+        from troposphere.rds import DBInstance, DBSubnetGroup
+        from troposphere.ec2 import SecurityGroup
+        resources = []
+        rds_subnet_group = DBSubnetGroup(
+            "RDSSubnetGroup",
+            SubnetIds=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
+            DBSubnetGroupDescription="VPC Subnets"
+        )
+        resources.append(rds_subnet_group)
+
+        database_sg = SecurityGroup(
+            "DatabaseSG",
+            SecurityGroupIngress=[
+                {"ToPort": 5432,
+                 "FromPort": 5432,
+                 "IpProtocol": "tcp",
+                 "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")},
+                {"ToPort": 3306,
+                 "FromPort": 3306,
+                 "IpProtocol": "tcp",
+                 "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")}
+            ],
+            VpcId=Ref("VPC"),
+            GroupDescription="SG for EC2 Access to RDS",
+        )
+        resources.append(database_sg)
+
+        rds_instance = DBInstance(
+            "RDSInstance",
+            PubliclyAccessible=False,
+            AllowMajorVersionUpgrade=False,
+            AutoMinorVersionUpgrade=False,
+            VPCSecurityGroups=[GetAtt(database_sg, "GroupId")],
+            DBSubnetGroupName=Ref(rds_subnet_group),
+            StorageEncrypted=False,
+            DependsOn=database_sg.title
+        )
+        resources.append(rds_instance)
 
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
-        for i in required_fields.keys():
-            if i not in self.data['rds'].keys():
-                print "\n\n[ERROR] Missing RDS fields [%s]" % i
+        for yaml_key, rds_prop in required_fields.iteritems():
+            if yaml_key not in self.data['rds']:
+                print "\n\n[ERROR] Missing RDS fields [%s]" % yaml_key
                 sys.exit(1)
             else:
-                template['RDSInstance']['Properties'][
-                    required_fields[i]] = self.data['rds'][i]
+                rds_instance.__setattr__(rds_prop, self.data['rds'][yaml_key])
 
-        for i in optional_fields.keys():
-            if i in self.data['rds'].keys():
-                template['RDSInstance']['Properties'][
-                    optional_fields[i]] = self.data['rds'][i]
+        for yaml_key, rds_prop in optional_fields.iteritems():
+            if yaml_key in self.data['rds']:
+                rds_instance.__setattr__(rds_prop, self.data['rds'][yaml_key])
 
-        return template
+        # Hack until we return troposphere objects directly
+        return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
 
     def elb(self):
         # REQUIRED FIELDS AND MAPPING
@@ -194,30 +396,39 @@ class ConfigParser:
             'hosted_zone': 'HostedZoneName'
         }
 
+        from troposphere import Ref, Join, GetAtt, awsencode
+        from troposphere.elasticloadbalancing import LoadBalancer, HealthCheck, ConnectionDrainingPolicy
+        from troposphere.ec2 import SecurityGroup
+        from troposphere.iam import PolicyType
+        from troposphere.route53 import RecordSetGroup, RecordSet, AliasTarget
+
         elb_list = []
-        elb_sgs = {}
+        elb_sgs = []
         # COULD HAVE MULTIPLE ELB'S (PUBLIC / PRIVATE etc)
         for elb in self.data['elb']:
-            safe_name = elb['name'].replace('-', '').replace('.', '')
+            safe_name = elb['name'].replace('-', '').replace('.', '').replace('_', '')
             # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
             for i in required_fields.keys():
                 if i not in elb.keys():
                     print "\n\n[ERROR] Missing ELB fields [%s]" % i
                     sys.exit(1)
 
-            # LOAD STACK TEMPLATE
-            template = json.loads(
-                pkgutil.get_data(
-                    'bootstrap_cfn',
-                    'stacks/elb.json'))
+            load_balancer = LoadBalancer(
+                "ELB" + safe_name,
+                Subnets=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
+                Listeners=elb['listeners'],
+                Scheme=elb['scheme'],
+                LoadBalancerName='ELB-%s' % elb['name'].replace('.', ''),
+                ConnectionDrainingPolicy=ConnectionDrainingPolicy(
+                    Enabled=True,
+                    Timeout=120,
+                ),
+            )
 
-            # LOAD SSL TEMPLATE
-            ssl_template = json.loads(
-                pkgutil.get_data(
-                    'bootstrap_cfn',
-                    'stacks/elb_ssl.json'))
+            if "health_check" in elb:
+                load_balancer.HealthCheck = HealthCheck(**elb['health_check'])
 
-            for listener in elb['listeners']:
+            for listener in load_balancer.Listeners:
                 if listener['Protocol'] == 'HTTPS':
                     try:
                         cert_name = elb['certificate_name']
@@ -230,109 +441,161 @@ class ConfigParser:
                     except KeyError:
                         raise errors.CfnConfigError(
                             "Couldn't find ssl cert {0} in config file".format(cert_name))
-                    ssl_template["SSLCertificateId"]['Fn::Join'][1].append(
-                        "{0}-{1}".format(cert_name, self.stack_name))
-                    listener.update(ssl_template)
 
-            elb_sg = template.pop('DefaultELBSecurityGroup')
-            if 'security_groups' in elb:
-                for sg_name, sg in elb['security_groups'].items():
-                    new_sg = deepcopy(elb_sg)
-                    new_sg['Properties']['SecurityGroupIngress'] = sg
-                    elb_sgs[sg_name] = new_sg
-                template['ElasticLoadBalancer']['Properties']['SecurityGroups'] = [
-                    {'Ref': k} for k in elb['security_groups'].keys()]
+                    listener["SSLCertificateId"] = Join("", [
+                        "arn:aws:iam::",
+                        Ref("AWS::AccountId"),
+                        ":server-certificate/",
+                        "{0}-{1}".format(cert_name, self.stack_name)]
+                    )
+
+            elb_list.append(load_balancer)
+
+            dns_record = RecordSetGroup(
+                "DNS" + safe_name,
+                HostedZoneName=elb['hosted_zone'],
+                Comment="Zone apex alias targeted to ElasticLoadBalancer.",
+                RecordSets=[
+                    RecordSet(
+                        "TitleIsIgnoredForThisResource",
+                        Name="%s.%s" % (elb['name'], elb['hosted_zone']),
+                        Type="A",
+                        AliasTarget=AliasTarget(
+                            GetAtt(load_balancer, "CanonicalHostedZoneNameID"),
+                            GetAtt(load_balancer, "DNSName"),
+                        ),
+                    ),
+                ]
+            )
+            elb_list.append(dns_record)
+
+            elb_role_policies = PolicyType(
+                "Policy" + safe_name,
+                PolicyName=safe_name+"BaseHost",
+                PolicyDocument={"Statement": [{
+                    "Action": [
+                        "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                        "elasticloadbalancing:RegisterInstancesWithLoadBalancer"
+                    ],
+                    "Resource": [
+                        Join("", [
+                            "arn:aws:elasticloadbalancing:",
+                            Ref("AWS::Region"),
+                            ":",
+                            Ref("AWS::AccountId"),
+                            ':loadbalancer/%s' % load_balancer.LoadBalancerName
+                            ])
+                    ],
+                    "Effect": "Allow"}
+                ]},
+                Roles=[Ref("BaseHostRole")],
+            )
+            elb_list.append(elb_role_policies)
+
+            if "security_groups" in elb:
+                load_balancer.SecurityGroups = []
+                for sg_name, sg_rules in elb['security_groups'].items():
+                    sg = SecurityGroup(
+                        sg_name,
+                        GroupDescription=sg_name,
+                        SecurityGroupIngress=sg_rules,
+                        VpcId=Ref("VPC")
+                    )
+                    load_balancer.SecurityGroups.append(Ref(sg))
+                    elb_sgs.append(sg)
             else:
-                elb_sgs['DefaultSG' + safe_name] = elb_sg
-                template['ElasticLoadBalancer']['Properties'][
-                    'SecurityGroups'] = [{'Ref': 'DefaultSG' + safe_name}]
+                sg = SecurityGroup(
+                    "DefaultSG" + safe_name,
+                    GroupDescription="DefaultELBSecurityGroup",
+                    SecurityGroupIngress=[
+                        {
+                            "IpProtocol": "tcp",
+                            "FromPort": 443,
+                            "ToPort": 443,
+                            "CidrIp": "0.0.0.0/0"
+                            },
+                        {
+                            "IpProtocol": "tcp",
+                            "FromPort": 80,
+                            "ToPort": 80,
+                            "CidrIp": "0.0.0.0/0"
+                        }
+                    ],
+                    VpcId=Ref("VPC")
+                )
+                load_balancer.SecurityGroups = [Ref(sg)]
+                elb_sgs.append(sg)
 
-            # CONFIGURE THE LISTENERS, ELB NAME AND ROUTE53 RECORDS
-            template['ElasticLoadBalancer']['Properties'][
-                'Listeners'] = elb['listeners']
-            template['ElasticLoadBalancer']['Properties'][
-                'LoadBalancerName'] = 'ELB-%s' % elb['name'].replace('.', '')
-            template['ElasticLoadBalancer'][
-                'Properties']['Scheme'] = elb['scheme']
-            template['ELBRolePolicies']['Properties'][
-                'PolicyName'] = safe_name + "BaseHost"
-            template['ELBRolePolicies']['Properties'][
-                'PolicyDocument']['Statement'][0][
-                'Resource'][0]['Fn::Join'][-1][-1] = ':loadbalancer/ELB-%s' % elb['name'].replace('.', '')
-            template['DNSRecord']['Properties'][
-                'HostedZoneName'] = elb['hosted_zone']
-            template['DNSRecord']['Properties']['RecordSets'][0][
-                'Name'] = "%s.%s" % (elb['name'], elb['hosted_zone'])
-            target_zone = [
-                'ELB%s' % safe_name,
-                'CanonicalHostedZoneNameID']
-            target_dns = [
-                'ELB%s' % safe_name,
-                'DNSName']
-            template['DNSRecord']['Properties']['RecordSets'][0][
-                'AliasTarget']['HostedZoneId']['Fn::GetAtt'] = target_zone
-            template['DNSRecord']['Properties']['RecordSets'][0][
-                'AliasTarget']['DNSName']['Fn::GetAtt'] = target_dns
-            if 'health_check' in elb:
-                template['ElasticLoadBalancer']['Properties'][
-                    'HealthCheck'] = elb['health_check']
+        # Hack until we return troposphere objects directly
+        elb_sg_dict = {}
+        for sg in elb_sgs:
+            elb_sg_dict[sg.title] = json.loads(json.dumps(sg, cls=awsencode))
 
-            elb_list.append(
-                {'ELB%s' % safe_name: template['ElasticLoadBalancer']})
-            elb_list.append(
-                {'DNS%s' % safe_name: template['DNSRecord']})
-            elb_list.append(
-                {'Policy%s' % safe_name: template['ELBRolePolicies']})
-
-        return elb_list, elb_sgs
+        resources = []
+        for res in elb_list:
+            resources.append({res.title: json.loads(json.dumps(res, cls=awsencode))})
+        return resources, elb_sg_dict
 
     def ec2(self):
         # LOAD STACK TEMPLATE
-        template = json.loads(
-            pkgutil.get_data(
-                'bootstrap_cfn',
-                'stacks/ec2.json'))
+        from troposphere import Ref, FindInMap, GetAZs, Base64, Join, awsencode
+        from troposphere.ec2 import SecurityGroup
+        from troposphere.autoscaling import LaunchConfiguration, \
+            AutoScalingGroup, BlockDeviceMapping, EBSBlockDevice, Tag
 
-        # SET SECURITY GROUPS, DEFAULT KEY AND INSTANCE TYPE
-        sg_t = template.pop('BaseHostSG')
-        for sg_name, sg in self.data['ec2']['security_groups'].items():
-            new_sg = deepcopy(sg_t)
-            new_sg['Properties']['SecurityGroupIngress'] = sg
-            template[sg_name] = new_sg
+        resources = []
+        sgs = []
 
-        template['BaseHostLaunchConfig']['Properties']['SecurityGroups'] = [
-            {'Ref': k} for k in self.data['ec2']['security_groups'].keys()]
-        template['BaseHostLaunchConfig']['Properties'][
-            'KeyName'] = self.data['ec2']['parameters']['KeyName']
-        template['BaseHostLaunchConfig']['Properties'][
-            'InstanceType'] = self.data['ec2']['parameters']['InstanceType']
+        for sg_name, ingress in self.data['ec2']['security_groups'].items():
+            sg = SecurityGroup(
+                sg_name,
+                VpcId=Ref("VPC"),
+                GroupDescription="BaseHost Security Group",
+                SecurityGroupIngress=ingress
+            )
+            sgs.append(sg)
+            resources.append(sg)
 
-        # BLOCK DEVICE MAPPING
         devices = []
         try:
             for i in self.data['ec2']['block_devices']:
-                devices.append(
-                    {'DeviceName': i['DeviceName'], 'Ebs': {'VolumeSize': i['VolumeSize']}})
+                devices.append(BlockDeviceMapping(
+                    DeviceName=i['DeviceName'],
+                    Ebs=EBSBlockDevice(VolumeSize=i['VolumeSize']),
+                ))
         except KeyError:
-            devices.append(
-                {'DeviceName': '/dev/sda1', 'Ebs': {'VolumeSize': 20}})
-        template['BaseHostLaunchConfig']['Properties'][
-            'BlockDeviceMappings'] = devices
+            devices.append(BlockDeviceMapping(
+                DeviceName="/dev/sda1",
+                Ebs=EBSBlockDevice(VolumeSize=20),
+            ))
 
-        # SET AUTO SCALING PARAMETERS
-        template['ScalingGroup']['Properties'][
-            'MinSize'] = self.data['ec2']['auto_scaling']['min']
-        template['ScalingGroup']['Properties'][
-            'MaxSize'] = self.data['ec2']['auto_scaling']['max']
-        template['ScalingGroup']['Properties'][
-            'DesiredCapacity'] = self.data['ec2']['auto_scaling']['desired']
+        launch_config = LaunchConfiguration(
+            "BaseHostLaunchConfig",
+            KeyName=self.data['ec2']['parameters']['KeyName'],
+            SecurityGroups=[Ref(g) for g in sgs],
+            InstanceType=self.data['ec2']['parameters']['InstanceType'],
+            AssociatePublicIpAddress=True,
+            IamInstanceProfile=Ref("InstanceProfile"),
+            ImageId=FindInMap("AWSRegion2AMI", Ref("AWS::Region"), "AMI"),
+            BlockDeviceMappings=devices,
+            UserData=Base64(Join("", [
+                "#!/bin/bash -xe\n",
+                "#do nothing for now",
+            ])),
+        )
+        resources.append(launch_config)
 
-        # SET INSTANCE TAGS
-        tags = []
-        for i in self.data['ec2']['tags']:
-            tags.append({'Key': i,
-                         'Value': self.data['ec2']['tags'][i],
-                         'PropagateAtLaunch': True})
-        template['ScalingGroup']['Properties']['Tags'] = tags
+        scaling_group = AutoScalingGroup(
+            "ScalingGroup",
+            VPCZoneIdentifier=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
+            MinSize=self.data['ec2']['auto_scaling']['min'],
+            MaxSize=self.data['ec2']['auto_scaling']['max'],
+            DesiredCapacity=self.data['ec2']['auto_scaling']['desired'],
+            AvailabilityZones=GetAZs(),
+            Tags=[Tag(k, v, True) for k, v in self.data['ec2']['tags'].iteritems()],
+            LaunchConfigurationName=Ref(launch_config),
+        )
+        resources.append(scaling_group)
 
-        return template
+        # Hack until we return troposphere objects directly
+        return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
