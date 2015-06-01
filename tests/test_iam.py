@@ -183,6 +183,8 @@ class TestIAM(unittest.TestCase):
         success = self.mock_iam.upload_certificate(cert_name,
                                                    stack_name,
                                                    ssl_data)
+        mock_get_remote_certificate.assert_called_once_with(cert_name,
+                                                            stack_name)
         self.assertTrue(success,
                         "TestIAM::test_upload_certificate_exists: "
                         "Should be able to upload a non existent cert "
@@ -204,6 +206,8 @@ class TestIAM(unittest.TestCase):
         success = self.mock_iam.upload_certificate(cert_name,
                                                    stack_name,
                                                    ssl_data)
+        mock_get_remote_certificate.assert_called_once_with(cert_name,
+                                                            stack_name)
         self.assertFalse(success,
                          "TestIAM::test_upload_certificate_exists: "
                          "Should not be able to upload an existent cert "
@@ -226,6 +230,8 @@ class TestIAM(unittest.TestCase):
         success = self.mock_iam.delete_certificate(cert_name,
                                                    stack_name,
                                                    ssl_data)
+        mock_get_remote_certificate.assert_called_once_with(cert_name,
+                                                            stack_name)
         self.assertTrue(success,
                         "TestIAM::test_delete_certificate_exists: "
                         "Should only be able to delete an existent cert "
@@ -248,6 +254,8 @@ class TestIAM(unittest.TestCase):
         success = self.mock_iam.delete_certificate(cert_name,
                                                    stack_name,
                                                    ssl_data)
+        mock_get_remote_certificate.assert_called_once_with(cert_name,
+                                                            stack_name)
         self.assertFalse(success,
                          "TestIAM::test_delete_certificate_not_exists: "
                          "Should not be able to delete "
