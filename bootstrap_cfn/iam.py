@@ -256,8 +256,7 @@ class IAM:
 
         try:
             if force or not self.get_remote_certificate(cert_name,
-                                                        stack_name,
-                                                        ssl_data):
+                                                        stack_name):
                 self.conn_iam.upload_server_cert(cert_id, cert_body,
                                                  private_key,
                                                  cert_chain)
@@ -300,8 +299,7 @@ class IAM:
         # continue to delete other certs
         try:
             if self.get_remote_certificate(cert_name,
-                                           stack_name,
-                                           ssl_data):
+                                           stack_name):
                 self.conn_iam.delete_server_cert(cert_id)
                 logging.info("IAM::delete_certificate: "
                              "Deleting certificate '%s'.."
