@@ -1,6 +1,7 @@
-## UNRELEASED
+## Version 0.5.2
+
 * Fix bug where certificates were not being deleted on calls to upload or
-delete due to a broken method call to get_remote_certificates
+  delete due to a broken method call to get_remote_certificates
 
 ## Version 0.5.1
 
