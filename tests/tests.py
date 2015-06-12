@@ -11,7 +11,7 @@ from troposphere.autoscaling import LaunchConfiguration
 
 from troposphere.route53 import RecordSetGroup
 from troposphere.elasticloadbalancing import LoadBalancer, HealthCheck,\
-    ConnectionDrainingPolicy
+    ConnectionDrainingPolicy, Policy
 from troposphere.iam import PolicyType
 
 import bootstrap_cfn.errors as errors
@@ -233,6 +233,13 @@ class TestConfigParser(unittest.TestCase):
             SecurityGroups=[Ref("DefaultSGtestdevinternal")],
             LoadBalancerName="ELB-test-dev-internal",
             Scheme="internal",
+            Policies=[
+                Policy(
+                    Attributes=[{'Name': "Reference-Security-Policy", 'Value': "ELBSecurityPolicy-2015-05"}],
+                    PolicyType='SSLNegotiationPolicyType',
+                    PolicyName='PinDownSSLNegotiationPolicy201505'
+                )
+            ]
         )
 
         pt1 = PolicyType(
@@ -333,6 +340,13 @@ class TestConfigParser(unittest.TestCase):
             SecurityGroups=[Ref("DefaultSGtestdevexternal")],
             LoadBalancerName="ELB-test-dev-external",
             Scheme="internet-facing",
+            Policies=[
+                Policy(
+                    Attributes=[{'Name': "Reference-Security-Policy", 'Value': "ELBSecurityPolicy-2015-05"}],
+                    PolicyType='SSLNegotiationPolicyType',
+                    PolicyName='PinDownSSLNegotiationPolicy201505'
+                )
+            ],
         )
         known = [lb, lb2, pt1, pt2, rs, rsg]
         expected_sgs = [
@@ -653,10 +667,18 @@ class TestConfigParser(unittest.TestCase):
                 {"InstancePort": 443, "SSLCertificateId": Join(
                     "", ["arn:aws:iam::", Ref("AWS::AccountId"),
                          ":server-certificate/", "my-cert-my-stack-name"]),
-                 "LoadBalancerPort": 443, "Protocol": "HTTPS"}],
+                 "LoadBalancerPort": 443, "Protocol": "HTTPS",
+                 "PolicyNames": ["PinDownSSLNegotiationPolicy201505"]}],
             SecurityGroups=[Ref("DefaultSGdockerregistryservice")],
             LoadBalancerName="ELB-docker-registryservice",
             Scheme="internet-facing",
+            Policies=[
+                Policy(
+                    Attributes=[{'Name': "Reference-Security-Policy", 'Value': "ELBSecurityPolicy-2015-05"}],
+                    PolicyType='SSLNegotiationPolicyType',
+                    PolicyName='PinDownSSLNegotiationPolicy201505'
+                )
+            ],
         )
 
         Policydockerregistryservice = PolicyType(
@@ -755,6 +777,13 @@ class TestConfigParser(unittest.TestCase):
             SecurityGroups=[Ref("DefaultSGdockerregistryservice")],
             LoadBalancerName="ELB-docker-registryservice",
             Scheme="internet-facing",
+            Policies=[
+                Policy(
+                    Attributes=[{'Name': "Reference-Security-Policy", 'Value': "ELBSecurityPolicy-2015-05"}],
+                    PolicyType='SSLNegotiationPolicyType',
+                    PolicyName='PinDownSSLNegotiationPolicy201505'
+                )
+            ],
         )
 
         Policydockerregistryservice = PolicyType(
@@ -831,6 +860,13 @@ class TestConfigParser(unittest.TestCase):
             SecurityGroups=[Ref("DefaultSGdevdockerregistryservice")],
             LoadBalancerName="ELB-dev_docker-registryservice",
             Scheme="internet-facing",
+            Policies=[
+                Policy(
+                    Attributes=[{'Name': "Reference-Security-Policy", 'Value': "ELBSecurityPolicy-2015-05"}],
+                    PolicyType='SSLNegotiationPolicyType',
+                    PolicyName='PinDownSSLNegotiationPolicy201505'
+                )
+            ],
         )
 
         DNSdevdockerregistryservice = RecordSetGroup(
