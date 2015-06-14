@@ -341,8 +341,9 @@ def cfn_create():
     # Inject security groups in stack template and create stacks.
     try:
         stack = cfn.create(stack_name, cfn_config.process())
-    except Exception as e:
-        abort(red("Failed to create: {error}".format(error=e.message)))
+    except:
+        import traceback
+        abort(red("Failed to create: {error}".format(error=traceback.format_exc())))
 
     print green("\nSTACK {0} CREATING...\n").format(stack_name)
 
