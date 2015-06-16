@@ -1,3 +1,7 @@
+## Version 0.5.3 [WIP]
+* Improve message content when cfn_create raises an exception and fails.
+* Cleanup SSL certificates when cfn_create raises an exception and fails.
+
 ## Version 0.5.2
 
 * Fix bug where certificates were not being deleted on calls to upload or

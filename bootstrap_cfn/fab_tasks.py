@@ -334,6 +334,7 @@ def cfn_create():
     cfn = get_connection(Cloudformation)
     # Upload any SSL certs that we may need for the stack.
     if 'ssl' in cfn_config.data:
+        print green("Uploading SSL certificates to stack")
         iam = get_connection(IAM)
         iam.upload_ssl_certificate(cfn_config.ssl(), stack_name)
     # Useful for debug
@@ -342,6 +343,10 @@ def cfn_create():
     try:
         stack = cfn.create(stack_name, cfn_config.process())
     except:
+        # cleanup ssl certificates if any
+        if 'ssl' in cfn_config.data:
+            print red("Deleting SSL certificates from stack")
+            iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
         import traceback
         abort(red("Failed to create: {error}".format(error=traceback.format_exc())))
 
