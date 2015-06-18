@@ -4,3 +4,4 @@ boto==2.36.0
 mock==1.0.1
 testfixtures==4.1.2
 paramiko
+troposphere>=1.0.0
