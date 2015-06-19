@@ -1,12 +1,22 @@
 import json
 import os
-import pkgutil
 import sys
 import yaml
+
+from troposphere import Ref, Join, GetAtt, Tags
+from troposphere import FindInMap, GetAZs, Base64, Output
+from troposphere.autoscaling import LaunchConfiguration, \
+    AutoScalingGroup, BlockDeviceMapping, EBSBlockDevice, Tag
+from troposphere.elasticloadbalancing import LoadBalancer, HealthCheck, \
+    ConnectionDrainingPolicy
+from troposphere.ec2 import SecurityGroup
+from troposphere.route53 import RecordSetGroup, RecordSet, AliasTarget
+from troposphere.ec2 import Route, Subnet, InternetGateway, VPC, \
+    VPCGatewayAttachment, SubnetRouteTableAssociation, RouteTable
+from troposphere.iam import Role, PolicyType, InstanceProfile
+
 import bootstrap_cfn.errors as errors
 import bootstrap_cfn.utils as utils
-
-from copy import deepcopy
 
 
 class ProjectConfig:
@@ -34,35 +44,28 @@ class ConfigParser:
         self.data = data
 
     def process(self):
-        from troposphere import Output, GetAtt
+        template = self.base_template()
 
         vpc = self.vpc()
+        map(template.add_resource, vpc)
+
         iam = self.iam()
+        map(template.add_resource, iam)
+
         ec2 = self.ec2()
-        rds = {}
-        s3 = {}
-        elb = {}
+        map(template.add_resource, ec2)
+
+        if 'elb' in self.data:
+            elbs, sgs = self.elb()
+            map(template.add_resource, elbs)
+            map(template.add_resource, sgs)
+            template = self._attach_elbs(template)
+
+        template = self._attach_elbs(template)
 
         if 'rds' in self.data:
             rds = self.rds()
-        if 's3' in self.data:
-            s3 = self.s3()
-        if 'elb' in self.data:
-            elb, elb_sgs = self.elb()
-            # GET LIST OF ELB NAMES AND ADD TO EC2 INSTANCES
-            elb_name_list = []
-            for i in elb:
-                if i.keys()[0][0:3] == "ELB":
-                    elb_name_list.append(
-                        i[i.keys()[0]]['Properties']['LoadBalancerName'])
-            ec2['ScalingGroup']['Properties'][
-                'LoadBalancerNames'] = elb_name_list
-
-        # LOAD BASE TEMPLATE AND INSERT AWS SERVICES
-
-        template = self.base_template()
-
-        if 'rds' in self.data:
+            map(template.add_resource, rds)
             template.add_output(Output(
                 "dbhost",
                 Description="RDS Hostname",
@@ -74,22 +77,11 @@ class ConfigParser:
                 Value=GetAtt("RDSInstance", "Endpoint.Port")
             ))
 
-        # Convert to a data structure. Later this should be removed once we
-        # remove the 'json' include
+        if 's3' in self.data:
+            s3 = self.s3()
+            map(template.add_resource, s3)
+
         template = json.loads(template.to_json())
-
-        template['Resources'].update(iam)
-        template['Resources'].update(vpc)
-        template['Resources'].update(ec2)
-        template['Resources'].update(rds)
-        template['Resources'].update(s3)
-
-        for i in elb:
-            template['Resources'].update(i)
-        if 'elb_sgs' in locals():
-            for k, v in elb_sgs.items():
-                template['Resources'][k] = v
-
         if 'includes' in self.data:
             for inc_path in self.data['includes']:
                 inc = json.load(open(inc_path))
@@ -123,8 +115,6 @@ class ConfigParser:
         return t
 
     def vpc(self):
-        from troposphere import Ref, FindInMap, Tags, awsencode
-        from troposphere.ec2 import Route, Subnet, InternetGateway, VPC, VPCGatewayAttachment, SubnetRouteTableAssociation, RouteTable
 
         vpc = VPC(
             "VPC",
@@ -221,11 +211,10 @@ class ConfigParser:
                      subnet_b_route_assoc, subnet_c_route_assoc]
 
         # Hack until we return troposphere objects directly
-        return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
+        # return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
+        return resources
 
     def iam(self):
-        from troposphere import Ref, awsencode
-        from troposphere.iam import Role, PolicyType, InstanceProfile
         role = Role(
             "BaseHostRole",
             Path="/",
@@ -260,7 +249,8 @@ class ConfigParser:
 
         resources = [role, role_policies, instance_profile]
         # Hack until we return troposphere objects directly
-        return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
+        # return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
+        return resources
 
     def s3(self):
         # REQUIRED FIELDS AND MAPPING
@@ -306,7 +296,7 @@ class ConfigParser:
 
         resources = [bucket, bucket_policy]
         # Hack until we return troposphere objects directly
-        return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
+        return resources
 
     def ssl(self):
         return self.data['ssl']
@@ -384,8 +374,7 @@ class ConfigParser:
             if yaml_key in self.data['rds']:
                 rds_instance.__setattr__(rds_prop, self.data['rds'][yaml_key])
 
-        # Hack until we return troposphere objects directly
-        return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
+        return resources
 
     def elb(self):
         # REQUIRED FIELDS AND MAPPING
@@ -395,12 +384,6 @@ class ConfigParser:
             'name': 'LoadBalancerName',
             'hosted_zone': 'HostedZoneName'
         }
-
-        from troposphere import Ref, Join, GetAtt, awsencode
-        from troposphere.elasticloadbalancing import LoadBalancer, HealthCheck, ConnectionDrainingPolicy
-        from troposphere.ec2 import SecurityGroup
-        from troposphere.iam import PolicyType
-        from troposphere.route53 import RecordSetGroup, RecordSet, AliasTarget
 
         elb_list = []
         elb_sgs = []
@@ -418,7 +401,7 @@ class ConfigParser:
                 Subnets=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
                 Listeners=elb['listeners'],
                 Scheme=elb['scheme'],
-                LoadBalancerName='ELB-%s' % elb['name'].replace('.', ''),
+                LoadBalancerName=self._get_elb_canonical_name(elb['name']),
                 ConnectionDrainingPolicy=ConnectionDrainingPolicy(
                     Enabled=True,
                     Timeout=120,
@@ -525,28 +508,15 @@ class ConfigParser:
                 )
                 load_balancer.SecurityGroups = [Ref(sg)]
                 elb_sgs.append(sg)
-
-        # Hack until we return troposphere objects directly
-        elb_sg_dict = {}
-        for sg in elb_sgs:
-            elb_sg_dict[sg.title] = json.loads(json.dumps(sg, cls=awsencode))
-
-        resources = []
-        for res in elb_list:
-            resources.append({res.title: json.loads(json.dumps(res, cls=awsencode))})
-        return resources, elb_sg_dict
+        return elb_list, elb_sgs
 
     def ec2(self):
         # LOAD STACK TEMPLATE
-        from troposphere import Ref, FindInMap, GetAZs, Base64, Join, awsencode
-        from troposphere.ec2 import SecurityGroup
-        from troposphere.autoscaling import LaunchConfiguration, \
-            AutoScalingGroup, BlockDeviceMapping, EBSBlockDevice, Tag
-
+        data = self.data['ec2']
         resources = []
         sgs = []
 
-        for sg_name, ingress in self.data['ec2']['security_groups'].items():
+        for sg_name, ingress in data['security_groups'].items():
             sg = SecurityGroup(
                 sg_name,
                 VpcId=Ref("VPC"),
@@ -558,7 +528,7 @@ class ConfigParser:
 
         devices = []
         try:
-            for i in self.data['ec2']['block_devices']:
+            for i in data['block_devices']:
                 devices.append(BlockDeviceMapping(
                     DeviceName=i['DeviceName'],
                     Ebs=EBSBlockDevice(VolumeSize=i['VolumeSize']),
@@ -571,9 +541,9 @@ class ConfigParser:
 
         launch_config = LaunchConfiguration(
             "BaseHostLaunchConfig",
-            KeyName=self.data['ec2']['parameters']['KeyName'],
+            KeyName=data['parameters']['KeyName'],
             SecurityGroups=[Ref(g) for g in sgs],
-            InstanceType=self.data['ec2']['parameters']['InstanceType'],
+            InstanceType=data['parameters']['InstanceType'],
             AssociatePublicIpAddress=True,
             IamInstanceProfile=Ref("InstanceProfile"),
             ImageId=FindInMap("AWSRegion2AMI", Ref("AWS::Region"), "AMI"),
@@ -588,14 +558,35 @@ class ConfigParser:
         scaling_group = AutoScalingGroup(
             "ScalingGroup",
             VPCZoneIdentifier=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
-            MinSize=self.data['ec2']['auto_scaling']['min'],
-            MaxSize=self.data['ec2']['auto_scaling']['max'],
-            DesiredCapacity=self.data['ec2']['auto_scaling']['desired'],
+            MinSize=data['auto_scaling']['min'],
+            MaxSize=data['auto_scaling']['max'],
+            DesiredCapacity=data['auto_scaling']['desired'],
             AvailabilityZones=GetAZs(),
-            Tags=[Tag(k, v, True) for k, v in self.data['ec2']['tags'].iteritems()],
+            Tags=[Tag(k, v, True) for k, v in data['tags'].iteritems()],
             LaunchConfigurationName=Ref(launch_config),
         )
         resources.append(scaling_group)
 
-        # Hack until we return troposphere objects directly
-        return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
+        return resources
+
+    @classmethod
+    def _find_resources(cls, template, resource_type):
+        f = lambda x: x.resource_type == resource_type
+        return filter(f, template.resources.values())
+
+    @classmethod
+    def _get_elb_canonical_name(cls, elb_yaml_name):
+        return 'ELB-{}'.format(elb_yaml_name.replace('.', ''))
+
+    def _attach_elbs(self, template):
+        if 'elb' not in self.data:
+            return template
+        asgs = self._find_resources(template,
+                                    'AWS::AutoScaling::AutoScalingGroup')
+        elbs = self._find_resources(template,
+                                    'AWS::ElasticLoadBalancing::LoadBalancer')
+
+        asgs[0].LoadBalancerNames = [x.LoadBalancerName for x in elbs]
+        template.resources[asgs[0].title] = asgs[0]
+
+        return template
