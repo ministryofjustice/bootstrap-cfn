@@ -61,8 +61,6 @@ class ConfigParser:
             map(template.add_resource, sgs)
             template = self._attach_elbs(template)
 
-        template = self._attach_elbs(template)
-
         if 'rds' in self.data:
             rds = self.rds()
             map(template.add_resource, rds)
