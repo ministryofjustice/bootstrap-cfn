@@ -121,14 +121,10 @@ class TestConfigParser(unittest.TestCase):
             'Statement': [
                 {
                     'Action': [
-                        's3:Get*',
-                        's3:Put*',
-                        's3:List*'],
+                        's3:GetObject'],
                     'Resource': 'arn:aws:s3:::moj-test-dev-static/*',
                     'Effect': 'Allow',
-                    'Principal': {
-                        'AWS': '*'
-                    }
+                    'Principal': '*'
                 }
             ]
         }
