@@ -320,7 +320,7 @@ def cfn_delete(force=False):
 
 
 @task
-def cfn_create():
+def cfn_create(test=False):
     """
     Create the AWS cloudformation stack.
 
@@ -332,6 +332,9 @@ def cfn_create():
     cfn_config = get_config()
 
     cfn = get_connection(Cloudformation)
+    if test:
+        print cfn_config.process()
+        return
     # Upload any SSL certs that we may need for the stack.
     if 'ssl' in cfn_config.data:
         print green("Uploading SSL certificates to stack")
