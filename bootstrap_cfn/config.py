@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import yaml
+import logging
 
 from troposphere import Ref, Join, GetAtt, Tags
 from troposphere import FindInMap, GetAZs, Base64, Output
@@ -553,6 +554,16 @@ class ConfigParser:
         )
         resources.append(launch_config)
 
+        # Allow deprecation of tags
+        ec2_tags = []
+        deprecated_tags = ["Env"]
+        for k, v in data['tags'].items():
+            if k not in deprecated_tags:
+                ec2_tags.append(Tag(k, v, True))
+            else:
+                logging.warning("config: Tag '%s' is deprecated.."
+                                % (k))
+
         scaling_group = AutoScalingGroup(
             "ScalingGroup",
             VPCZoneIdentifier=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
@@ -560,7 +571,7 @@ class ConfigParser:
             MaxSize=data['auto_scaling']['max'],
             DesiredCapacity=data['auto_scaling']['desired'],
             AvailabilityZones=GetAZs(),
-            Tags=[Tag(k, v, True) for k, v in data['tags'].iteritems()],
+            Tags=ec2_tags,
             LaunchConfigurationName=Ref(launch_config),
         )
         resources.append(scaling_group)
