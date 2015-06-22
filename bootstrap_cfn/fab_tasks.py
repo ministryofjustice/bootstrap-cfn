@@ -344,7 +344,7 @@ def cfn_create(test=False):
     # print cfn_config.process()
     # Inject security groups in stack template and create stacks.
     try:
-        stack = cfn.create(stack_name, cfn_config.process())
+        stack = cfn.create(stack_name, cfn_config.process(), tags=get_cloudformation_tags())
     except:
         # cleanup ssl certificates if any
         if 'ssl' in cfn_config.data:
@@ -408,3 +408,14 @@ def update_certs():
     else:
         logging.error("No certificates updated so skipping "
                       "ELB certificate update...")
+
+
+def get_cloudformation_tags():
+    """
+    Get a top-level set of tags for the stack, these will propagate
+    down so that many of the created resources will be tagged in
+    addition. Notable omissions are EBS volumes and route53 resources
+    """
+    return {
+        "Env": env.environment,
+    }
