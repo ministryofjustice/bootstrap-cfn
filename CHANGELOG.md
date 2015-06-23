@@ -1,3 +1,6 @@
+##Unreleased
+* Deprecate the ec2.tags.Env tag and warn about its use
+
 ## Version 0.5.3 [WIP]
 * Improve message content when cfn_create raises an exception and fails.
 * Cleanup SSL certificates when cfn_create raises an exception and fails.

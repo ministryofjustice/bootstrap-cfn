@@ -907,7 +907,6 @@ class TestConfigParser(unittest.TestCase):
         tags = [
             ('Role', 'docker'),
             ('Apps', 'test'),
-            ('Env', 'dev'),
             ]
         ScalingGroup = AutoScalingGroup(
             "ScalingGroup",
