@@ -277,14 +277,10 @@ class ConfigParser:
         else:
             arn = 'arn:aws:s3:::%s/*' % self.data['s3']['static-bucket-name']
             policy = {
-                'Action': [
-                    's3:Get*',
-                    's3:Put*',
-                    's3:List*'],
+                'Action': ['s3:GetObject'],
                 'Resource': arn,
                 'Effect': 'Allow',
-                'Principal': {
-                    'AWS': '*'}}
+                'Principal': '*'}
 
         bucket_policy = BucketPolicy(
             "StaticBucketPolicy",
