@@ -17,10 +17,11 @@ class Cloudformation:
         self.aws_region_name = aws_region_name
         self.conn_cfn = utils.connect_to_aws(boto.cloudformation, self)
 
-    def create(self, stack_name, template_body):
+    def create(self, stack_name, template_body, tags):
         stack = self.conn_cfn.create_stack(stack_name=stack_name,
                                            template_body=template_body,
-                                           capabilities=['CAPABILITY_IAM'])
+                                           capabilities=['CAPABILITY_IAM'],
+                                           tags=tags)
         return stack
 
     def delete(self, stack_name):

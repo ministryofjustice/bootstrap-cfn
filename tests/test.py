@@ -81,10 +81,16 @@ class CfnTestCase(unittest.TestCase):
         mock_config = {'create_stack.return_value': self.stack_name}
         cf_connect_result.configure_mock(**mock_config)
         boto.cloudformation.connect_to_region = cf_mock
-
+        test_tags = {'Env': 'Dev', 'MiscTag': 'misc'}
         cf = cloudformation.Cloudformation(self.env.aws_profile)
-        x = cf.create(self.stack_name, '{}')
+        x = cf.create(self.stack_name, '{}', test_tags)
 
+        # Check we called create with the right values
+        cf_connect_result.create_stack.assert_called_once_with(
+            template_body='{}',
+            stack_name=self.stack_name,
+            capabilities=['CAPABILITY_IAM'],
+            tags=test_tags)
         self.assertEqual(x, self.stack_name)
 
     def test_cf_delete(self):
