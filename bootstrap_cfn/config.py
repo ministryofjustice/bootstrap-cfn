@@ -9,7 +9,7 @@ from troposphere import FindInMap, GetAZs, Base64, Output
 from troposphere.autoscaling import LaunchConfiguration, \
     AutoScalingGroup, BlockDeviceMapping, EBSBlockDevice, Tag
 from troposphere.elasticloadbalancing import LoadBalancer, HealthCheck, \
-    ConnectionDrainingPolicy
+    ConnectionDrainingPolicy, Policy
 from troposphere.ec2 import SecurityGroup
 from troposphere.route53 import RecordSetGroup, RecordSet, AliasTarget
 from troposphere.ec2 import Route, Subnet, InternetGateway, VPC, \
@@ -25,7 +25,11 @@ class ProjectConfig:
     config = None
 
     def __init__(self, config, environment, passwords=None):
-        self.config = self.load_yaml(config)[environment]
+        try:
+            self.config = self.load_yaml(config)[environment]
+        except KeyError:
+            raise errors.BootstrapCfnError("Environment " + environment + " not found")
+
         if passwords:
             passwords_dict = self.load_yaml(passwords)[environment]
             self.config = utils.dict_merge(self.config, passwords_dict)
@@ -401,8 +405,14 @@ class ConfigParser:
                     Enabled=True,
                     Timeout=120,
                 ),
+                Policies=[
+                    Policy(
+                        Attributes=[{'Name': "Reference-Security-Policy", 'Value': "ELBSecurityPolicy-2015-05"}],
+                        PolicyType='SSLNegotiationPolicyType',
+                        PolicyName='PinDownSSLNegotiationPolicy201505'
+                    )
+                ]
             )
-
             if "health_check" in elb:
                 load_balancer.HealthCheck = HealthCheck(**elb['health_check'])
 
@@ -426,6 +436,12 @@ class ConfigParser:
                         ":server-certificate/",
                         "{0}-{1}".format(cert_name, self.stack_name)]
                     )
+                    # if not present, add the default cipher policy
+                    if 'PolicyNames' not in listener:
+                        logging.debug(
+                            "ELB Listener for port 443 has no SSL Policy. " +
+                            "Using default ELBSecurityPolicy-2015-05")
+                        listener['PolicyNames'] = ['PinDownSSLNegotiationPolicy201505']
 
             elb_list.append(load_balancer)
 

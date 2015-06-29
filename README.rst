@@ -147,3 +147,23 @@ You can enable encryption for your DB by adding the following::
 
 **NOTE:** AWS does not support RDS encryption for the *db.t2.** instance classes. More details on supported instance classes are available `here <http://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html>`_
 
+
+SSL cipher list pindown (updated 29/06/2015)
+============================================
+Amazon provides default policies for cipher lists:
+
+* Type: SSLNegotiationPolicyType
+* Name: Reference-Security-Policy
+
+More info:
+
+https://aws.amazon.com/blogs/aws/elastic-load-balancing-perfect-forward-secrecy-and-other-security-enhancements/
+
+http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/elb-security-policy-options.html
+
+http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/elb-ssl-security-policy.html
+
+http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/elb-security-policy-table.html
+
+The policy currently in use by default is: ELBSecurityPolicy-2015-05.
+
