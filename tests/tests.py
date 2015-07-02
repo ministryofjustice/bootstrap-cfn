@@ -6,7 +6,7 @@ from troposphere import awsencode, Ref
 from troposphere import iam, s3, rds, ec2
 from troposphere import Base64, FindInMap, GetAtt, GetAZs, Join
 from troposphere.autoscaling import AutoScalingGroup, Tag
-from troposphere.ec2 import SecurityGroup
+from troposphere.ec2 import SecurityGroup, SecurityGroupIngress
 from troposphere.autoscaling import LaunchConfiguration
 
 from troposphere.route53 import RecordSetGroup
@@ -486,8 +486,8 @@ class TestConfigParser(unittest.TestCase):
         cfn_template = json.loads(config.process())
 
         wanted = [
-            "AnotherSG", "AttachGateway", "BaseHostLaunchConfig",
-            "BaseHostRole", "BaseHostSG", "DNStestdevexternal",
+            "AnotherSG", "AnotherSGRule0", "AttachGateway", "BaseHostLaunchConfig",
+            "BaseHostRole", "BaseHostSG", "BaseHostSGRule0", "BaseHostSGRule1", "DNStestdevexternal",
             "DNStestdevinternal", "DatabaseSG", "DefaultSGtestdevexternal",
             "DefaultSGtestdevinternal", "ELBtestdevexternal",
             "ELBtestdevinternal", "InstanceProfile", "InternetGateway",
@@ -542,8 +542,8 @@ class TestConfigParser(unittest.TestCase):
         cfn_template = json.loads(config.process())
 
         wanted = [
-            "AnotherSG", "AttachGateway", "BaseHostLaunchConfig",
-            "BaseHostRole", "BaseHostSG", "DNStestdevexternal",
+            "AnotherSG", "AnotherSGRule0", "AttachGateway", "BaseHostLaunchConfig",
+            "BaseHostRole", "BaseHostSG", "BaseHostSGRule0", "BaseHostSGRule1", "DNStestdevexternal",
             "DNStestdevinternal", "DatabaseSG", "DefaultSGtestdevexternal",
             "DefaultSGtestdevinternal", "ELBtestdevexternal",
             "ELBtestdevinternal", "InstanceProfile", "InternetGateway",
@@ -957,22 +957,24 @@ class TestConfigParser(unittest.TestCase):
 
         BaseHostSG = SecurityGroup(
             "BaseHostSG",
-            SecurityGroupIngress=[
-                {
-                    "ToPort": 22,
-                    "FromPort": 22,
-                    "IpProtocol": "tcp",
-                    "CidrIp": "0.0.0.0/0"
-                },
-                {
-                    "ToPort": 80,
-                    "FromPort": 80,
-                    "IpProtocol": "tcp",
-                    "CidrIp": "0.0.0.0/0"
-                }
-            ],
             VpcId=Ref("VPC"),
             GroupDescription="BaseHost Security Group",
+        )
+        BaseHostSGRule0 = SecurityGroupIngress(
+            "BaseHostSGRule0",
+            ToPort=22,
+            FromPort=22,
+            CidrIp="0.0.0.0/0",
+            IpProtocol="tcp",
+            GroupId=Ref(BaseHostSG),
+        )
+        BaseHostSGRule1 = SecurityGroupIngress(
+            "BaseHostSGRule1",
+            ToPort=80,
+            FromPort=80,
+            CidrIp="0.0.0.0/0",
+            IpProtocol="tcp",
+            GroupId=Ref(BaseHostSG),
         )
 
         BaseHostLaunchConfig = LaunchConfiguration(
@@ -998,18 +1000,18 @@ class TestConfigParser(unittest.TestCase):
 
         AnotherSG = SecurityGroup(
             "AnotherSG",
-            SecurityGroupIngress=[
-                {
-                    "ToPort": 443,
-                    "FromPort": 443,
-                    "SourceSecurityGroupName": Ref(BaseHostSG),
-                    "IpProtocol": "tcp"
-                }
-            ],
             VpcId=Ref("VPC"),
             GroupDescription="BaseHost Security Group",
         )
-        known = [AnotherSG, BaseHostLaunchConfig, BaseHostSG, ScalingGroup]
+        AnotherSGRule0 = SecurityGroupIngress(
+            "AnotherSGRule0",
+            ToPort=443,
+            FromPort=443,
+            SourceSecurityGroupName=Ref(BaseHostSG),
+            IpProtocol="tcp",
+            GroupId=Ref(AnotherSG),
+        )
+        known = [AnotherSG, AnotherSGRule0, BaseHostLaunchConfig, BaseHostSG, BaseHostSGRule0, BaseHostSGRule1, ScalingGroup]
         config = ConfigParser(
             ProjectConfig(
                 'tests/sample-project.yaml',

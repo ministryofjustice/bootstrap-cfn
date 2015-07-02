@@ -10,7 +10,7 @@ from troposphere.autoscaling import LaunchConfiguration, \
     AutoScalingGroup, BlockDeviceMapping, EBSBlockDevice, Tag
 from troposphere.elasticloadbalancing import LoadBalancer, HealthCheck, \
     ConnectionDrainingPolicy, Policy
-from troposphere.ec2 import SecurityGroup
+from troposphere.ec2 import SecurityGroup, SecurityGroupIngress
 from troposphere.route53 import RecordSetGroup, RecordSet, AliasTarget
 from troposphere.ec2 import Route, Subnet, InternetGateway, VPC, \
     VPCGatewayAttachment, SubnetRouteTableAssociation, RouteTable
@@ -521,6 +521,19 @@ class ConfigParser:
                 elb_sgs.append(sg)
         return elb_list, elb_sgs
 
+    def _convert_ref_dict_to_objects(self, o):
+        """
+        Some troposphere objects need troposphere.Ref objects instead of a
+        plain dict of {"Ref": "x" }. This helper function will do such
+        transformations and return a new dict
+        """
+        def ref_fixup(x):
+            if isinstance(x, dict) and "Ref" in x:
+                return Ref(x["Ref"])
+            else:
+                return x
+        return dict([(k, ref_fixup(v)) for k, v in o.items()])
+
     def ec2(self):
         # LOAD STACK TEMPLATE
         data = self.data['ec2']
@@ -532,10 +545,33 @@ class ConfigParser:
                 sg_name,
                 VpcId=Ref("VPC"),
                 GroupDescription="BaseHost Security Group",
-                SecurityGroupIngress=ingress
             )
+
             sgs.append(sg)
             resources.append(sg)
+
+            # Because we want to be able to add ingress rules to a security
+            # group that referes to itself (for example allow all instances in
+            # the sg to speak to each other on 9300 for Elasticsearch
+            # clustering) we create the SG in one resource and rules as other
+            # resources
+            #
+            # The yaml for this case is:
+            #
+            # security_groups:
+            #   EScluster:
+            #     - FromPort: 9300
+            #     - ToPort: 9300
+            #     - SourceSecurityGroupId: { Ref: EScluster }
+            for idx, rule in enumerate(ingress):
+                # Convert { Ref: "x"} to Ref("x")
+                rule = self._convert_ref_dict_to_objects(rule)
+
+                ingress = SecurityGroupIngress(
+                    "{}Rule{}".format(sg_name, idx),
+                    GroupId=Ref(sg),
+                    **rule)
+                resources.append(ingress)
 
         devices = []
         try:

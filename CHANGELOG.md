@@ -1,6 +1,11 @@
 ## Version 0.5.x
+
 * Add an SSL cipher list policy pindown: implicitly (no YAML entry needed)
   or explicitly (with YAML entry)
+* Allow security groups in YAML to reference themselves (for example an
+  "elasticsearch" SG that allows other instances of that sg (and itself) to
+  access port 9300)
+
 ## Version 0.5.3
 
 * Improve message content when cfn_create raises an exception and fails.
