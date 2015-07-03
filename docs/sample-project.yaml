@@ -27,14 +27,16 @@ dev:
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
+        # Allow the ELB defined below test-dev-external
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId: { Ref: DefaultSGtestdevexternal }
+        # Allow all other members of the BaseSG to speak to us on 4505 and 4506
         - IpProtocol: tcp
           FromPort: 4505
           ToPort: 4506
-          CidrIp: 10.0.0.0/16
+          SourceSecurityGroupId: { Ref: BaseSG }
   elb:
     - name: test-dev-external
       hosted_zone: integration.dsd.io.

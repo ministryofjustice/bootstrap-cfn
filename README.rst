@@ -9,7 +9,7 @@ Ministry of Justice - Cloudformation
 
 The objective of this repo is to enable MoJ teams to create project infrastructure in a uniform manner. Currently this includes the following AWS services:
 
-- EC2 Servers
+- EC2 Servers via Auto-Scaling Groups
 - Elastic Load Balancers (ELB)
 - Relational Database Service (RDS)
 - S3 Storage for web static content
@@ -49,8 +49,8 @@ If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabr
 
 
 - **application:courtfinder** - is just a name to associate with Cloudformation stack
-- **aws:dev** - is a way to differentiate between AWS accounts ``(~/.aws/credentials.yaml)``
-- **environment:dev** - The ``dev`` section will be read from the projects YAML file (line 1 in the example below)
+- **aws:dev** - is a way to differentiate between AWS accounts (defined in ``~/.aws/credentials.yaml``)
+- **environment:dev** - The key name to read in the file specified to the ``config`` task
 - **config:/path/to/file.yaml** - The location to the project YAML file
 
 Multiple Stacks
@@ -99,6 +99,127 @@ And when you run the tool you must set the ARN ID of the role in the separate ac
 Project specific YAML file
 ++++++++++++++++++++++++++
 The `YAML file <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/docs/sample-project.yaml>`_ highlights what is possible with all the bootstrap-cfn features available to date. The minimum requirement is that it must contain an *ec2* block, you **do not** have to use RDS, S3 or ELB's.
+
+EC2 Auto-Scaling Groups
++++++++++++++++++++++++
+
+The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG) and their configuration. Note that we don't currently support auto-scaling properly, so if a scaling event happens the instances that come up will be unconfigured.
+
+:``auto_scaling``:
+  Configure the size of the auto scaling groups.
+
+  ``desired``
+    Target number of instances
+  ``max``
+    Maximum number of instances to scale up to
+  ``min``
+    Minimum number of instances to maintain.
+
+  Example::
+
+    dev:
+      ec2:
+        # …
+        auto_scaling:
+          desired: 1
+          max: 3
+          min: 0
+
+:``tags``:
+  A dictionary of tag name to value to apply to all instances of the ASG. Note that the environment you select via ``fab aws`` will be applied as a tag with a name of ``Env``.
+
+  Example::
+
+    dev:
+      ec2:
+        # …
+        tags:
+          Role: docker
+          Apps: test
+          # Env: dev # This is default if we are in the `dev` environment block.
+
+:``parameters``:
+  Configuration parameters to the ASG. Known keys:
+
+  ``KeyName``
+    Name of an existing key-pair in the SSH account to create add to the intial ssh user on instances
+  ``InstanceType``
+    The size of the EC2 instances to create
+
+  Example::
+
+    dev:
+      ec2:
+        # …
+        parameters:
+          KeyName: default
+          InstanceType: t2.micro
+
+:``block_devices``:
+  A list of EBS volumes to create and attach to per instance. Each list should have
+
+  ``DeviceName``
+    The path of the linux device to attach the instance to
+  ``VolumeSize``
+    Size in gigabytes of the EBS volume
+
+  Example::
+
+    dev:
+      ec2:
+        # …
+        block_devices:
+          - DeviceName: /dev/sda1
+            VolumeSize: 10
+          - DeviceName: /dev/sdf
+            VolumeSize: 100
+
+:``security_groups``:
+  Dictionary of security groups to create and add the EC2 instances to. The key is the name of the security group and the value is a list of ingress rules following the `Cloudformation reference <http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group-ingress.html>`_
+
+  Common options are
+
+  ``IpProtocol``
+    ``tcp``, ``udp``, or ``icmp``
+  ``FromPort``
+    Start of the port range or ICMP type to allow
+  ``ToPort``
+    End of the port range/ICMP type. Often the same as ``FromPort``
+  ``CidrIp``
+    An IP range to allow access to this port range.
+  ``SourceSecurityGroupId``
+    Allow access from members of this security group - which must exist in the same VPC. Use Ref (see example) to refer to a security group by name. Can be another SG referenced elsewhere or the same security group.
+
+  One of ``CidrIp`` and ``SourceSecurityGroupId`` must be specified per rule (but not both).
+
+  Example::
+
+    dev:
+      ec2:
+        # …
+        security_groups:
+          # Don't to this - its too wide open
+          SSH-from-anywhere:
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+              CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 2222
+              ToPort: 2222
+              CidrIp: 0.0.0.0/0
+          WebServer:
+            # Allow acces to port 80 from the SG 
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              SourceSecurityGroupId: { Ref: DefaultSGtestdevexternal }
+          Salt:
+            # Allow all other members of the Salt sg to speak to us on 4505 and 4506
+            - IpProtocol: tcp
+              FromPort: 4505
+              ToPort: 4506
+              SourceSecurityGroupId: { Ref: Salt }
 
 ELBs
 ++++
