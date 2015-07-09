@@ -1,7 +1,4 @@
-import sys
 import boto.ec2
-from boto.exception import NoAuthHandlerFound
-from boto.provider import ProfileNotFoundError
 
 from bootstrap_cfn import cloudformation
 from bootstrap_cfn import utils

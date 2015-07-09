@@ -1,22 +1,19 @@
 #!/usr/bin/env python
-
-import unittest
-from bootstrap_cfn.config import ProjectConfig, ConfigParser
-from troposphere import awsencode, Ref
-from troposphere import iam, s3, rds, ec2
-from troposphere import Base64, FindInMap, GetAtt, GetAZs, Join
-from troposphere.autoscaling import AutoScalingGroup, Tag
-from troposphere.ec2 import SecurityGroup, SecurityGroupIngress
-from troposphere.autoscaling import LaunchConfiguration
-
-from troposphere.route53 import RecordSetGroup
-from troposphere.elasticloadbalancing import LoadBalancer, HealthCheck,\
-    ConnectionDrainingPolicy, Policy
-from troposphere.iam import PolicyType
-
-import bootstrap_cfn.errors as errors
-from testfixtures import compare
 import json
+import unittest
+
+from testfixtures import compare
+
+from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Ref, awsencode, ec2, iam, rds, s3
+from troposphere.autoscaling import AutoScalingGroup, LaunchConfiguration, Tag
+from troposphere.ec2 import SecurityGroup, SecurityGroupIngress
+from troposphere.elasticloadbalancing import ConnectionDrainingPolicy, HealthCheck, LoadBalancer, Policy
+from troposphere.iam import PolicyType
+from troposphere.route53 import RecordSetGroup
+
+
+from bootstrap_cfn import errors
+from bootstrap_cfn.config import ConfigParser, ProjectConfig
 
 
 class TestConfig(unittest.TestCase):

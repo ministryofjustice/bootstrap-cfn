@@ -1,9 +1,12 @@
-from bootstrap_cfn import iam
 import unittest
-from nose.tools import raises
+
 import boto
-from mock import Mock
-from mock import patch
+
+from mock import Mock, patch
+
+from nose.tools import raises
+
+from bootstrap_cfn import iam
 from bootstrap_cfn.errors import CloudResourceNotFoundError
 
 

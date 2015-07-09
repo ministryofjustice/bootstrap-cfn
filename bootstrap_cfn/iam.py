@@ -1,7 +1,9 @@
-import boto.iam
-from boto.connection import AWSQueryConnection
-from bootstrap_cfn import utils
 import logging
+
+from boto.connection import AWSQueryConnection
+import boto.iam
+
+from bootstrap_cfn import utils
 from bootstrap_cfn.errors import CloudResourceNotFoundError
 
 

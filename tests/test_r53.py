@@ -1,9 +1,12 @@
-from bootstrap_cfn import r53
-import unittest
-import tempfile
-import boto.route53
-import mock
 import os
+import tempfile
+import unittest
+
+import boto.route53
+
+import mock
+
+from bootstrap_cfn import r53
 
 
 class BootstrapCfnR53TestCase(unittest.TestCase):
