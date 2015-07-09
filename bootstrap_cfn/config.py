@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 
+import textwrap
 
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
 from troposphere.autoscaling import AutoScalingGroup, BlockDeviceMapping, \
@@ -19,7 +20,7 @@ from troposphere.s3 import Bucket, BucketPolicy
 
 import yaml
 
-from bootstrap_cfn import errors, utils
+from bootstrap_cfn import errors, mime_packer, utils
 
 
 class ProjectConfig:
@@ -46,9 +47,13 @@ class ConfigParser:
 
     config = {}
 
-    def __init__(self, data, stack_name):
+    def __init__(self, data, stack_name, environment=None, application=None):
         self.stack_name = stack_name
         self.data = data
+
+        # Some things possibly used in user data templates
+        self.environment = environment
+        self.application = application
 
     def process(self):
         template = self.base_template()
@@ -529,6 +534,64 @@ class ConfigParser:
                 return x
         return dict([(k, ref_fixup(v)) for k, v in o.items()])
 
+    def get_ec2_userdata(self):
+        data = self.data['ec2']
+
+        parts = []
+
+        boothook = self.get_hostname_boothook(data)
+
+        if boothook:
+            parts.append(boothook)
+
+        if "cloud_config" in data:
+            parts.append({
+                'content': yaml.dump(data['cloud_config']),
+                'mime_type': 'text/cloud-config'
+            })
+
+        if len(parts):
+            return mime_packer.pack(parts)
+
+    HOSTNAME_BOOTHOOK_TEMPLATE = textwrap.dedent("""\
+    #!/bin/sh
+    [ -e /etc/cloud/cloud.cfg.d/99_hostname.cfg ] || echo "hostname: {hostname}" > /etc/cloud/cloud.cfg.d/99_hostname.cfg
+    """)
+
+    DEFAULT_HOSTNAME_PATTERN = "{instance_id}.{environment}.{application}"
+
+    def get_hostname_boothook(self, data):
+        """
+        Return a boothook part that will set the hostname of instances on boot.
+
+        The pattern comes from the ``hostname_pattern`` pattern of data dict,
+        with a default of "{instance_id}.{environment}.{application}". To
+        disable this functionality explicitly pass None in this field.
+        """
+        hostname_pattern = data.get('hostname_pattern', self.DEFAULT_HOSTNAME_PATTERN)
+        if hostname_pattern is None:
+            return None
+
+        interploations = {
+            # This gets interploated by cloud-init at run time.
+            'instance_id': '${INSTANCE_ID}',
+            'tags': data['tags'],
+            'environment': self.environment,
+            'application': self.application,
+            'stack_name': self.stack_name,
+        }
+        try:
+            hostname = hostname_pattern.format(**interploations)
+        except KeyError as e:
+            raise errors.CfnHostnamePatternError("Error interpolating hostname_pattern '{pattern}' - {key} is not a valid interpolation".format(
+                pattern=hostname_pattern,
+                key=e.args[0]))
+
+        return {
+            'mime_type': 'text/cloud-boothook',
+            'content': self.HOSTNAME_BOOTHOOK_TEMPLATE.format(hostname=hostname)
+        }
+
     def ec2(self):
         # LOAD STACK TEMPLATE
         data = self.data['ec2']
@@ -590,11 +653,11 @@ class ConfigParser:
             IamInstanceProfile=Ref("InstanceProfile"),
             ImageId=FindInMap("AWSRegion2AMI", Ref("AWS::Region"), "AMI"),
             BlockDeviceMappings=devices,
-            UserData=Base64(Join("", [
-                "#!/bin/bash -xe\n",
-                "#do nothing for now",
-            ])),
         )
+        user_data = self.get_ec2_userdata()
+        if user_data:
+            launch_config.UserData = Base64(user_data)
+
         resources.append(launch_config)
 
         # Allow deprecation of tags

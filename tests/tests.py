@@ -1,6 +1,10 @@
 #!/usr/bin/env python
+import email
 import json
 import unittest
+from StringIO import StringIO
+
+from mock import patch
 
 from testfixtures import compare
 
@@ -11,6 +15,7 @@ from troposphere.elasticloadbalancing import ConnectionDrainingPolicy, HealthChe
 from troposphere.iam import PolicyType
 from troposphere.route53 import RecordSetGroup
 
+import yaml
 
 from bootstrap_cfn import errors
 from bootstrap_cfn.config import ConfigParser, ProjectConfig
@@ -976,7 +981,6 @@ class TestConfigParser(unittest.TestCase):
 
         BaseHostLaunchConfig = LaunchConfiguration(
             "BaseHostLaunchConfig",
-            UserData=Base64(Join("", ["#!/bin/bash -xe\n", "#do nothing for now"])),
             ImageId=FindInMap("AWSRegion2AMI", Ref("AWS::Region"), "AMI"),
             BlockDeviceMappings=[
                 {
@@ -1013,10 +1017,132 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'tests/sample-project.yaml',
                 'dev').config, 'my-stack-name')
-        ec2_json = self._resources_to_dict(config.ec2())
-        # compare(, ec2_json)
+
+        with patch.object(config, 'get_ec2_userdata', return_value=None):
+            ec2_json = self._resources_to_dict(config.ec2())
 
         compare(self._resources_to_dict(known), ec2_json)
+
+    # We just want to test that when we have userdata we return the right LaunchConfig.
+    def test_launchconfig_userdata(self):
+        config = ConfigParser(
+            ProjectConfig('tests/sample-project.yaml', 'dev').config,
+            'my-stack-name')
+
+        BaseHostLaunchConfig = LaunchConfiguration(
+            "BaseHostLaunchConfig",
+            ImageId=FindInMap("AWSRegion2AMI", Ref("AWS::Region"), "AMI"),
+            BlockDeviceMappings=[
+                {
+                    "DeviceName": "/dev/sda1",
+                    "Ebs": {"VolumeSize": 10}
+                },
+                {
+                    "DeviceName": "/dev/sdf",
+                    "Ebs": {"VolumeSize": 10}
+                }
+            ],
+            KeyName="default",
+            SecurityGroups=[Ref("BaseHostSG"), Ref("AnotherSG")],
+            IamInstanceProfile=Ref("InstanceProfile"),
+            InstanceType="t2.micro",
+            AssociatePublicIpAddress="true",
+            UserData=Base64("Mock Userdata String"),
+        )
+
+        with patch.object(config, "get_ec2_userdata", return_value="Mock Userdata String"):
+            ec2_json = self._resources_to_dict(config.ec2())
+            expected = self._resources_to_dict([BaseHostLaunchConfig])
+            compare(ec2_json['BaseHostLaunchConfig'], expected['BaseHostLaunchConfig'])
+            pass
+
+    def test_get_ec2_userdata(self):
+        data = {
+            'ec2': {
+                'cloud_config': {'some': 'dict'}
+            }
+        }
+        config = ConfigParser(data, environment="env", application="test", stack_name="my-stack")
+
+        with patch.object(config, 'get_hostname_boothook', return_value={"content": "sentinel"}) as mock_boothook:
+            # This test is slightly silly as we are testing the decoding with
+            # the same code as the generator... but it's that or we test it
+            # with regexp.
+            mime_text = config.get_ec2_userdata()
+
+            mock_boothook.assert_called_once_with(data['ec2'])
+
+            parts = [part for part in email.message_from_string(mime_text).walk()]
+
+            compare(
+                [part.get_content_type() for part in parts],
+                ["multipart/mixed", "text/plain", "text/cloud-config"],
+                prefix="Userdata parts are in expected order")
+
+            compare(parts[1].get_payload(), "sentinel")
+            compare(yaml.load(parts[2].get_payload()), data['ec2']['cloud_config'])
+
+    def test_get_hostname_boothook(self):
+        config = ConfigParser({}, environment="env", application="test", stack_name="my-stack")
+
+        cfg = {
+            # Longer than people would use but tests all interpolations.
+            'hostname_pattern': '{instance_id}.{tags[Role]}.{environment}.{application}.{stack_name}',
+            'tags': {'Role': 'docker'},
+        }
+        part = config.get_hostname_boothook(cfg)
+        expected = {
+            'content': ('#!/bin/sh\n'
+                        '[ -e /etc/cloud/cloud.cfg.d/99_hostname.cfg ] || '
+                        'echo "hostname: ${INSTANCE_ID}.docker.env.test.my-stack" > /etc/cloud/cloud.cfg.d/99_hostname.cfg\n'),
+            'mime_type': 'text/cloud-boothook',
+        }
+        compare(part, expected)
+
+    def test_get_hostname_boothook_default(self):
+        config = ConfigParser({}, environment="env", application="test", stack_name="my-stack")
+
+        cfg = {
+            'tags': {'Role': 'docker'},
+        }
+        part = config.get_hostname_boothook(cfg)
+        expected = {
+            'content': ('#!/bin/sh\n'
+                        '[ -e /etc/cloud/cloud.cfg.d/99_hostname.cfg ] || '
+                        'echo "hostname: ${INSTANCE_ID}.env.test" > /etc/cloud/cloud.cfg.d/99_hostname.cfg\n'),
+            'mime_type': 'text/cloud-boothook',
+        }
+        compare(part, expected)
+
+    def test_get_hostname_boothook_nonoe(self):
+        config = ConfigParser({}, environment="env", application="test", stack_name="my-stack")
+
+        cfg = {
+            'hostname_pattern': None,
+            'tags': {'Role': 'docker'},
+        }
+        part = config.get_hostname_boothook(cfg)
+        expected = None
+        compare(part, expected)
+
+    @patch('sys.stderr', StringIO())
+    def test_get_hostname_boothook_error(self):
+        config = ConfigParser({}, environment="env", application="test", stack_name="my-stack")
+
+        cfg = {
+            # Longer than people would use but tests all interpolations.
+            'hostname_pattern': '{tags[Fake]}',
+            'tags': {'Role': 'docker'},
+        }
+
+        with self.assertRaisesRegexp(errors.CfnHostnamePatternError, r"Error interpolating hostname_pattern .*\bFake"):
+            config.get_hostname_boothook(cfg)
+            self.fail()
+
+        cfg['hostname_pattern'] = '{non_existent}'
+        with self.assertRaisesRegexp(errors.CfnHostnamePatternError, r"Error interpolating hostname_pattern .*\bnon_existent"):
+            config.get_hostname_boothook(cfg)
+            self.fail()
 
     def test_ec2_with_no_block_device_specified(self):
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')

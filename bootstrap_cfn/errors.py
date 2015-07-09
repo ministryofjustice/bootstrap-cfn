@@ -1,7 +1,9 @@
 import sys
 
+
 class BootstrapCfnError(Exception):
     def __init__(self, msg):
+        super(BootstrapCfnError, self).__init__(msg)
         print >> sys.stderr,  "[ERROR] {0}: {1}".format(self.__class__.__name__, msg)
 
 
@@ -10,6 +12,10 @@ class CfnConfigError(BootstrapCfnError):
 
 
 class CfnTimeoutError(BootstrapCfnError):
+    pass
+
+
+class CfnHostnamePatternError(BootstrapCfnError):
     pass
 
 
