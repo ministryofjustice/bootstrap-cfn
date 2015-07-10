@@ -1,23 +1,25 @@
 import json
+import logging
 import os
 import sys
+
+
+from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
+from troposphere.autoscaling import AutoScalingGroup, BlockDeviceMapping, \
+    EBSBlockDevice, LaunchConfiguration, Tag
+from troposphere.ec2 import InternetGateway, Route, RouteTable, SecurityGroup, \
+    SecurityGroupIngress, Subnet, SubnetRouteTableAssociation, VPC, \
+    VPCGatewayAttachment
+from troposphere.elasticloadbalancing import ConnectionDrainingPolicy, \
+    HealthCheck, LoadBalancer, Policy
+from troposphere.iam import InstanceProfile, PolicyType, Role
+from troposphere.rds import DBInstance, DBSubnetGroup
+from troposphere.route53 import AliasTarget, RecordSet, RecordSetGroup
+from troposphere.s3 import Bucket, BucketPolicy
+
 import yaml
-import logging
 
-from troposphere import Ref, Join, GetAtt, Tags
-from troposphere import FindInMap, GetAZs, Base64, Output
-from troposphere.autoscaling import LaunchConfiguration, \
-    AutoScalingGroup, BlockDeviceMapping, EBSBlockDevice, Tag
-from troposphere.elasticloadbalancing import LoadBalancer, HealthCheck, \
-    ConnectionDrainingPolicy, Policy
-from troposphere.ec2 import SecurityGroup, SecurityGroupIngress
-from troposphere.route53 import RecordSetGroup, RecordSet, AliasTarget
-from troposphere.ec2 import Route, Subnet, InternetGateway, VPC, \
-    VPCGatewayAttachment, SubnetRouteTableAssociation, RouteTable
-from troposphere.iam import Role, PolicyType, InstanceProfile
-
-import bootstrap_cfn.errors as errors
-import bootstrap_cfn.utils as utils
+from bootstrap_cfn import errors, utils
 
 
 class ProjectConfig:
@@ -93,7 +95,6 @@ class ConfigParser:
             template, sort_keys=True, indent=4, separators=(',', ': '))
 
     def base_template(self):
-        from troposphere import Template
 
         t = Template()
 
@@ -268,9 +269,6 @@ class ConfigParser:
                 print "\n\n[ERROR] Missing S3 fields [%s]" % i
                 sys.exit(1)
 
-        from troposphere import Ref, awsencode
-        from troposphere.s3 import Bucket, BucketPolicy
-
         bucket = Bucket(
             "StaticBucket",
             AccessControl="BucketOwnerFullControl",
@@ -321,9 +319,6 @@ class ConfigParser:
         }
 
         # LOAD STACK TEMPLATE
-        from troposphere import Ref, FindInMap, GetAtt, awsencode
-        from troposphere.rds import DBInstance, DBSubnetGroup
-        from troposphere.ec2 import SecurityGroup
         resources = []
         rds_subnet_group = DBSubnetGroup(
             "RDSSubnetGroup",

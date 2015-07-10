@@ -1,12 +1,13 @@
+import os
+import time
+
+from copy import deepcopy
+
 import boto.exception
 import boto.provider
 import boto.sts
-import sys
-import time
-import os
 
 import bootstrap_cfn.errors as errors
-from copy import deepcopy
 
 
 def timeout(timeout, interval):

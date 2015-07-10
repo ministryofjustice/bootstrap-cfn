@@ -1,15 +1,16 @@
+import os
 import tempfile
 import unittest
-import mock
-import yaml
+
 import boto.cloudformation
 import boto.ec2.autoscale
-import paramiko
-from bootstrap_cfn import cloudformation
-from bootstrap_cfn import ec2
-from bootstrap_cfn import iam
-from bootstrap_cfn import errors
-import os
+
+import mock
+
+import yaml
+
+from bootstrap_cfn import cloudformation, errors, iam
+
 
 class CfnTestCase(unittest.TestCase):
 

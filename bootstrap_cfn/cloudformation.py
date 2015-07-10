@@ -1,10 +1,8 @@
-import sys
 import boto.cloudformation
 import boto.ec2
-from boto.ec2 import autoscale
-from boto.exception import NoAuthHandlerFound
-from boto.provider import ProfileNotFoundError
+
 from bootstrap_cfn import utils
+
 
 class Cloudformation:
 

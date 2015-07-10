@@ -1,9 +1,8 @@
-import sys
 import logging
+
 import boto.ec2.elb
-from bootstrap_cfn import cloudformation
-from bootstrap_cfn import iam
-from bootstrap_cfn import utils
+
+from bootstrap_cfn import cloudformation, iam, utils
 from bootstrap_cfn.errors import CloudResourceNotFoundError
 
 

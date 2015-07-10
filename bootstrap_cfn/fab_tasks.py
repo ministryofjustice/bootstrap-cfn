@@ -1,22 +1,23 @@
 #!/usr/bin/env python
 
+import logging
 import os
 import sys
 import time
-import logging
+import uuid
+
+from boto.route53.exception import DNSServerError
 
 from fabric.api import env, task
-from fabric.utils import abort
 from fabric.colors import green, red
+from fabric.utils import abort
 
-from bootstrap_cfn.config import ProjectConfig, ConfigParser
 from bootstrap_cfn.cloudformation import Cloudformation
-from bootstrap_cfn.iam import IAM
+from bootstrap_cfn.config import ConfigParser, ProjectConfig
 from bootstrap_cfn.elb import ELB
+from bootstrap_cfn.iam import IAM
 from bootstrap_cfn.r53 import R53
 from bootstrap_cfn.utils import tail
-from boto.route53.exception import DNSServerError
-import uuid
 
 
 # Default fab config. Set via the tasks below or --set
