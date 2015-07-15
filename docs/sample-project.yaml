@@ -12,7 +12,9 @@ dev:
     tags:
       Role: docker
       Apps: test
-      Env: dev
+    hostname_pattern: '{instance_id}.{tags[Role]}.{environment}.{application}'
+    cloud_config:
+      manage_etc_hosts: true
     parameters:
       KeyName: default
       InstanceType: t2.micro

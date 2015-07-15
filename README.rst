@@ -221,11 +221,58 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
               ToPort: 4506
               SourceSecurityGroupId: { Ref: Salt }
 
+:``cloud_config``:
+  Dictionary to be feed in via userdata to drive `cloud-init <http://cloudinit.readthedocs.org/en/latest/>`_ to set up the initial configuration of the host upon creation. Using cloud-config you can run commands, install packages
+
+  There doesn't appear to be a definitive list of the possible config options but the examples are quite exhaustive:
+
+  - `http://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/files/head:/doc/examples/`
+  - `http://cloudinit.readthedocs.org/en/latest/topics/examples.html`_ (similar list but all on one page so easier to read)
+
+:``hostname_pattern``:
+  A python-style string format to set the hostname of the instance upon creation.
+
+  The default is ``{instance_id}.{environment}.{application}``. To disable this entirely set this field explicitly to null/empty::
+
+    dev:
+      ec2:
+        hostname_pattern:
+
+  For ``sudo`` to not misbehave initially (because it cannot look up its own hostname) you will likely want to set ``manage_etc_hosts`` to true in the cloud_config section so that it will regenerate ``/etc/hosts`` with the new hostname resolving to 127.0.0.1.
+
+  Setting the hostname is achived by adding a boothook into the userdata that will interpolate the instance_id correctly on the machine very soon after boottime.
+
+  The currently support interpolations are:
+
+  ``instance_id``
+    The amazon instance ID
+  ``environment``
+    The enviroment currently selected (from the fab task)
+  ``application``
+    The application name (taken from the fab task)
+  ``stack_name``
+    The full stack name being created
+  ``tags``
+    A value from a tag for this autoscailing group. For example use ``tags[Role]`` to access the value of the ``Role`` tag.
+
+  For example given this incomplete config::
+
+    dev:
+      ec2:
+        # …
+        hostname_pattern: "{instance_id}.{tags[Role]}.{environment}.{application}"
+        tags:
+          Role: docker
+        cloud_config:
+          manage_etc_hosts: true
+
+  an instance created with ``fab application:myproject … cfn_create`` would get a hostname something like ``i-f623cfb9.docker.dev.my-project``.
+
 ELBs
 ++++
 By default the ELBs will have a security group opening them to the world on 80 and 443. You can replace this default SG with your own (see example ``ELBSecGroup`` above).
 
-If you set the protocol on an ELB to HTTPS you must include a key called `certificate_name` in the ELB block (as example above) and matching cert data in a key with the same name as the cert under `ssl` (see example above). The `cert` and `key` are required and the `chain` is optional.
+If you set the protocol on an ELB to HTTPS you must include a key called ``certificate_name`` in the ELB block (as example above) and matching cert data in a key with the same name as the cert under ``ssl`` (see example above). The ``cert`` and ``key`` are required and the ``chain`` is optional.
 
 The certificate will be uploaded before the stack is created and removed after it is deleted.
 
