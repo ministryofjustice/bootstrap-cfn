@@ -90,6 +90,11 @@ class ConfigParser:
         if 's3' in self.data:
             s3 = self.s3()
             map(template.add_resource, s3)
+            template.add_output(Output(
+                "StaticBucketName",
+                Description="S3 bucket name",
+                Value=Ref("StaticBucket")
+            ))
 
         template = json.loads(template.to_json())
         if 'includes' in self.data:
@@ -262,31 +267,33 @@ class ConfigParser:
         return resources
 
     def s3(self):
-        # REQUIRED FIELDS AND MAPPING
-        required_fields = {
-            'static-bucket-name': 'BucketName'
-        }
+        # As there are no required fields, although we may not have any
+        # subkeys we still need to be able to have a parent key 's3:' to
+        # signify that we want to create an s3 bucket. In this case we
+        # set up an empty (no options set) dictionary
+        present_keys = {}
+        if isinstance(self.data['s3'], dict):
+            present_keys = self.data['s3'].keys()
 
-        # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
-        present_keys = self.data['s3'].keys()
-        for i in required_fields.keys():
-            if i not in present_keys:
-                print "\n\n[ERROR] Missing S3 fields [%s]" % i
-                sys.exit(1)
-
+        # If the static bucket name is manually set then use that,
+        # otherwise use the <stackname>-<logical-resource-name>-<random>
+        # default
         bucket = Bucket(
             "StaticBucket",
             AccessControl="BucketOwnerFullControl",
-            BucketName=self.data['s3']['static-bucket-name'],
         )
+        if 'static-bucket-name' in present_keys:
+            bucket.BucketName = self.data['s3']['static-bucket-name']
 
+        # If a policy has been manually set then use it, otherwise set
+        # a reasonable default of public 'Get' access
         if 'policy' in present_keys:
             policy = json.loads(open(self.data['s3']['policy']).read())
         else:
-            arn = 'arn:aws:s3:::%s/*' % self.data['s3']['static-bucket-name']
+            arn = Join("", ["arn:aws:s3:::", Ref(bucket), "/*"])
             policy = {
                 'Action': ['s3:GetObject'],
-                'Resource': arn,
+                "Resource": [arn],
                 'Effect': 'Allow',
                 'Principal': '*'}
 
@@ -465,7 +472,7 @@ class ConfigParser:
 
             elb_role_policies = PolicyType(
                 "Policy" + safe_name,
-                PolicyName=safe_name+"BaseHost",
+                PolicyName=safe_name + "BaseHost",
                 PolicyDocument={"Statement": [{
                     "Action": [
                         "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
@@ -478,7 +485,7 @@ class ConfigParser:
                             ":",
                             Ref("AWS::AccountId"),
                             ':loadbalancer/%s' % load_balancer.LoadBalancerName
-                            ])
+                        ])
                     ],
                     "Effect": "Allow"}
                 ]},
@@ -507,7 +514,7 @@ class ConfigParser:
                             "FromPort": 443,
                             "ToPort": 443,
                             "CidrIp": "0.0.0.0/0"
-                            },
+                        },
                         {
                             "IpProtocol": "tcp",
                             "FromPort": 80,

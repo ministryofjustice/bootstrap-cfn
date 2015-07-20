@@ -78,7 +78,6 @@ def tail(stack, stack_name):
     from fabric.colors import green, red, yellow
     """Show and then tail the event log"""
 
-
     def colorize(e):
         if e.endswith("_IN_PROGRESS"):
             return yellow(e)

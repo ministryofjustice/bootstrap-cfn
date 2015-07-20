@@ -3,6 +3,7 @@ import boto.ec2
 from bootstrap_cfn import cloudformation
 from bootstrap_cfn import utils
 
+
 class EC2:
 
     conn_cfn = None
