@@ -57,8 +57,7 @@ class TestAutoscale(unittest.TestCase):
                     'boto.ec2.autoscale.connect_to_region', connect_to_region):
                 # Test successfully found stack
                 a = autoscale.Autoscale(self.env.aws_profile)
-                x = a.set_autoscaling_group('test1')
-                print "##########################", x
+                a.set_autoscaling_group('test1')
                 self.assertEquals(a.group.name, 'test1')
 
                 # Test no found stack
