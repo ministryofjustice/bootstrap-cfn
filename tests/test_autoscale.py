@@ -3,7 +3,6 @@ import tempfile
 import unittest
 
 import boto.ec2.autoscale
-from boto.ec2.autoscale import AutoScaleConnection
 from boto.ec2.autoscale.group import AutoScalingGroup
 
 import mock
@@ -45,8 +44,7 @@ class TestAutoscale(unittest.TestCase):
         pass
 
     def test_set_autoscaling_group(self):
-        with mock.patch(
-            'boto.ec2.autoscale.connect_to_region') as conn:
+        with mock.patch('boto.ec2.autoscale.connect_to_region') as conn:
 
             conn.return_value.get_all_groups = get_all_groups
 
