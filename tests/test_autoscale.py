@@ -28,12 +28,7 @@ def get_all_groups(names=None, max_records=None, next_token=None):
         asg.tags = tags
         groups.append(asg)
 
-    print "MYGROUPS", groups
     return groups
-
-
-def connect_to_region(region_name=None, profile_name=None):
-    return AutoScaleConnection()
 
 
 class TestAutoscale(unittest.TestCase):
@@ -51,23 +46,23 @@ class TestAutoscale(unittest.TestCase):
 
     def test_set_autoscaling_group(self):
         with mock.patch(
-                'boto.ec2.autoscale.AutoScaleConnection.get_all_groups',
-                get_all_groups):
-            with mock.patch(
-                    'boto.ec2.autoscale.connect_to_region', connect_to_region):
-                # Test successfully found stack
-                a = autoscale.Autoscale(self.env.aws_profile)
-                a.set_autoscaling_group('test1')
-                self.assertEquals(a.group.name, 'test1')
+            'boto.ec2.autoscale.connect_to_region') as conn:
 
-                # Test no found stack
-                a = autoscale.Autoscale(self.env.aws_profile)
-                a.set_autoscaling_group('test')
-                self.assertIsNone(a.group)
+            conn.return_value.get_all_groups = get_all_groups
+
+            # Test successfully found stack
+            a = autoscale.Autoscale(self.env.aws_profile)
+            a.set_autoscaling_group('test1')
+            self.assertEquals(a.group.name, 'test1')
+
+            # Test no found stack
+            a = autoscale.Autoscale(self.env.aws_profile)
+            a.set_autoscaling_group('test')
+            self.assertIsNone(a.group)
 
     def test_set_tag(self):
-        with mock.patch('boto.ec2.autoscale.connect_to_region',
-                        connect_to_region):
+        with mock.patch('boto.ec2.autoscale.connect_to_region') as conn:
+            conn.return_value.get_all_groups = get_all_groups
             # Test if no stack found, don't continue
             a = autoscale.Autoscale(self.env.aws_profile)
             self.assertIsNone(a.set_tag('test_key', 'test_value'))
