@@ -1,10 +1,14 @@
-## Version 0.5.x
+## Version 0.5.4
 
 * Add an SSL cipher list policy pindown: implicitly (no YAML entry needed)
   or explicitly (with YAML entry)
 * Allow security groups in YAML to reference themselves (for example an
   "elasticsearch" SG that allows other instances of that sg (and itself) to
   access port 9300)
+* Add documentation to the `ec2` section
+* Sort imports lines consistently and remove unused imports and some simple tests
+* Generate Userdata script to set hostname of instances based on template
+* Autoscale class that can find the scaling group based on a name
 
 ## Version 0.5.3
 
