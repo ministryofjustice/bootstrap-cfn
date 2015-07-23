@@ -304,6 +304,10 @@ If you wish to include some static cloudformation json and have it merged with t
 
 The tool will then perform a deep merge of the includes with the generated template dictionary. Any keys or subkeys in the template dictionary that clash will have their values **overwritten** by the included dictionary or recursively merged if the value is itself a dictionary.
 
+ConfigParser
+++++++++++++++
+If you want to include or modify cloudformation resources but need to include some logic and not a static include. You can subclass the ConfigParser and set the new class as `env.cloudformation_parser` in your fabfile.
+
 
 Enabling RDS encryption
 +++++++++++++++++++++++

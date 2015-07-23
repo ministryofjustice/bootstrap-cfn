@@ -271,7 +271,8 @@ def get_config():
         env.environment,
         passwords=env.stack_passwords)
 
-    cfn_config = ConfigParser(project_config.config, get_stack_name(), environment=env.environment, application=env.application)
+    Parser = env.get('cloudformation_parser', ConfigParser)
+    cfn_config = Parser(project_config.config, get_stack_name(), environment=env.environment, application=env.application)
     return cfn_config
 
 

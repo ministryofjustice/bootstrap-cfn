@@ -43,7 +43,7 @@ class ProjectConfig:
             return yaml.load(open(fp).read())
 
 
-class ConfigParser:
+class ConfigParser(object):
 
     config = {}
 

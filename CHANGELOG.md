@@ -1,7 +1,6 @@
-##UNRELEASED
-
-* Use a automatic resource naming to allow S3 bucket names to be auto named
-by AWS
+## Unreleased
+* Make it possible to override the ConfigParser so that sub-modules can update the CloudFormation config.
+* Use a automatic resource naming to allow S3 bucket names to be auto named by AWS
 
 ## Version 0.5.4
 
