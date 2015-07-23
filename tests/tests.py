@@ -8,7 +8,7 @@ from mock import patch
 
 from testfixtures import compare
 
-from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Ref, awsencode, ec2, iam, rds, s3
+from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Ref, Template, awsencode, ec2, iam, rds, s3
 from troposphere.autoscaling import AutoScalingGroup, LaunchConfiguration, Tag
 from troposphere.ec2 import SecurityGroup, SecurityGroupIngress
 from troposphere.elasticloadbalancing import ConnectionDrainingPolicy, HealthCheck, LoadBalancer, Policy
@@ -199,7 +199,6 @@ class TestConfigParser(unittest.TestCase):
         db_instance.AutoMinorVersionUpgrade = False
         db_instance.BackupRetentionPeriod = 1
         db_instance.DBInstanceClass = 'db.t2.micro'
-        db_instance.DBInstanceIdentifier = 'test-dev'
         db_instance.Engine = 'postgres'
         db_instance.EngineVersion = '9.3.5'
         db_instance.VPCSecurityGroups = [GetAtt(db_sg, 'GroupId')]
@@ -212,9 +211,38 @@ class TestConfigParser(unittest.TestCase):
                 'tests/sample-project.yaml',
                 'dev',
                 'tests/sample-project-passwords.yaml').config, 'my-stack-name')
-        rds_dict = self._resources_to_dict(config.rds())
+
+        template = Template()
+        config.rds(template)
+        resources = template.resources.values()
+        rds_dict = self._resources_to_dict(resources)
+        # RDS dict will contain DBIdentifier, which is random.
+        # So we check it seperately here then remove it
+        self.assertTrue("DBInstanceIdentifier" in rds_dict["RDSInstance"]["Properties"],
+                        "test_rds: template does not contain DBInstanceIdentifier")
+        identifier = rds_dict["RDSInstance"]["Properties"]["DBInstanceIdentifier"]
+        # identifier starts RDS and contains an 8 char uuid plus stack name
+        # so this should always be true
+        self.assertTrue(len(identifier) >= 12)
+        rds_dict["RDSInstance"]["Properties"].pop("DBInstanceIdentifier")
         known = self._resources_to_dict(known)
         compare(known, rds_dict)
+
+        # Test for outputs
+        expected_outputs = {
+            "dbhost": {
+                "Description": "RDS Hostname",
+                "Value": {"Fn::GetAtt": ["RDSInstance", "Endpoint.Address"]}
+            },
+            "dbport": {
+                "Description": "RDS Port",
+                "Value": {
+                    "Fn::GetAtt": ["RDSInstance", "Endpoint.Port"]
+                }
+            }
+        }
+        actual_outputs = self._resources_to_dict(template.outputs.values())
+        compare(expected_outputs, actual_outputs)
 
     def test_elb(self):
         known = []
@@ -441,7 +469,7 @@ class TestConfigParser(unittest.TestCase):
         }]
 
         config = ConfigParser(project_config.config, 'my-stack-name')
-        elb_cfg,  elb_sgs = config.elb()
+        elb_cfg, elb_sgs = config.elb()
         elb_dict = self._resources_to_dict(elb_cfg)
         sgs_dict = self._resources_to_dict(elb_sgs)
         compare(expected_sgs, sgs_dict)
@@ -508,7 +536,7 @@ class TestConfigParser(unittest.TestCase):
         wanted = ["dbhost", "dbport"]
         output_names = cfn_template['Outputs'].keys()
         output_names.sort()
-        compare(output_names, wanted)
+        compare(wanted, output_names)
 
         mappings = cfn_template['Mappings']
         expected = {
@@ -564,7 +592,7 @@ class TestConfigParser(unittest.TestCase):
         wanted = ["dbhost", "dbport"]
         output_names = cfn_template['Outputs'].keys()
         output_names.sort()
-        compare(output_names, wanted)
+        compare(wanted, output_names)
 
         mappings = cfn_template['Mappings']
         expected = {
@@ -825,7 +853,7 @@ class TestConfigParser(unittest.TestCase):
                      'InstancePort': 443,
                      'Protocol': 'TCP'
                      },
-                    ],
+                ],
                 'health_check': {
                     'HealthyThreshold': 10,
                     'Interval': 2,
@@ -945,7 +973,7 @@ class TestConfigParser(unittest.TestCase):
         tags = [
             ('Role', 'docker'),
             ('Apps', 'test'),
-            ]
+        ]
         ScalingGroup = AutoScalingGroup(
             "ScalingGroup",
             DesiredCapacity=1,

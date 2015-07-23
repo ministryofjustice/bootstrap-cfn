@@ -64,7 +64,6 @@ class CfnTestCase(unittest.TestCase):
                                   'db-master-password': 'testpassword',
                                   'db-master-username': 'testuser',
                                   'db-name': 'test',
-                                  'identifier': 'test-dev',
                                   'instance-class': 'db.t2.micro',
                                   'multi-az': False,
                                   'storage': 5,

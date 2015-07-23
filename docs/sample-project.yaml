@@ -62,7 +62,6 @@ dev:
     storage: 5
     storage-type: gp2
     backup-retention-period: 1
-    identifier: test-dev
     db-name: test
     db-master-username: testuser
     instance-class: db.t2.micro
