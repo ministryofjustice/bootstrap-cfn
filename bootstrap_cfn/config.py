@@ -88,13 +88,7 @@ class ConfigParser:
             ))
 
         if 's3' in self.data:
-            s3 = self.s3()
-            map(template.add_resource, s3)
-            template.add_output(Output(
-                "StaticBucketName",
-                Description="S3 bucket name",
-                Value=Ref("StaticBucket")
-            ))
+            self.s3(template)
 
         template = json.loads(template.to_json())
         if 'includes' in self.data:
@@ -266,7 +260,17 @@ class ConfigParser:
         # return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
         return resources
 
-    def s3(self):
+    def s3(self, template):
+        """
+        Create an s3 resource configuration from the config file data.
+        This will produce Bucket and BucketPolicy resources along with
+        the bucket name as output, these are all added to the troposphere
+        template.
+
+        Args:
+            template:
+                The cloudformation template file
+        """
         # As there are no required fields, although we may not have any
         # subkeys we still need to be able to have a parent key 's3:' to
         # signify that we want to create an s3 bucket. In this case we
@@ -293,7 +297,7 @@ class ConfigParser:
             arn = Join("", ["arn:aws:s3:::", Ref(bucket), "/*"])
             policy = {
                 'Action': ['s3:GetObject'],
-                "Resource": [arn],
+                "Resource": arn,
                 'Effect': 'Allow',
                 'Principal': '*'}
 
@@ -302,10 +306,16 @@ class ConfigParser:
             Bucket=Ref(bucket),
             PolicyDocument={"Statement": [policy]},
         )
+        # Add the bucket name to the list of cloudformation
+        # outputs
+        template.add_output(Output(
+            "StaticBucketName",
+            Description="S3 bucket name",
+            Value=Ref(bucket)
+        ))
 
-        resources = [bucket, bucket_policy]
-        # Hack until we return troposphere objects directly
-        return resources
+        # Add the resources to the troposphere template
+        map(template.add_resource, [bucket, bucket_policy])
 
     def ssl(self):
         return self.data['ssl']
