@@ -551,7 +551,7 @@ class ConfigParser:
             })
 
         if len(parts):
-            return mime_packer.pack(parts)
+            return parts
 
     HOSTNAME_BOOTHOOK_TEMPLATE = textwrap.dedent("""\
     #!/bin/sh
@@ -654,8 +654,10 @@ class ConfigParser:
             ImageId=FindInMap("AWSRegion2AMI", Ref("AWS::Region"), "AMI"),
             BlockDeviceMappings=devices,
         )
+
         user_data = self.get_ec2_userdata()
         if user_data:
+            user_data = mime_packer.pack(user_data)
             launch_config.UserData = Base64(user_data)
 
         resources.append(launch_config)
