@@ -67,7 +67,7 @@ class ELB:
                         if protocol == "HTTPS":
                             logging.info("ELB::set_ssl_certificates: "
                                          "Found HTTPS protocol on '%s', "
-                                         "updating SSL certificate with '%s'" 
+                                         "updating SSL certificate with '%s'"
                                          % (load_balancer.name, cert_arn))
                             self.conn_elb.set_lb_listener_SSL_certificate(load_balancer.name,
                                                                           out_port,
@@ -83,4 +83,3 @@ class ELB:
                                                  "No load balancers found in stack,")
 
         return updated_load_balancers
-

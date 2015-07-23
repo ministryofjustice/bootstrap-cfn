@@ -1,3 +1,8 @@
+##UNRELEASED
+
+* Use a automatic resource naming to allow S3 bucket names to be auto named
+by AWS
+
 ## Version 0.5.4
 
 * Add an SSL cipher list policy pindown: implicitly (no YAML entry needed)

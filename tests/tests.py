@@ -8,7 +8,7 @@ from mock import patch
 
 from testfixtures import compare
 
-from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Ref, awsencode, ec2, iam, rds, s3
+from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Ref, Template, awsencode, ec2, iam, rds, s3
 from troposphere.autoscaling import AutoScalingGroup, LaunchConfiguration, Tag
 from troposphere.ec2 import SecurityGroup, SecurityGroupIngress
 from troposphere.elasticloadbalancing import ConnectionDrainingPolicy, HealthCheck, LoadBalancer, Policy
@@ -119,12 +119,14 @@ class TestConfigParser(unittest.TestCase):
         bucket_ref = Ref(bucket)
 
         static_bp = s3.BucketPolicy('StaticBucketPolicy')
+        resource_value = Join("", ["arn:aws:s3:::", {"Ref": "StaticBucket"}, "/*"])
+
         static_bp.PolicyDocument = {
             'Statement': [
                 {
                     'Action': [
                         's3:GetObject'],
-                    'Resource': 'arn:aws:s3:::moj-test-dev-static/*',
+                    'Resource': resource_value,
                     'Effect': 'Allow',
                     'Principal': '*'
                 }
@@ -137,10 +139,73 @@ class TestConfigParser(unittest.TestCase):
                 'tests/sample-project.yaml',
                 'dev').config,
             'my-stack-name')
+
+        # Create S3 resources in template
+        template = Template()
+        config.s3(template)
+        resources = template.resources.values()
+
         compare(self._resources_to_dict([static_bp, bucket]),
-                self._resources_to_dict(config.s3()))
+                self._resources_to_dict(resources))
+
+        # Test for outputs
+        expected_outputs = {
+            "StaticBucketName": {
+                "Description": "S3 bucket name",
+                "Value": {"Ref": "StaticBucket"}
+            }
+        }
+        actual_outputs = self._resources_to_dict(template.outputs.values())
+        compare(expected_outputs, actual_outputs)
+
+    def test_s3_no_subkeys(self):
+        """
+        Test that a config with the s3: key alone will load
+        """
+        bucket = s3.Bucket('StaticBucket')
+        bucket.AccessControl = 'BucketOwnerFullControl'
+        bucket_ref = Ref(bucket)
+
+        static_bp = s3.BucketPolicy('StaticBucketPolicy')
+        resource_value = Join("", ["arn:aws:s3:::", {"Ref": "StaticBucket"}, "/*"])
+
+        static_bp.PolicyDocument = {
+            'Statement': [
+                {
+                    'Action': [
+                        's3:GetObject'],
+                    'Resource': resource_value,
+                    'Effect': 'Allow',
+                    'Principal': '*'
+                }
+            ]
+        }
+        static_bp.Bucket = bucket_ref
+
+        # Load project config and wipe out all s3 subkeys
+        base_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        base_config.config["s3"] = None
+        config = ConfigParser(base_config.config,
+                              'my-stack-name')
+        # Create S3 resources in template
+        template = Template()
+        config.s3(template)
+        resources = template.resources.values()
+
+        compare(self._resources_to_dict([static_bp, bucket]),
+                self._resources_to_dict(resources))
+        # Test for outputs
+        expected_outputs = {
+            "StaticBucketName": {
+                "Description": "S3 bucket name",
+                "Value": {"Ref": "StaticBucket"}
+            }
+        }
+        actual_outputs = self._resources_to_dict(template.outputs.values())
+        compare(expected_outputs, actual_outputs)
 
     def test_custom_s3_policy(self):
+        resource_value = 'arn:aws:s3:::moj-test-dev-static/*'
         expected_s3 = [
             {
                 'Action': [
@@ -148,9 +213,9 @@ class TestConfigParser(unittest.TestCase):
                     's3:Put*',
                     's3:List*',
                     's3:Delete*'],
-                'Resource': 'arn:aws:s3:::moj-test-dev-static/*',
-                            'Effect': 'Allow',
-                            'Principal': {'AWS': '*'}
+                'Resource': resource_value,
+                'Effect': 'Allow',
+                'Principal': {'AWS': '*'}
             }
         ]
 
@@ -161,11 +226,27 @@ class TestConfigParser(unittest.TestCase):
             'policy': 'tests/sample-custom-s3-policy.json'}
 
         config = ConfigParser(project_config.config, 'my-stack-name')
-        s3_cfg = self._resources_to_dict(config.s3())
+
+        # Create S3 resources in template
+        template = Template()
+        config.s3(template)
+        resources = template.resources.values()
+
+        s3_cfg = self._resources_to_dict(resources)
         s3_custom_cfg = s3_cfg['StaticBucketPolicy'][
             'Properties']['PolicyDocument']['Statement']
 
         compare(expected_s3, s3_custom_cfg)
+
+        # Test for outputs
+        expected_outputs = {
+            "StaticBucketName": {
+                "Description": "S3 bucket name",
+                "Value": {"Ref": "StaticBucket"}
+            }
+        }
+        actual_outputs = self._resources_to_dict(template.outputs.values())
+        compare(expected_outputs, actual_outputs)
 
     def test_rds(self):
         db_sg = ec2.SecurityGroup('DatabaseSG')
@@ -441,7 +522,7 @@ class TestConfigParser(unittest.TestCase):
         }]
 
         config = ConfigParser(project_config.config, 'my-stack-name')
-        elb_cfg,  elb_sgs = config.elb()
+        elb_cfg, elb_sgs = config.elb()
         elb_dict = self._resources_to_dict(elb_cfg)
         sgs_dict = self._resources_to_dict(elb_sgs)
         compare(expected_sgs, sgs_dict)
@@ -467,6 +548,10 @@ class TestConfigParser(unittest.TestCase):
             "someoutput": {
                 "Description": "For tests",
                 "Value": "BLAHBLAH"
+            },
+            "StaticBucketName": {
+                "Description": "S3 bucket name",
+                "Value": {"Ref": "StaticBucket"}
             }
         }
         config = ConfigParser(project_config.config, 'my-stack-name')
@@ -498,14 +583,14 @@ class TestConfigParser(unittest.TestCase):
             "RolePolicies", "ScalingGroup", "StaticBucket",
             "StaticBucketPolicy", "SubnetA", "SubnetB", "SubnetC",
             "SubnetRouteTableAssociationA", "SubnetRouteTableAssociationB",
-            "SubnetRouteTableAssociationC", "VPC"
+            "SubnetRouteTableAssociationC", "VPC",
         ]
 
         resource_names = cfn_template['Resources'].keys()
         resource_names.sort()
         compare(resource_names, wanted)
 
-        wanted = ["dbhost", "dbport"]
+        wanted = ["StaticBucketName", "dbhost", "dbport"]
         output_names = cfn_template['Outputs'].keys()
         output_names.sort()
         compare(output_names, wanted)
@@ -561,7 +646,7 @@ class TestConfigParser(unittest.TestCase):
         resource_names.sort()
         compare(resource_names, wanted)
 
-        wanted = ["dbhost", "dbport"]
+        wanted = ["StaticBucketName", "dbhost", "dbport"]
         output_names = cfn_template['Outputs'].keys()
         output_names.sort()
         compare(output_names, wanted)
@@ -825,7 +910,7 @@ class TestConfigParser(unittest.TestCase):
                      'InstancePort': 443,
                      'Protocol': 'TCP'
                      },
-                    ],
+                ],
                 'health_check': {
                     'HealthyThreshold': 10,
                     'Interval': 2,
@@ -945,7 +1030,7 @@ class TestConfigParser(unittest.TestCase):
         tags = [
             ('Role', 'docker'),
             ('Apps', 'test'),
-            ]
+        ]
         ScalingGroup = AutoScalingGroup(
             "ScalingGroup",
             DesiredCapacity=1,

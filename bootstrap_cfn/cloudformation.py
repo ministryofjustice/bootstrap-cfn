@@ -58,11 +58,28 @@ class Cloudformation:
             load_balancers: Set of stack resources containing only
                 load balancers for this stack
         """
+        resource_type = 'AWS::ElasticLoadBalancing::LoadBalancer'
+        return self.get_resource_type(stack_name_or_id, resource_type)
+
+    def get_resource_type(self, stack_name_or_id, resource_type=None):
+        """
+        Collect up a set of specific stack resources
+
+        Args:
+            stack_name_or_id (string): Name or id used to identify the stack
+            resource_type(string): The resource type identifier
+
+        Returns:
+            resources: Set of stack resources containing only
+                the resource type for this stack
+        """
         # get the stack
-        load_balancers = []
+        resources = []
         stack = self.conn_cfn.describe_stacks(stack_name_or_id)
         if stack:
-            fn = lambda x: x.resource_type == 'AWS::ElasticLoadBalancing::LoadBalancer'
-            # get the load balancers group
-            load_balancers = filter(fn, stack[0].list_resources())
-        return load_balancers
+            resources = stack[0].list_resources()
+            if resource_type:
+                # get the resources
+                resources = filter(lambda x: x.resource_type == resource_type,
+                                   resources)
+        return resources
