@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import email
 import json
 import unittest
 from StringIO import StringIO
@@ -18,6 +17,7 @@ from troposphere.route53 import RecordSetGroup
 import yaml
 
 from bootstrap_cfn import errors
+from bootstrap_cfn import mime_packer
 from bootstrap_cfn.config import ConfigParser, ProjectConfig
 
 
@@ -1132,14 +1132,14 @@ class TestConfigParser(unittest.TestCase):
             IamInstanceProfile=Ref("InstanceProfile"),
             InstanceType="t2.micro",
             AssociatePublicIpAddress="true",
-            UserData=Base64("Mock Userdata String"),
+            UserData=Base64("Mock String"),
         )
 
-        with patch.object(config, "get_ec2_userdata", return_value="Mock Userdata String"):
-            ec2_json = self._resources_to_dict(config.ec2())
-            expected = self._resources_to_dict([BaseHostLaunchConfig])
-            compare(ec2_json['BaseHostLaunchConfig'], expected['BaseHostLaunchConfig'])
-            pass
+        with patch.object(config, "get_ec2_userdata", return_value="Mock String"):
+            with patch.object(mime_packer, "pack", side_effect=lambda x: x):
+                ec2_json = self._resources_to_dict(config.ec2())
+                expected = self._resources_to_dict([BaseHostLaunchConfig])
+                compare(ec2_json['BaseHostLaunchConfig'], expected['BaseHostLaunchConfig'])
 
     def test_get_ec2_userdata(self):
         data = {
@@ -1148,24 +1148,10 @@ class TestConfigParser(unittest.TestCase):
             }
         }
         config = ConfigParser(data, environment="env", application="test", stack_name="my-stack")
-
         with patch.object(config, 'get_hostname_boothook', return_value={"content": "sentinel"}) as mock_boothook:
-            # This test is slightly silly as we are testing the decoding with
-            # the same code as the generator... but it's that or we test it
-            # with regexp.
-            mime_text = config.get_ec2_userdata()
-
+            compare(yaml.load(config.get_ec2_userdata()[1]['content']), data['ec2']['cloud_config'])
             mock_boothook.assert_called_once_with(data['ec2'])
-
-            parts = [part for part in email.message_from_string(mime_text).walk()]
-
-            compare(
-                [part.get_content_type() for part in parts],
-                ["multipart/mixed", "text/plain", "text/cloud-config"],
-                prefix="Userdata parts are in expected order")
-
-            compare(parts[1].get_payload(), "sentinel")
-            compare(yaml.load(parts[2].get_payload()), data['ec2']['cloud_config'])
+            compare(config.get_ec2_userdata()[0]['content'], 'sentinel')
 
     def test_get_hostname_boothook(self):
         config = ConfigParser({}, environment="env", application="test", stack_name="my-stack")
