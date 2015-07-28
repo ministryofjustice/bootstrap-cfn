@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import sys
-
 import textwrap
 
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
@@ -74,18 +73,7 @@ class ConfigParser(object):
             template = self._attach_elbs(template)
 
         if 'rds' in self.data:
-            rds = self.rds()
-            map(template.add_resource, rds)
-            template.add_output(Output(
-                "dbhost",
-                Description="RDS Hostname",
-                Value=GetAtt("RDSInstance", "Endpoint.Address")
-            ))
-            template.add_output(Output(
-                "dbport",
-                Description="RDS Port",
-                Value=GetAtt("RDSInstance", "Endpoint.Port")
-            ))
+            self.rds(template)
 
         if 's3' in self.data:
             self.s3(template)
@@ -320,7 +308,16 @@ class ConfigParser(object):
     def ssl(self):
         return self.data['ssl']
 
-    def rds(self):
+    def rds(self, template):
+        """
+        Create an RDS resource configuration from the config file data
+        and add it to the troposphere template. Outputs for the RDS name,
+        host and port are created.
+
+        Args:
+            template:
+                The cloudformation template file
+        """
         # REQUIRED FIELDS MAPPING
         required_fields = {
             'db-name': 'DBName',
@@ -329,7 +326,6 @@ class ConfigParser(object):
             'backup-retention-period': 'BackupRetentionPeriod',
             'db-master-username': 'MasterUsername',
             'db-master-password': 'MasterUserPassword',
-            'identifier': 'DBInstanceIdentifier',
             'db-engine': 'Engine',
             'db-engine-version': 'EngineVersion',
             'instance-class': 'DBInstanceClass',
@@ -338,6 +334,7 @@ class ConfigParser(object):
 
         optional_fields = {
             'storage-encrypted': 'StorageEncrypted',
+            'identifier': 'DBInstanceIdentifier'
         }
 
         # LOAD STACK TEMPLATE
@@ -390,7 +387,18 @@ class ConfigParser(object):
             if yaml_key in self.data['rds']:
                 rds_instance.__setattr__(rds_prop, self.data['rds'][yaml_key])
 
-        return resources
+        # Add resources and outputs
+        map(template.add_resource, resources)
+        template.add_output(Output(
+            "dbhost",
+            Description="RDS Hostname",
+            Value=GetAtt(rds_instance, "Endpoint.Address")
+        ))
+        template.add_output(Output(
+            "dbport",
+            Description="RDS Port",
+            Value=GetAtt(rds_instance, "Endpoint.Port")
+        ))
 
     def elb(self):
         # REQUIRED FIELDS AND MAPPING

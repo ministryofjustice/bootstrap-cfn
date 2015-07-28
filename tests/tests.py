@@ -280,7 +280,6 @@ class TestConfigParser(unittest.TestCase):
         db_instance.AutoMinorVersionUpgrade = False
         db_instance.BackupRetentionPeriod = 1
         db_instance.DBInstanceClass = 'db.t2.micro'
-        db_instance.DBInstanceIdentifier = 'test-dev'
         db_instance.Engine = 'postgres'
         db_instance.EngineVersion = '9.3.5'
         db_instance.VPCSecurityGroups = [GetAtt(db_sg, 'GroupId')]
@@ -293,9 +292,39 @@ class TestConfigParser(unittest.TestCase):
                 'tests/sample-project.yaml',
                 'dev',
                 'tests/sample-project-passwords.yaml').config, 'my-stack-name')
-        rds_dict = self._resources_to_dict(config.rds())
+
+        template = Template()
+        config.rds(template)
+        resources = template.resources.values()
+        rds_dict = self._resources_to_dict(resources)
+        # RDS dict will contain DBIdentifier, which is random.
+        # So we check it seperately here then remove it
+        self.assertTrue("DBInstanceIdentifier" in rds_dict["RDSInstance"]["Properties"],
+                        "test_rds: template does not contain DBInstanceIdentifier")
+        identifier = rds_dict["RDSInstance"]["Properties"]["DBInstanceIdentifier"]
+        # Identifier can be optionally be defined in the yaml template for compatibility.
+        # We're only testing the case where it's defined. If left undefined AWS will
+        # generate a random one.
+        self.assertEquals(identifier, 'test-dev')
+        rds_dict["RDSInstance"]["Properties"].pop("DBInstanceIdentifier")
         known = self._resources_to_dict(known)
         compare(known, rds_dict)
+
+        # Test for outputs
+        expected_outputs = {
+            "dbhost": {
+                "Description": "RDS Hostname",
+                "Value": {"Fn::GetAtt": ["RDSInstance", "Endpoint.Address"]}
+            },
+            "dbport": {
+                "Description": "RDS Port",
+                "Value": {
+                    "Fn::GetAtt": ["RDSInstance", "Endpoint.Port"]
+                }
+            }
+        }
+        actual_outputs = self._resources_to_dict(template.outputs.values())
+        compare(expected_outputs, actual_outputs)
 
     def test_elb(self):
         known = []
@@ -593,7 +622,7 @@ class TestConfigParser(unittest.TestCase):
         wanted = ["StaticBucketName", "dbhost", "dbport"]
         output_names = cfn_template['Outputs'].keys()
         output_names.sort()
-        compare(output_names, wanted)
+        compare(wanted, output_names)
 
         mappings = cfn_template['Mappings']
         expected = {
@@ -649,7 +678,7 @@ class TestConfigParser(unittest.TestCase):
         wanted = ["StaticBucketName", "dbhost", "dbport"]
         output_names = cfn_template['Outputs'].keys()
         output_names.sort()
-        compare(output_names, wanted)
+        compare(wanted, output_names)
 
         mappings = cfn_template['Mappings']
         expected = {
