@@ -1,4 +1,4 @@
-## Unreleased
+## Version 0.5.5
 * Make it possible to override the ConfigParser so that sub-modules can update the CloudFormation config.
 * Use a automatic resource naming to allow S3 bucket names to be auto named by AWS
 * Added a new task `display_elb_dns_entries` to show the DNS name of each ELB in a stack
