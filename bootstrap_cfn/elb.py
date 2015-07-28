@@ -3,7 +3,7 @@ import logging
 import boto.ec2.elb
 
 from bootstrap_cfn import cloudformation, iam, utils
-from bootstrap_cfn.errors import CloudResourceNotFoundError
+from bootstrap_cfn.errors import BootstrapCfnError, CloudResourceNotFoundError
 
 
 class ELB:
@@ -67,7 +67,7 @@ class ELB:
                         if protocol == "HTTPS":
                             logging.info("ELB::set_ssl_certificates: "
                                          "Found HTTPS protocol on '%s', "
-                                         "updating SSL certificate with '%s'" 
+                                         "updating SSL certificate with '%s'"
                                          % (load_balancer.name, cert_arn))
                             self.conn_elb.set_lb_listener_SSL_certificate(load_balancer.name,
                                                                           out_port,
@@ -84,3 +84,28 @@ class ELB:
 
         return updated_load_balancers
 
+    def list_domain_names(self, stack_name):
+        """
+        Return a list of dicts, each containing the ELB name and corresponding DNS Name for
+        each ELB in a given environment.
+
+        Args:
+            stack name
+
+        Returns:
+            list of dict: [{'elb_name': string, 'dns_name': string}]
+
+        Raises:
+            The boto call raises self.ResponseError(response.status, response.reason, body)
+            if the AWS call returns an error, for example if the ELB name does not exist
+        """
+        lb_name_dns = []
+        load_balancer_resources = self.cfn.get_stack_load_balancers(stack_name)
+        lb_ids = [l.physical_resource_id for l in load_balancer_resources]
+        if not lb_ids:
+            raise BootstrapCfnError("No ELBs found for stack %s" % stack_name)
+        lbs_details = self.conn_elb.get_all_load_balancers(load_balancer_names=lb_ids)
+        if not lbs_details:
+            raise BootstrapCfnError("No ELBs details returned by AWS")
+        lb_name_dns = [{'elb_name': l.name, 'dns_name': l.dns_name} for l in lbs_details]
+        return lb_name_dns

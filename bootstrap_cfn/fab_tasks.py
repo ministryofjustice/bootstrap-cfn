@@ -271,7 +271,8 @@ def get_config():
         env.environment,
         passwords=env.stack_passwords)
 
-    cfn_config = ConfigParser(project_config.config, get_stack_name(), environment=env.environment, application=env.application)
+    Parser = env.get('cloudformation_parser', ConfigParser)
+    cfn_config = Parser(project_config.config, get_stack_name(), environment=env.environment, application=env.application)
     return cfn_config
 
 
@@ -420,3 +421,16 @@ def get_cloudformation_tags():
     return {
         "Env": env.environment,
     }
+
+
+@task
+def display_elb_dns_entries():
+    """
+    Prints out the ELB name(s) and the corresponding DNS name(s) for every ELB
+    in the environment provided.
+    """
+    stack_name = get_stack_name()
+    elb = get_connection(ELB)
+    elb_dns_list = elb.list_domain_names(stack_name)
+    for elb_dns in elb_dns_list:
+        print "\n\nELB name: {0}        DNS: {1}".format(elb_dns['elb_name'], elb_dns['dns_name'])

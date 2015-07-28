@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import email
 import json
 import unittest
 from StringIO import StringIO
@@ -18,6 +17,7 @@ from troposphere.route53 import RecordSetGroup
 import yaml
 
 from bootstrap_cfn import errors
+from bootstrap_cfn import mime_packer
 from bootstrap_cfn.config import ConfigParser, ProjectConfig
 
 
@@ -119,12 +119,14 @@ class TestConfigParser(unittest.TestCase):
         bucket_ref = Ref(bucket)
 
         static_bp = s3.BucketPolicy('StaticBucketPolicy')
+        resource_value = Join("", ["arn:aws:s3:::", {"Ref": "StaticBucket"}, "/*"])
+
         static_bp.PolicyDocument = {
             'Statement': [
                 {
                     'Action': [
                         's3:GetObject'],
-                    'Resource': 'arn:aws:s3:::moj-test-dev-static/*',
+                    'Resource': resource_value,
                     'Effect': 'Allow',
                     'Principal': '*'
                 }
@@ -137,10 +139,73 @@ class TestConfigParser(unittest.TestCase):
                 'tests/sample-project.yaml',
                 'dev').config,
             'my-stack-name')
+
+        # Create S3 resources in template
+        template = Template()
+        config.s3(template)
+        resources = template.resources.values()
+
         compare(self._resources_to_dict([static_bp, bucket]),
-                self._resources_to_dict(config.s3()))
+                self._resources_to_dict(resources))
+
+        # Test for outputs
+        expected_outputs = {
+            "StaticBucketName": {
+                "Description": "S3 bucket name",
+                "Value": {"Ref": "StaticBucket"}
+            }
+        }
+        actual_outputs = self._resources_to_dict(template.outputs.values())
+        compare(expected_outputs, actual_outputs)
+
+    def test_s3_no_subkeys(self):
+        """
+        Test that a config with the s3: key alone will load
+        """
+        bucket = s3.Bucket('StaticBucket')
+        bucket.AccessControl = 'BucketOwnerFullControl'
+        bucket_ref = Ref(bucket)
+
+        static_bp = s3.BucketPolicy('StaticBucketPolicy')
+        resource_value = Join("", ["arn:aws:s3:::", {"Ref": "StaticBucket"}, "/*"])
+
+        static_bp.PolicyDocument = {
+            'Statement': [
+                {
+                    'Action': [
+                        's3:GetObject'],
+                    'Resource': resource_value,
+                    'Effect': 'Allow',
+                    'Principal': '*'
+                }
+            ]
+        }
+        static_bp.Bucket = bucket_ref
+
+        # Load project config and wipe out all s3 subkeys
+        base_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        base_config.config["s3"] = None
+        config = ConfigParser(base_config.config,
+                              'my-stack-name')
+        # Create S3 resources in template
+        template = Template()
+        config.s3(template)
+        resources = template.resources.values()
+
+        compare(self._resources_to_dict([static_bp, bucket]),
+                self._resources_to_dict(resources))
+        # Test for outputs
+        expected_outputs = {
+            "StaticBucketName": {
+                "Description": "S3 bucket name",
+                "Value": {"Ref": "StaticBucket"}
+            }
+        }
+        actual_outputs = self._resources_to_dict(template.outputs.values())
+        compare(expected_outputs, actual_outputs)
 
     def test_custom_s3_policy(self):
+        resource_value = 'arn:aws:s3:::moj-test-dev-static/*'
         expected_s3 = [
             {
                 'Action': [
@@ -148,9 +213,9 @@ class TestConfigParser(unittest.TestCase):
                     's3:Put*',
                     's3:List*',
                     's3:Delete*'],
-                'Resource': 'arn:aws:s3:::moj-test-dev-static/*',
-                            'Effect': 'Allow',
-                            'Principal': {'AWS': '*'}
+                'Resource': resource_value,
+                'Effect': 'Allow',
+                'Principal': {'AWS': '*'}
             }
         ]
 
@@ -161,11 +226,27 @@ class TestConfigParser(unittest.TestCase):
             'policy': 'tests/sample-custom-s3-policy.json'}
 
         config = ConfigParser(project_config.config, 'my-stack-name')
-        s3_cfg = self._resources_to_dict(config.s3())
+
+        # Create S3 resources in template
+        template = Template()
+        config.s3(template)
+        resources = template.resources.values()
+
+        s3_cfg = self._resources_to_dict(resources)
         s3_custom_cfg = s3_cfg['StaticBucketPolicy'][
             'Properties']['PolicyDocument']['Statement']
 
         compare(expected_s3, s3_custom_cfg)
+
+        # Test for outputs
+        expected_outputs = {
+            "StaticBucketName": {
+                "Description": "S3 bucket name",
+                "Value": {"Ref": "StaticBucket"}
+            }
+        }
+        actual_outputs = self._resources_to_dict(template.outputs.values())
+        compare(expected_outputs, actual_outputs)
 
     def test_rds(self):
         db_sg = ec2.SecurityGroup('DatabaseSG')
@@ -495,6 +576,10 @@ class TestConfigParser(unittest.TestCase):
             "someoutput": {
                 "Description": "For tests",
                 "Value": "BLAHBLAH"
+            },
+            "StaticBucketName": {
+                "Description": "S3 bucket name",
+                "Value": {"Ref": "StaticBucket"}
             }
         }
         config = ConfigParser(project_config.config, 'my-stack-name')
@@ -526,14 +611,14 @@ class TestConfigParser(unittest.TestCase):
             "RolePolicies", "ScalingGroup", "StaticBucket",
             "StaticBucketPolicy", "SubnetA", "SubnetB", "SubnetC",
             "SubnetRouteTableAssociationA", "SubnetRouteTableAssociationB",
-            "SubnetRouteTableAssociationC", "VPC"
+            "SubnetRouteTableAssociationC", "VPC",
         ]
 
         resource_names = cfn_template['Resources'].keys()
         resource_names.sort()
         compare(resource_names, wanted)
 
-        wanted = ["dbhost", "dbport"]
+        wanted = ["StaticBucketName", "dbhost", "dbport"]
         output_names = cfn_template['Outputs'].keys()
         output_names.sort()
         compare(wanted, output_names)
@@ -589,7 +674,7 @@ class TestConfigParser(unittest.TestCase):
         resource_names.sort()
         compare(resource_names, wanted)
 
-        wanted = ["dbhost", "dbport"]
+        wanted = ["StaticBucketName", "dbhost", "dbport"]
         output_names = cfn_template['Outputs'].keys()
         output_names.sort()
         compare(wanted, output_names)
@@ -1075,14 +1160,14 @@ class TestConfigParser(unittest.TestCase):
             IamInstanceProfile=Ref("InstanceProfile"),
             InstanceType="t2.micro",
             AssociatePublicIpAddress="true",
-            UserData=Base64("Mock Userdata String"),
+            UserData=Base64("Mock String"),
         )
 
-        with patch.object(config, "get_ec2_userdata", return_value="Mock Userdata String"):
-            ec2_json = self._resources_to_dict(config.ec2())
-            expected = self._resources_to_dict([BaseHostLaunchConfig])
-            compare(ec2_json['BaseHostLaunchConfig'], expected['BaseHostLaunchConfig'])
-            pass
+        with patch.object(config, "get_ec2_userdata", return_value="Mock String"):
+            with patch.object(mime_packer, "pack", side_effect=lambda x: x):
+                ec2_json = self._resources_to_dict(config.ec2())
+                expected = self._resources_to_dict([BaseHostLaunchConfig])
+                compare(ec2_json['BaseHostLaunchConfig'], expected['BaseHostLaunchConfig'])
 
     def test_get_ec2_userdata(self):
         data = {
@@ -1091,24 +1176,10 @@ class TestConfigParser(unittest.TestCase):
             }
         }
         config = ConfigParser(data, environment="env", application="test", stack_name="my-stack")
-
         with patch.object(config, 'get_hostname_boothook', return_value={"content": "sentinel"}) as mock_boothook:
-            # This test is slightly silly as we are testing the decoding with
-            # the same code as the generator... but it's that or we test it
-            # with regexp.
-            mime_text = config.get_ec2_userdata()
-
+            compare(yaml.load(config.get_ec2_userdata()[1]['content']), data['ec2']['cloud_config'])
             mock_boothook.assert_called_once_with(data['ec2'])
-
-            parts = [part for part in email.message_from_string(mime_text).walk()]
-
-            compare(
-                [part.get_content_type() for part in parts],
-                ["multipart/mixed", "text/plain", "text/cloud-config"],
-                prefix="Userdata parts are in expected order")
-
-            compare(parts[1].get_payload(), "sentinel")
-            compare(yaml.load(parts[2].get_payload()), data['ec2']['cloud_config'])
+            compare(config.get_ec2_userdata()[0]['content'], 'sentinel')
 
     def test_get_hostname_boothook(self):
         config = ConfigParser({}, environment="env", application="test", stack_name="my-stack")
