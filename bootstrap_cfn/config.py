@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 import textwrap
-import uuid
 
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
 from troposphere.autoscaling import AutoScalingGroup, BlockDeviceMapping, \
@@ -335,6 +334,7 @@ class ConfigParser(object):
 
         optional_fields = {
             'storage-encrypted': 'StorageEncrypted',
+            'identifier': 'DBInstanceIdentifier'
         }
 
         # LOAD STACK TEMPLATE
@@ -363,10 +363,6 @@ class ConfigParser(object):
         )
         resources.append(database_sg)
 
-        identifier = ("RDS%s%s"
-                      % ((self.stack_name).replace('-', '').replace('.', '').replace('_', ''),
-                         uuid.uuid4().__str__()[-8:]))
-
         rds_instance = DBInstance(
             "RDSInstance",
             PubliclyAccessible=False,
@@ -374,7 +370,6 @@ class ConfigParser(object):
             AutoMinorVersionUpgrade=False,
             VPCSecurityGroups=[GetAtt(database_sg, "GroupId")],
             DBSubnetGroupName=Ref(rds_subnet_group),
-            DBInstanceIdentifier=identifier,
             StorageEncrypted=False,
             DependsOn=database_sg.title
         )

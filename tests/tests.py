@@ -302,9 +302,10 @@ class TestConfigParser(unittest.TestCase):
         self.assertTrue("DBInstanceIdentifier" in rds_dict["RDSInstance"]["Properties"],
                         "test_rds: template does not contain DBInstanceIdentifier")
         identifier = rds_dict["RDSInstance"]["Properties"]["DBInstanceIdentifier"]
-        # identifier starts RDS and contains an 8 char uuid plus stack name
-        # so this should always be true
-        self.assertTrue(len(identifier) >= 12)
+        # Identifier can be optionally be defined in the yaml template for compatibility.
+        # We're only testing the case where it's defined. If left undefined AWS will
+        # generate a random one.
+        self.assertEquals(identifier, 'test-dev')
         rds_dict["RDSInstance"]["Properties"].pop("DBInstanceIdentifier")
         known = self._resources_to_dict(known)
         compare(known, rds_dict)
