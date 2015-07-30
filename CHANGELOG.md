@@ -6,6 +6,12 @@
   This is used by bootstrap-salt to remove a file that it places and manages
   in an S3 bucket so that the stack can be cleanly deleted.
 
+* Let Cloudformation name the ELBs automatically to make creating multiple
+  stacks easier.
+
+  The 'name' parameter in each load balancer config is now only used to
+  generate the DNS entries.
+
 ## Version 0.5.6
 * Automaticly generate the RDS identifier
 
