@@ -282,7 +282,7 @@ def get_connection(klass):
 
 
 @task
-def cfn_delete(force=False):
+def cfn_delete(force=False, pre_delete_callbacks=None):
     """
     Delete the AWS Cloudformation stack
 
@@ -291,6 +291,10 @@ def cfn_delete(force=False):
     Args:
         force(bool): True to destroy the stack without any further
             input, False to require confirmation before deletion
+        pre_delete_callbacks(list of callables): callable to invoke before
+            trying to run the DeleteStack call. Each callback is called with
+            kwargs of ``stack_name``, and ``config``. (Python only, not setable from
+            command line)
     """
     if not force:
         x = raw_input("Are you really sure you want to blow away the whole stack!? (y/n)\n")
@@ -299,8 +303,14 @@ def cfn_delete(force=False):
     stack_name = get_stack_name()
     cfn_config = get_config()
     cfn = get_connection(Cloudformation)
-    cfn.delete(stack_name)
+
+    if pre_delete_callbacks is not None:
+        for callback in pre_delete_callbacks:
+            callback(stack_name=stack_name, config=cfn_config)
+
     print green("\nSTACK {0} DELETING...\n").format(stack_name)
+
+    cfn.delete(stack_name)
 
     if not env.blocking:
         print 'Running in non blocking mode. Exiting.'
