@@ -1294,9 +1294,26 @@ class TestConfigParser(unittest.TestCase):
         }
         config = ConfigParser(data, environment="env", application="test", stack_name="my-stack")
         with patch.object(config, 'get_hostname_boothook', return_value={"content": "sentinel"}) as mock_boothook:
-            compare(yaml.load(config.get_ec2_userdata()[1]['content']), data['ec2']['cloud_config'])
+            user_data_parts = config.get_ec2_userdata()
             mock_boothook.assert_called_once_with(data['ec2'])
-            compare(config.get_ec2_userdata()[0]['content'], 'sentinel')
+
+            compare(yaml.load(user_data_parts[1]['content']), data['ec2']['cloud_config'])
+            compare(user_data_parts[0]['content'], 'sentinel')
+
+    def test_get_ec2_userdata_no_cloud_config(self):
+        # If there is no cloud config we should get a default
+        # 'manage_etc_hosts' because of the default hostname pattern
+        data = {
+            'ec2': {
+            }
+        }
+        config = ConfigParser(data, environment="env", application="test", stack_name="my-stack")
+        with patch.object(config, 'get_hostname_boothook', return_value={"content": "sentinel"}) as mock_boothook:
+            user_data_parts = config.get_ec2_userdata()
+            mock_boothook.assert_called_once_with(data['ec2'])
+
+            compare(yaml.load(user_data_parts[1]['content']), {'manage_etc_hosts': True})
+            compare(user_data_parts[0]['content'], 'sentinel')
 
     def test_get_hostname_boothook(self):
         config = ConfigParser({}, environment="env", application="test", stack_name="my-stack")

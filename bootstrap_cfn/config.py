@@ -595,6 +595,14 @@ class ConfigParser(object):
                 'content': yaml.dump(data['cloud_config']),
                 'mime_type': 'text/cloud-config'
             })
+        elif boothook:
+            # If the hostname boothook is specified then make sure we include
+            # the 'manage_hostname' cloud-init config so that `sudo` doesn't
+            # complaint about unable to resolve host name
+            parts.append({
+                'content': yaml.dump({'manage_etc_hosts': True}),
+                'mime_type': 'text/cloud-config'
+            })
 
         if len(parts):
             return parts
@@ -632,6 +640,15 @@ class ConfigParser(object):
             raise errors.CfnHostnamePatternError("Error interpolating hostname_pattern '{pattern}' - {key} is not a valid interpolation".format(
                 pattern=hostname_pattern,
                 key=e.args[0]))
+
+        # Warn the user that they probably want to set 'manage_etc_hosts'
+        if "cloud_config" in data and "manage_etc_hosts" not in data['cloud_config']:
+            logging.warning(
+                "config: 'hostname_pattern' boothook is being " +
+                "generated but 'manage_etc_hosts' has not been specified in " +
+                "'cloud_config' -- you probably want to specify this as True " +
+                "otherwise you will get hostname resolution errors."
+            )
 
         return {
             'mime_type': 'text/cloud-boothook',
