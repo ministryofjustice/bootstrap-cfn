@@ -67,10 +67,7 @@ class ConfigParser(object):
         map(template.add_resource, ec2)
 
         if 'elb' in self.data:
-            elbs, sgs = self.elb()
-            map(template.add_resource, elbs)
-            map(template.add_resource, sgs)
-            template = self._attach_elbs(template)
+            self.elb(template)
 
         if 'rds' in self.data:
             self.rds(template)
@@ -257,7 +254,7 @@ class ConfigParser(object):
 
         Args:
             template:
-                The cloudformation template file
+                The troposphere.Template object
         """
         # As there are no required fields, although we may not have any
         # subkeys we still need to be able to have a parent key 's3:' to
@@ -311,12 +308,12 @@ class ConfigParser(object):
     def rds(self, template):
         """
         Create an RDS resource configuration from the config file data
-        and add it to the troposphere template. Outputs for the RDS name,
+        and add it to the  troposphere.Template. Outputs for the RDS name,
         host and port are created.
 
         Args:
             template:
-                The cloudformation template file
+                The troposphere.Template object
         """
         # REQUIRED FIELDS MAPPING
         required_fields = {
@@ -400,12 +397,23 @@ class ConfigParser(object):
             Value=GetAtt(rds_instance, "Endpoint.Port")
         ))
 
-    def elb(self):
+    def elb(self, template):
+        """
+        Create an ELB resource configuration from the config file data
+        and add them to the troposphere template. Outputs for each ELB's
+        DNSName are created.
+
+        Args:
+            template:
+                The cloudformation template file
+        """
         # REQUIRED FIELDS AND MAPPING
+        # Note, 'name' field is used internally to help label
+        # logical ids, and as part of the DNS record name.
         required_fields = {
             'listeners': 'Listeners',
             'scheme': 'Scheme',
-            'name': 'LoadBalancerName',
+            'name': None,
             'hosted_zone': 'HostedZoneName'
         }
 
@@ -425,7 +433,6 @@ class ConfigParser(object):
                 Subnets=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
                 Listeners=elb['listeners'],
                 Scheme=elb['scheme'],
-                LoadBalancerName=self._get_elb_canonical_name(elb['name']),
                 ConnectionDrainingPolicy=ConnectionDrainingPolicy(
                     Enabled=True,
                     Timeout=120,
@@ -502,7 +509,8 @@ class ConfigParser(object):
                             Ref("AWS::Region"),
                             ":",
                             Ref("AWS::AccountId"),
-                            ':loadbalancer/%s' % load_balancer.LoadBalancerName
+                            ':loadbalancer/',
+                            Ref(load_balancer)
                         ])
                     ],
                     "Effect": "Allow"}
@@ -544,7 +552,20 @@ class ConfigParser(object):
                 )
                 load_balancer.SecurityGroups = [Ref(sg)]
                 elb_sgs.append(sg)
-        return elb_list, elb_sgs
+
+            # Add outputs
+            output_name = "ELB" + safe_name
+            logging.debug("config:elb:Adding output to ELB '%s'" % (output_name))
+            template.add_output(Output(
+                output_name,
+                Description="ELB DNSName",
+                Value=GetAtt(load_balancer, "DNSName")
+            ))
+
+        # Update template with ELB resources
+        map(template.add_resource, elb_list)
+        map(template.add_resource, elb_sgs)
+        template = self._attach_elbs(template)
 
     def _convert_ref_dict_to_objects(self, o):
         """
@@ -725,10 +746,10 @@ class ConfigParser(object):
             return template
         asgs = self._find_resources(template,
                                     'AWS::AutoScaling::AutoScalingGroup')
-        elbs = self._find_resources(template,
-                                    'AWS::ElasticLoadBalancing::LoadBalancer')
-
-        asgs[0].LoadBalancerNames = [x.LoadBalancerName for x in elbs]
-        template.resources[asgs[0].title] = asgs[0]
+        if len(asgs) > 0:
+            elbs = self._find_resources(template,
+                                        'AWS::ElasticLoadBalancing::LoadBalancer')
+            asgs[0].LoadBalancerNames = [Ref(x) for x in elbs]
+            template.resources[asgs[0].title] = asgs[0]
 
         return template

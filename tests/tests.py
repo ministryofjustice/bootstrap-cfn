@@ -343,7 +343,6 @@ class TestConfigParser(unittest.TestCase):
                 }
             ],
             SecurityGroups=[Ref("DefaultSGtestdevinternal")],
-            LoadBalancerName="ELB-test-dev-internal",
             Scheme="internal",
             Policies=[
                 Policy(
@@ -368,7 +367,8 @@ class TestConfigParser(unittest.TestCase):
                                 "", ["arn:aws:elasticloadbalancing:",
                                      Ref("AWS::Region"), ":",
                                      Ref("AWS::AccountId"),
-                                     ":loadbalancer/ELB-test-dev-external"]
+                                     ":loadbalancer/",
+                                     {"Ref": "ELBtestdevexternal"}]
                             )],
                         "Effect": "Allow"}
                 ]
@@ -390,7 +390,8 @@ class TestConfigParser(unittest.TestCase):
                                 Join("", ["arn:aws:elasticloadbalancing:",
                                           Ref("AWS::Region"), ":",
                                           Ref("AWS::AccountId"),
-                                          ":loadbalancer/ELB-test-dev-internal"]
+                                          ":loadbalancer/",
+                                          {"Ref": "ELBtestdevinternal"}]
                                      )
                             ],
                         "Effect": "Allow"
@@ -450,7 +451,6 @@ class TestConfigParser(unittest.TestCase):
                  "Protocol": "TCP"}
             ],
             SecurityGroups=[Ref("DefaultSGtestdevexternal")],
-            LoadBalancerName="ELB-test-dev-external",
             Scheme="internet-facing",
             Policies=[
                 Policy(
@@ -460,7 +460,10 @@ class TestConfigParser(unittest.TestCase):
                 )
             ],
         )
-        known = [lb, lb2, pt1, pt2, rs, rsg]
+        known_load_balancer_resources = [lb, lb2]
+        known_policy_type_resources = [pt1, pt2]
+        known_record_set_resources = [rs, rsg]
+
         expected_sgs = [
             SecurityGroup(
                 "DefaultSGtestdevexternal",
@@ -502,13 +505,46 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'tests/sample-project.yaml',
                 'dev').config, 'my-stack-name')
-        elb_cfg, elb_sgs = config.elb()
 
-        compare(self._resources_to_dict(known),
+        # Create elb resources with template
+        template = Template()
+        config.elb(template)
+        elb_cfg = config._find_resources(template, "AWS::ElasticLoadBalancing::LoadBalancer")
+        elb_pt = config._find_resources(template, "AWS::IAM::Policy")
+        elb_rsg = config._find_resources(template, "AWS::Route53::RecordSetGroup")
+        elb_sgs = config._find_resources(template, "AWS::EC2::SecurityGroup")
+
+        compare(self._resources_to_dict(known_load_balancer_resources),
                 self._resources_to_dict(elb_cfg))
-
+        compare(self._resources_to_dict(known_policy_type_resources),
+                self._resources_to_dict(elb_pt))
+        compare(self._resources_to_dict(known_record_set_resources),
+                self._resources_to_dict(elb_rsg))
         compare(self._resources_to_dict(expected_sgs),
                 self._resources_to_dict(elb_sgs))
+        # Test for outputs
+        expected_outputs = {
+            "ELBtestdevexternal": {
+                "Description": "ELB DNSName",
+                "Value": {
+                    "Fn::GetAtt": [
+                        "ELBtestdevexternal",
+                        "DNSName"
+                    ]
+                }
+            },
+            "ELBtestdevinternal": {
+                "Description": "ELB DNSName",
+                "Value": {
+                    "Fn::GetAtt": [
+                        "ELBtestdevinternal",
+                        "DNSName"
+                    ]
+                }
+            }
+        }
+        actual_outputs = self._resources_to_dict(template.outputs.values())
+        compare(expected_outputs, actual_outputs)
 
     def test_elb_custom_sg(self):
 
@@ -551,7 +587,13 @@ class TestConfigParser(unittest.TestCase):
         }]
 
         config = ConfigParser(project_config.config, 'my-stack-name')
-        elb_cfg, elb_sgs = config.elb()
+
+        # Create elb resources with template
+        template = Template()
+        config.elb(template)
+        elb_cfg = config._find_resources(template, "AWS::ElasticLoadBalancing::LoadBalancer")
+        elb_sgs = config._find_resources(template, "AWS::EC2::SecurityGroup")
+
         elb_dict = self._resources_to_dict(elb_cfg)
         sgs_dict = self._resources_to_dict(elb_sgs)
         compare(expected_sgs, sgs_dict)
@@ -581,6 +623,14 @@ class TestConfigParser(unittest.TestCase):
             "StaticBucketName": {
                 "Description": "S3 bucket name",
                 "Value": {"Ref": "StaticBucket"}
+            },
+            "ELBtestdevexternal": {
+                "Description": "ELB DNSName",
+                "Value": {"Fn::GetAtt": ["ELBtestdevexternal", "DNSName"]}
+            },
+            "ELBtestdevinternal": {
+                "Description": "ELB DNSName",
+                "Value": {"Fn::GetAtt": ["ELBtestdevinternal", "DNSName"]}
             }
         }
         config = ConfigParser(project_config.config, 'my-stack-name')
@@ -619,7 +669,11 @@ class TestConfigParser(unittest.TestCase):
         resource_names.sort()
         compare(resource_names, wanted)
 
-        wanted = ["StaticBucketName", "dbhost", "dbport"]
+        wanted = ["ELBtestdevexternal",
+                  "ELBtestdevinternal",
+                  "StaticBucketName",
+                  "dbhost",
+                  "dbport"]
         output_names = cfn_template['Outputs'].keys()
         output_names.sort()
         compare(wanted, output_names)
@@ -675,7 +729,11 @@ class TestConfigParser(unittest.TestCase):
         resource_names.sort()
         compare(resource_names, wanted)
 
-        wanted = ["StaticBucketName", "dbhost", "dbport"]
+        wanted = ["ELBtestdevexternal",
+                  "ELBtestdevinternal",
+                  "StaticBucketName",
+                  "dbhost",
+                  "dbport"]
         output_names = cfn_template['Outputs'].keys()
         output_names.sort()
         compare(wanted, output_names)
@@ -726,7 +784,7 @@ class TestConfigParser(unittest.TestCase):
         }]
         config = ConfigParser(project_config.config, 'my-stack-name')
         with self.assertRaises(errors.CfnConfigError):
-            config.elb()
+            config.elb(Template())
 
     def test_elb_missing_cert_name(self):
 
@@ -750,7 +808,7 @@ class TestConfigParser(unittest.TestCase):
         }]
         config = ConfigParser(project_config.config, 'my-stack-name')
         with self.assertRaises(errors.CfnConfigError):
-            config.elb()
+            config.elb(Template())
 
     def test_elb_with_ssl(self):
 
@@ -786,7 +844,6 @@ class TestConfigParser(unittest.TestCase):
                  "LoadBalancerPort": 443, "Protocol": "HTTPS",
                  "PolicyNames": ["PinDownSSLNegotiationPolicy201505"]}],
             SecurityGroups=[Ref("DefaultSGdockerregistryservice")],
-            LoadBalancerName="ELB-docker-registryservice",
             Scheme="internet-facing",
             Policies=[
                 Policy(
@@ -811,7 +868,8 @@ class TestConfigParser(unittest.TestCase):
                             Join("", ["arn:aws:elasticloadbalancing:",
                                       Ref("AWS::Region"), ":",
                                       Ref("AWS::AccountId"),
-                                      ":loadbalancer/ELB-docker-registryservice"
+                                      ":loadbalancer/",
+                                      {"Ref": "ELBdockerregistryservice"}
                                       ]
                                  )
                         ],
@@ -821,8 +879,22 @@ class TestConfigParser(unittest.TestCase):
             },
             Roles=[Ref("BaseHostRole")],
         )
+        DefaultSGdockerregistryservice = SecurityGroup(
+            "DefaultSGdockerregistryservice",
+            GroupDescription="DefaultELBSecurityGroup",
+            SecurityGroupIngress=[{"CidrIp": "0.0.0.0/0",
+                                   "FromPort": 443,
+                                   "IpProtocol": "tcp",
+                                   "ToPort": 443},
+                                  {"CidrIp": "0.0.0.0/0",
+                                   "FromPort": 80,
+                                   "IpProtocol": "tcp",
+                                   "ToPort": 80}
+                                  ],
+            VpcId=Ref("VPC")
+        )
         known = [DNSdockerregistryservice, ELBdockerregistryservice,
-                 Policydockerregistryservice]
+                 Policydockerregistryservice, DefaultSGdockerregistryservice]
 
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         # Ugh. Fixtures please?
@@ -843,7 +915,12 @@ class TestConfigParser(unittest.TestCase):
             ],
         }]
         config = ConfigParser(project_config.config, 'my-stack-name')
-        elb_cfg, _ = config.elb()
+
+        # Create elb resources with template
+        template = Template()
+        config.elb(template)
+        elb_cfg = template.resources.values()
+
         # elb_dict = json.loads(json.dumps([{r.title: r} for r in elb_cfg ],
         #                                  cls=awsencode))
         compare(self._resources_to_dict(known),
@@ -891,7 +968,6 @@ class TestConfigParser(unittest.TestCase):
                         "Protocol": "TCP"}
                        ],
             SecurityGroups=[Ref("DefaultSGdockerregistryservice")],
-            LoadBalancerName="ELB-docker-registryservice",
             Scheme="internet-facing",
             Policies=[
                 Policy(
@@ -915,7 +991,8 @@ class TestConfigParser(unittest.TestCase):
                             Join("", ["arn:aws:elasticloadbalancing:",
                                       Ref("AWS::Region"), ":",
                                       Ref("AWS::AccountId"),
-                                      ":loadbalancer/ELB-docker-registryservice"]
+                                      ":loadbalancer/",
+                                      {"Ref": "ELBdockerregistryservice"}]
                                  )],
                         "Effect": "Allow"
                     }
@@ -924,6 +1001,21 @@ class TestConfigParser(unittest.TestCase):
             },
             Roles=[Ref("BaseHostRole")],
         )
+        DefaultSGdockerregistryservice = SecurityGroup(
+            "DefaultSGdockerregistryservice",
+            GroupDescription="DefaultELBSecurityGroup",
+            SecurityGroupIngress=[{"CidrIp": "0.0.0.0/0",
+                                   "FromPort": 443,
+                                   "IpProtocol": "tcp",
+                                   "ToPort": 443},
+                                  {"CidrIp": "0.0.0.0/0",
+                                   "FromPort": 80,
+                                   "IpProtocol": "tcp",
+                                   "ToPort": 80}
+                                  ],
+            VpcId=Ref("VPC")
+        )
+
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         project_config.config['elb'] = [
             {
@@ -950,9 +1042,14 @@ class TestConfigParser(unittest.TestCase):
             }
         ]
         config = ConfigParser(project_config.config, 'my-stack-name')
-        elb_cfg, _ = config.elb()
+
+        # Create elb resources with template
+        template = Template()
+        config.elb(template)
+        elb_cfg = template.resources.values()
+
         known = [DNSdockerregistryservice, ELBdockerregistryservice,
-                 Policydockerregistryservice]
+                 Policydockerregistryservice, DefaultSGdockerregistryservice]
         compare(self._resources_to_dict(known),
                 self._resources_to_dict(elb_cfg))
 
@@ -974,7 +1071,6 @@ class TestConfigParser(unittest.TestCase):
                  }
             ],
             SecurityGroups=[Ref("DefaultSGdevdockerregistryservice")],
-            LoadBalancerName="ELB-dev_docker-registryservice",
             Scheme="internet-facing",
             Policies=[
                 Policy(
@@ -1018,7 +1114,8 @@ class TestConfigParser(unittest.TestCase):
                                      ["arn:aws:elasticloadbalancing:",
                                       Ref("AWS::Region"), ":",
                                       Ref("AWS::AccountId"),
-                                      ":loadbalancer/ELB-dev_docker-registryservice"]
+                                      ":loadbalancer/",
+                                      {"Ref": "ELBdevdockerregistryservice"}]
                                      )
                             ],
                             "Effect": "Allow"
@@ -1026,6 +1123,20 @@ class TestConfigParser(unittest.TestCase):
                     ]
             },
             Roles=[Ref("BaseHostRole")],
+        )
+        DefaultSGdevdockerregistryservice = SecurityGroup(
+            "DefaultSGdevdockerregistryservice",
+            GroupDescription="DefaultELBSecurityGroup",
+            SecurityGroupIngress=[{"CidrIp": "0.0.0.0/0",
+                                   "FromPort": 443,
+                                   "IpProtocol": "tcp",
+                                   "ToPort": 443},
+                                  {"CidrIp": "0.0.0.0/0",
+                                   "FromPort": 80,
+                                   "IpProtocol": "tcp",
+                                   "ToPort": 80}
+                                  ],
+            VpcId=Ref("VPC")
         )
 
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
@@ -1046,9 +1157,14 @@ class TestConfigParser(unittest.TestCase):
             ],
         }]
         config = ConfigParser(project_config.config, 'my-stack-name')
-        elb_cfg, _ = config.elb()
+
+        # Create elb resources with template
+        template = Template()
+        config.elb(template)
+        elb_cfg = template.resources.values()
+
         known = [DNSdevdockerregistryservice, ELBdevdockerregistryservice,
-                 Policydevdockerregistryservice]
+                 Policydevdockerregistryservice, DefaultSGdevdockerregistryservice]
         compare(self._resources_to_dict(known),
                 self._resources_to_dict(elb_cfg))
 
