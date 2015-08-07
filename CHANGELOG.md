@@ -1,3 +1,11 @@
+## Version 0.5.x
+
+* Provide hook point in cfn_delete fab task after confirm but before
+  DeleteStack call.
+
+  This is used by bootstrap-salt to remove a file that it places and manages
+  in an S3 bucket so that the stack can be cleanly deleted.
+
 ## Version 0.5.6
 * Automaticly generate the RDS identifier
 
