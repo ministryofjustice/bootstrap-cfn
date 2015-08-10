@@ -1,4 +1,4 @@
-## Version 0.5.x
+## Version 0.5.7
 
 * Provide hook point in cfn_delete fab task after confirm but before
   DeleteStack call.
