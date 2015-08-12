@@ -372,6 +372,10 @@ class ConfigParser(object):
         )
         resources.append(rds_instance)
 
+        # We *cant* specify db-name for SQL Server based RDS instances. :(
+        if 'db-engine' in self.data['rds'] and self.data['rds']['db-engine'].startswith("sqlserver"):
+            required_fields.pop('db-name')
+
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         for yaml_key, rds_prop in required_fields.iteritems():
             if yaml_key not in self.data['rds']:

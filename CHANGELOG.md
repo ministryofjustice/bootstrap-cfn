@@ -1,6 +1,9 @@
 ## Version UNRELEASED
 
 * Update the AWS AMI to the latest ubuntu, which includes the new kernel.
+* Partially support sqlserver based RDS instances - which *cannot* have a
+  DBName specified, so make that field not required for sqlserver backed
+  instances.
 
 ## Version 0.5.7
 
