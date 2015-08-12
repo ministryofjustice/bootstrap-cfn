@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 
 from copy import deepcopy
@@ -9,6 +10,7 @@ import boto.sts
 
 import bootstrap_cfn.errors as errors
 
+import boto3
 
 def timeout(timeout, interval):
     def decorate(func):
@@ -25,7 +27,6 @@ def timeout(timeout, interval):
         return wrapper
     return decorate
 
-
 def connect_to_aws(module, instance):
     try:
         # Check if we have a AWS_ROLE_ARN_ID set, if so we will attempt
@@ -33,31 +34,55 @@ def connect_to_aws(module, instance):
         # cross-account profile or not.
         if (instance.aws_profile_name == 'cross-account' or
                 os.environ.get('AWS_ROLE_ARN_ID', False)):
-            sts = boto.sts.connect_to_region(
+            if type(module) == str:
+                # this is boto3
+                # exceptions are different from the ones below
+                # find a way to handle boto3 exceptions
+                session_token = boto3.session.Session(
+                                region_name=instance.aws_region_name,
+                                profile_name=instance.aws_profile_name
+                                )
+                sts = session_token.client('sts')
+            else:
+                # this is good as it is
+                sts = boto.sts.connect_to_region(
+                    region_name=instance.aws_region_name,
+                    profile_name=instance.aws_profile_name
+                )
+                role = sts.assume_role(
+                    role_arn=os.environ['AWS_ROLE_ARN_ID'],
+                    role_session_name="AssumeRoleSession1"
+                )
+                conn = module.connect_to_region(
+                    region_name=instance.aws_region_name,
+                    aws_access_key_id=role.credentials.access_key,
+                    aws_secret_access_key=role.credentials.secret_key,
+                    security_token=role.credentials.session_token
+                )
+                return conn
+        # is it a boto3 call or is it a old boto call?
+        if type(module) == str:
+            # boto3
+            session_token = boto3.session.Session(
+                            region_name=instance.aws_region_name,
+                            profile_name=instance.aws_profile_name
+                            )
+            conn = session_token.client(module)
+            return conn
+        else:
+            # old boto
+            conn = module.connect_to_region(
                 region_name=instance.aws_region_name,
                 profile_name=instance.aws_profile_name
             )
-            role = sts.assume_role(
-                role_arn=os.environ['AWS_ROLE_ARN_ID'],
-                role_session_name="AssumeRoleSession1"
-            )
-            conn = module.connect_to_region(
-                region_name=instance.aws_region_name,
-                aws_access_key_id=role.credentials.access_key,
-                aws_secret_access_key=role.credentials.secret_key,
-                security_token=role.credentials.session_token
-            )
             return conn
-        conn = module.connect_to_region(
-            region_name=instance.aws_region_name,
-            profile_name=instance.aws_profile_name
-        )
-        return conn
+    # TODO:
+    # we need to figure out how to mix boto and boto3 exceptions
+    # we need to add exception handling for boto3
     except boto.exception.NoAuthHandlerFound:
         raise errors.NoCredentialsError()
     except boto.provider.ProfileNotFoundError as e:
         raise errors.ProfileNotFoundError(instance.aws_profile_name)
-
 
 def dict_merge(target, *args):
     # Merge multiple dicts

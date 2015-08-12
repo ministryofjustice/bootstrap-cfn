@@ -221,14 +221,18 @@ def get_stack_name(new=False):
         cfn_config = get_config()
         try:
             r53_conn = get_connection(R53)
+            print "DEBUG:1"
             zone_name = cfn_config.data['master_zone']
+            print "DEBUG:2"
             zone_id = r53_conn.get_hosted_zone_id(zone_name)
+            print "DEBUG:3"
             record_name = "stack.{0}.{1}".format(tag, legacy_name)
             if new:
                 stack_suffix = uuid.uuid4().__str__()[-8:]
                 record = "{0}.{1}".format(record_name, zone_name)
                 r53_conn.update_dns_record(zone_id, record, 'TXT', '"{0}"'.format(stack_suffix))
             else:
+                print "DEBUG:get_stack_name"
                 stack_suffix = r53_conn.get_record(zone_name, zone_id, record_name, 'TXT')
             if stack_suffix:
                 env.stack_name = "{0}-{1}".format(legacy_name, stack_suffix)
