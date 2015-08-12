@@ -88,7 +88,7 @@ class ConfigParser(object):
         t = Template()
 
         t.add_mapping("AWSRegion2AMI", {
-            "eu-west-1": {"AMI": "ami-f0b11187"},
+            "eu-west-1": {"AMI": "ami-00d88f77"},
         })
 
         if 'vpc' in self.data:

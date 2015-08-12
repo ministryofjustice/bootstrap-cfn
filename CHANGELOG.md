@@ -1,3 +1,7 @@
+## Version UNRELEASED
+
+* Update the AWS AMI to the latest ubuntu, which includes the new kernel.
+
 ## Version 0.5.7
 
 * Provide hook point in cfn_delete fab task after confirm but before
