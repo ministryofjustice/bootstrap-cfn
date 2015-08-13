@@ -1,4 +1,4 @@
-## Version UNRELEASED
+## Version 0.5.8
 
 * Update the AWS AMI to the latest ubuntu, which includes the new kernel.
 * Partially support sqlserver based RDS instances - which *cannot* have a
