@@ -1,3 +1,7 @@
+## Version 0.5.9
+
+* Bump version
+
 ## Version 0.5.8
 
 * Update the AWS AMI to the latest ubuntu, which includes the new kernel.
