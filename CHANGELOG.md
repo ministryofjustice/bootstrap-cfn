@@ -1,3 +1,9 @@
+## UNRELEASED
+
+* Change AWS connection to use STS AssumeRole when AWS_ROLE_ARN_ID
+environment variable is specified in addition to just the profile being
+called "cross-account".
+
 ## Version 0.5.9
 
 * Bump version
