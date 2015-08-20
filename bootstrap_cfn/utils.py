@@ -28,7 +28,11 @@ def timeout(timeout, interval):
 
 def connect_to_aws(module, instance):
     try:
-        if instance.aws_profile_name == 'cross-account':
+        # Check if we have a AWS_ROLE_ARN_ID set, if so we will attempt
+        # to assume a role and connect no matter whether we're on the
+        # cross-account profile or not.
+        if (instance.aws_profile_name == 'cross-account' or
+                os.environ.get('AWS_ROLE_ARN_ID', False)):
             sts = boto.sts.connect_to_region(
                 region_name=instance.aws_region_name,
                 profile_name=instance.aws_profile_name
