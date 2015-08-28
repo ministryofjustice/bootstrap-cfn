@@ -296,11 +296,11 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
             kwargs of ``stack_name``, and ``config``. (Python only, not setable from
             command line)
     """
+    stack_name = get_stack_name()
     if not force:
-        x = raw_input("Are you really sure you want to blow away the whole stack!? (y/n)\n")
+        x = raw_input("Are you really sure you want to blow away the whole stack for {}!? (y/n)\n".format(stack_name))
         if x not in ['y', 'Y', 'Yes', 'yes']:
             sys.exit(1)
-    stack_name = get_stack_name()
     cfn_config = get_config()
     cfn = get_connection(Cloudformation)
 
