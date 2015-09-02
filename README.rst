@@ -67,7 +67,7 @@ Then when you create a stack you can specify a tag before cfn_create, like::
 
 NB active is the default.
 
-Then you can refer to this stack by it's tag in the future. In this way it is easier to bring up two stacks from the same config. If you want to swap the names of the stacks you can do the following::
+Then you can refer to this stack by its tag in the future. In this way it is easier to bring up two stacks from the same config. If you want to swap the names of the stacks you can do the following::
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml swap_tags:inactive,active
 
@@ -198,7 +198,7 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
       ec2:
         # …
         security_groups:
-          # Don't to this - its too wide open
+          # Don't to this - it's too wide open
           SSH-from-anywhere:
             - IpProtocol: tcp
               FromPort: 22
