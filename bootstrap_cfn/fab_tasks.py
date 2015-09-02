@@ -430,6 +430,7 @@ def get_cloudformation_tags():
     """
     return {
         "Env": env.environment,
+        "Application": env.application
     }
 
 
