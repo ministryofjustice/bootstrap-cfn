@@ -10,6 +10,8 @@ from troposphere.autoscaling import AutoScalingGroup, BlockDeviceMapping, \
 from troposphere.ec2 import InternetGateway, Route, RouteTable, SecurityGroup, \
     SecurityGroupIngress, Subnet, SubnetRouteTableAssociation, VPC, \
     VPCGatewayAttachment
+from troposphere.elasticache import ReplicationGroup, SubnetGroup
+
 from troposphere.elasticloadbalancing import ConnectionDrainingPolicy, \
     HealthCheck, LoadBalancer, Policy
 from troposphere.iam import InstanceProfile, PolicyType, Role
@@ -71,6 +73,9 @@ class ConfigParser(object):
 
         if 'rds' in self.data:
             self.rds(template)
+
+        if 'elasticache' in self.data:
+            self.elasticache(template)
 
         if 's3' in self.data:
             self.s3(template)
@@ -399,6 +404,108 @@ class ConfigParser(object):
             "dbport",
             Description="RDS Port",
             Value=GetAtt(rds_instance, "Endpoint.Port")
+        ))
+
+    def elasticache(self, template):
+        """
+        Create an elasticache resource configuration from the config file data
+        and add it to the  troposphere.Template. Outputs for the elasticache name,
+        host and port are created.
+
+        Args:
+            template:
+                The troposphere.Template object
+        """
+        # REQUIRED FIELDS MAPPING
+        required_fields = {
+        }
+
+        optional_fields = {
+            'clusters': 'NumCacheClusters',
+            'node_type': 'CacheNodeType',
+            'port': 'Port',
+        }
+
+        # Setup params and config
+        component_config = self.data['elasticache']
+        # Setup defaults
+        if 'clusters' not in component_config:
+            component_config['clusters'] = 3
+        if 'node_type' not in component_config:
+            component_config['node_type'] = 'cache.m1.small'
+        if 'port' not in component_config:
+            component_config['port'] = 6379
+
+        engine = 'redis'
+
+        # Generate snapshot arns
+        seeds = component_config.get('seeds', None)
+        snapshot_arns = []
+        if seeds:
+            # Get s3 seeds
+            s3_seeds = seeds.get('s3', [])
+            for seed in s3_seeds:
+                snapshot_arns.append("arn:aws:s3:::%s" % (seed))
+
+        # LOAD STACK TEMPLATE
+        resources = []
+
+        es_sg = SecurityGroup(
+            "ElasticacheSG",
+            SecurityGroupIngress=[
+                {"ToPort": component_config['port'],
+                 "FromPort": component_config['port'],
+                 "IpProtocol": "tcp",
+                 "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")}
+            ],
+            VpcId=Ref("VPC"),
+            GroupDescription="SG for EC2 Access to Elasticache",
+        )
+        resources.append(es_sg)
+
+        es_subnet_group = SubnetGroup(
+            'ElasticacheSubnetGroup',
+            Description="Elasticache Subnet Group",
+            SubnetIds=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")]
+            )
+        resources.append(es_subnet_group)
+
+        elasticache_replication_group = ReplicationGroup(
+            "ElasticacheReplicationGroup",
+            ReplicationGroupDescription='Elasticache Replication Group',
+            Engine=engine,
+            NumCacheClusters=component_config['clusters'],
+            CacheNodeType=component_config['node_type'],
+            SecurityGroupIds=[GetAtt(es_sg, "GroupId")],
+            CacheSubnetGroupName=Ref(es_subnet_group),
+            SnapshotArns=snapshot_arns
+        )
+        resources.append(elasticache_replication_group)
+
+        # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
+        for yaml_key, prop in required_fields.iteritems():
+            if yaml_key not in component_config:
+                print "\n\n[ERROR] Missing Elasticache fields [%s]" % yaml_key
+                sys.exit(1)
+            else:
+                elasticache_replication_group.__setattr__(prop, component_config[yaml_key])
+
+        for yaml_key, prop in optional_fields.iteritems():
+            if yaml_key in component_config:
+                elasticache_replication_group.__setattr__(prop, component_config[yaml_key])
+
+        # Add resources and outputs
+        map(template.add_resource, resources)
+
+        template.add_output(Output(
+            "ElasticacheReplicationGroupName",
+            Description="Elasticache Replication Group Name",
+            Value=Ref(elasticache_replication_group)
+        ))
+        template.add_output(Output(
+            "ElasticacheEngine",
+            Description="Elasticache Engine",
+            Value=engine
         ))
 
     def elb(self, template):
