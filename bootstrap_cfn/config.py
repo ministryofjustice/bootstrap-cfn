@@ -226,6 +226,7 @@ class ConfigParser(object):
             PolicyDocument={"Statement": [
                 {"Action": ["autoscaling:Describe*"], "Resource": "*", "Effect": "Allow"},
                 {"Action": ["ec2:Describe*"], "Resource": "*", "Effect": "Allow"},
+                {"Action": ["ec2:CreateTags"], "Resource": "*", "Effect": "Allow"},
                 {"Action": ["rds:Describe*"], "Resource": "*", "Effect": "Allow"},
                 {"Action": ["elasticloadbalancing:Describe*"], "Resource": "*", "Effect": "Allow"},
                 {"Action": ["elasticache:Describe*"], "Resource": "*", "Effect": "Allow"},
