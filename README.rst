@@ -54,7 +54,7 @@ If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabr
 - **config:/path/to/file.yaml** - The location to the project YAML file
 
 Multiple Stacks
-=================
+===============
 
 If you want to run multiple stacks with the same name and environment place the following in the yaml configuration::
 
@@ -285,6 +285,22 @@ It is possilbe to define a custom health check for an ELB like follows::
       Timeout: 5
       UnhealthyThreshold: 2
 
+Elasticache
++++++++++++
+
+By specifying an elasticache section, a redis-backed elasticache replication group will be created. The group name will be available as an output.
+
+::
+
+   elasticache:                     # (REQUIRED) Main elasticache key, use {} for all default settings. Defaults are shown
+      clusters: 3                   # (OPTIONAL) Number of one-node clusters to create
+      node_type: cache.m1.small     # (OPTIONAL) The node type of the clusters nodes
+      port: 6379                    # (OPTIONAL) Port number 
+      seeds:                        # (OPTIONAL) List of arns to seed the database with
+         s3:                        # (OPTIONAL) List of S3 bucket seeds in <bucket>/<filepath> format
+            - "test-bucket-947923urhiuy8923d/redis.rdb"
+
+
 Applying a custom s3 policy
 +++++++++++++++++++++++++++
 You can add a custom s3 policy to override bootstrap-cfn's default settings. For example, the sample custom policy defined in this `json file <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/tests/sample-custom-s3-policy.json>`_ can be configured as follows:
@@ -305,7 +321,7 @@ If you wish to include some static cloudformation json and have it merged with t
 The tool will then perform a deep merge of the includes with the generated template dictionary. Any keys or subkeys in the template dictionary that clash will have their values **overwritten** by the included dictionary or recursively merged if the value is itself a dictionary.
 
 ConfigParser
-++++++++++++++
+++++++++++++
 If you want to include or modify cloudformation resources but need to include some logic and not a static include. You can subclass the ConfigParser and set the new class as `env.cloudformation_parser` in your fabfile.
 
 

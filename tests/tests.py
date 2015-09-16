@@ -10,6 +10,7 @@ from testfixtures import compare
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Ref, Template, awsencode, ec2, iam, rds, s3
 from troposphere.autoscaling import AutoScalingGroup, LaunchConfiguration, Tag
 from troposphere.ec2 import SecurityGroup, SecurityGroupIngress
+from troposphere.elasticache import ReplicationGroup, SubnetGroup
 from troposphere.elasticloadbalancing import ConnectionDrainingPolicy, HealthCheck, LoadBalancer, Policy
 from troposphere.iam import PolicyType
 from troposphere.route53 import RecordSetGroup
@@ -34,7 +35,7 @@ class TestConfig(unittest.TestCase):
         self.assertEquals(
             sorted(
                 config.config.keys()), [
-                'ec2', 'elb', 'rds', 's3', 'ssl'])
+                'ec2', 'elasticache', 'elb', 'rds', 's3', 'ssl'])
 
     def test_project_config_merge_password(self):
         '''
@@ -329,8 +330,70 @@ class TestConfigParser(unittest.TestCase):
         actual_outputs = self._resources_to_dict(template.outputs.values())
         compare(expected_outputs, actual_outputs)
 
+    def test_elasticache(self):
+        es_sg = SecurityGroup(
+            "ElasticacheSG",
+            SecurityGroupIngress=[
+                {"ToPort": 10024,
+                 "FromPort": 10024,
+                 "IpProtocol": "tcp",
+                 "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")}
+            ],
+            VpcId=Ref("VPC"),
+            GroupDescription="SG for EC2 Access to Elasticache",
+        )
+
+        es_subnet_group = SubnetGroup(
+            'ElasticacheSubnetGroup',
+            Description="Elasticache Subnet Group",
+            SubnetIds=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")]
+            )
+
+        elasticache_replication_group = ReplicationGroup(
+            "ElasticacheReplicationGroup",
+            ReplicationGroupDescription='Elasticache Replication Group',
+            Engine='redis',
+            NumCacheClusters=3,
+            CacheNodeType='cache.m1.small',
+            SecurityGroupIds=[GetAtt(es_sg, "GroupId")],
+            CacheSubnetGroupName=Ref(es_subnet_group),
+            SnapshotArns=["arn:aws:s3:::somebucket/redis.rdb"],
+            Port=10024
+        )
+
+        known = [elasticache_replication_group,
+                 es_subnet_group,
+                 es_sg]
+
+        config = ConfigParser(
+            ProjectConfig(
+                'tests/sample-project.yaml',
+                'dev',
+                'tests/sample-project-passwords.yaml').config, 'my-stack-name')
+
+        template = Template()
+        config.elasticache(template)
+        resources = template.resources.values()
+        es_dict = self._resources_to_dict(resources)
+
+        known = self._resources_to_dict(known)
+        compare(known, es_dict)
+
+        # Test for outputs
+        expected_outputs = {
+            "ElasticacheReplicationGroupName": {
+                "Description": "Elasticache Replication Group Name",
+                "Value": {"Ref": "ElasticacheReplicationGroup"}
+            },
+            "ElasticacheEngine": {
+                "Description": "Elasticache Engine",
+                "Value": "redis"
+            }
+        }
+        actual_outputs = self._resources_to_dict(template.outputs.values())
+        compare(expected_outputs, actual_outputs)
+
     def test_elb(self):
-        known = []
         lb = LoadBalancer(
             "ELBtestdevinternal",
             ConnectionDrainingPolicy=ConnectionDrainingPolicy(
@@ -634,6 +697,14 @@ class TestConfigParser(unittest.TestCase):
             "ELBtestdevinternal": {
                 "Description": "ELB DNSName",
                 "Value": {"Fn::GetAtt": ["ELBtestdevinternal", "DNSName"]}
+            },
+            "ElasticacheEngine": {
+                "Description": "Elasticache Engine",
+                "Value": "redis"
+            },
+            "ElasticacheReplicationGroupName": {
+                "Description": "Elasticache Replication Group Name",
+                "Value": {"Ref": "ElasticacheReplicationGroup"}
             }
         }
         config = ConfigParser(project_config.config, 'my-stack-name')
@@ -659,7 +730,8 @@ class TestConfigParser(unittest.TestCase):
             "BaseHostRole", "BaseHostSG", "BaseHostSGRule0", "BaseHostSGRule1", "DNStestdevexternal",
             "DNStestdevinternal", "DatabaseSG", "DefaultSGtestdevexternal",
             "DefaultSGtestdevinternal", "ELBtestdevexternal",
-            "ELBtestdevinternal", "InstanceProfile", "InternetGateway",
+            "ELBtestdevinternal", "ElasticacheReplicationGroup",
+            "ElasticacheSG", "ElasticacheSubnetGroup", "InstanceProfile", "InternetGateway",
             "Policytestdevexternal", "Policytestdevinternal", "PublicRoute",
             "PublicRouteTable", "RDSInstance", "RDSSubnetGroup",
             "RolePolicies", "ScalingGroup", "StaticBucket",
@@ -674,6 +746,8 @@ class TestConfigParser(unittest.TestCase):
 
         wanted = ["ELBtestdevexternal",
                   "ELBtestdevinternal",
+                  "ElasticacheEngine",
+                  "ElasticacheReplicationGroupName",
                   "StaticBucketName",
                   "dbhost",
                   "dbport"]
@@ -719,7 +793,8 @@ class TestConfigParser(unittest.TestCase):
             "BaseHostRole", "BaseHostSG", "BaseHostSGRule0", "BaseHostSGRule1", "DNStestdevexternal",
             "DNStestdevinternal", "DatabaseSG", "DefaultSGtestdevexternal",
             "DefaultSGtestdevinternal", "ELBtestdevexternal",
-            "ELBtestdevinternal", "InstanceProfile", "InternetGateway",
+            "ELBtestdevinternal", "ElasticacheReplicationGroup",
+            "ElasticacheSG", "ElasticacheSubnetGroup", "InstanceProfile", "InternetGateway",
             "Policytestdevexternal", "Policytestdevinternal", "PublicRoute",
             "PublicRouteTable", "RDSInstance", "RDSSubnetGroup",
             "RolePolicies", "ScalingGroup", "StaticBucket",
@@ -734,6 +809,8 @@ class TestConfigParser(unittest.TestCase):
 
         wanted = ["ELBtestdevexternal",
                   "ELBtestdevinternal",
+                  "ElasticacheEngine",
+                  "ElasticacheReplicationGroupName",
                   "StaticBucketName",
                   "dbhost",
                   "dbport"]

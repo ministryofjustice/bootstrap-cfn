@@ -63,6 +63,13 @@ dev:
     multi-az: false
     db-engine: postgres
     db-engine-version: 9.3.5
+  elasticache:
+    clusters: 3
+    node_type: cache.m1.small
+    port: 10024
+    seeds:
+      s3:
+      - somebucket/redis.rdb
   ssl:
     my-cert:
       cert: |

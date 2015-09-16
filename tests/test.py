@@ -176,7 +176,7 @@ class CfnTestCase(unittest.TestCase):
         with self.assertRaises(errors.CfnTimeoutError):
             print cloudformation.Cloudformation(
                 self.env.aws_profile).wait_for_stack_done(self.stack_name, 1, 1)
-        
+
     def test_wait_for_stack_done(self):
         stack_evt_mock = mock.Mock()
         rt = mock.PropertyMock(return_value='AWS::CloudFormation::Stack')
