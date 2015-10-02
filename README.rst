@@ -301,15 +301,39 @@ By specifying an elasticache section, a redis-backed elasticache replication gro
             - "test-bucket-947923urhiuy8923d/redis.rdb"
 
 
-Applying a custom s3 policy
-+++++++++++++++++++++++++++
-You can add a custom s3 policy to override bootstrap-cfn's default settings. For example, the sample custom policy defined in this `json file <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/tests/sample-custom-s3-policy.json>`_ can be configured as follows:
+S3
+++
+
+An s3 section can be used to create a StaticBucket, which is exposed by nginx, but default as /assets.
+The bucket location will be by default public, with an output available of 'StaticBucketName'.
+We can create the static bucket without any arguments, though this requires the use of {} as below.
+
+::
+
+   s3: {}   # Required if we have no keys and use all defaults
+     
+Or we can specify the name, and optionally a custom policy file if we want to to override bootstrap-cfn's default settings.
+For example, the sample custom policy defined in this `json file <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/tests/sample-custom-s3-policy.json>`_ can be configured as follows:
+
+
+:: 
+
+   s3: 
+        static-bucket-name: moj-test-dev-static
+        policy: tests/sample-custom-s3-policy.json
+    
+We can also supply a list of buckets to create a range of s3 buckets, these require a name. 
+These entries can also specify their own policies or use the default, vpc limited one.
 
 ::
 
    s3:
-     static-bucket-name: moj-test-dev-static
-     policy: tests/sample-custom-s3-policy.json
+      buckets:
+         - name: mybucket
+           policy: some_policy
+         - name: myotherbucket
+
+The outputs of these buckets will be the bucket name postfixed by 'Name', ie, mybucketName
 
 Includes
 ++++++++
