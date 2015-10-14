@@ -44,7 +44,7 @@ def connect_to_aws(module, instance):
                                 )
                 sts = session_token.client('sts')
             else:
-                # this is good as it is
+                # this is boto, *NOT* boto3
                 sts = boto.sts.connect_to_region(
                     region_name=instance.aws_region_name,
                     profile_name=instance.aws_profile_name
@@ -60,9 +60,9 @@ def connect_to_aws(module, instance):
                     security_token=role.credentials.session_token
                 )
                 return conn
-        # is it a boto3 call or is it a old boto call?
+        # check if it's boto3 or boto
         if type(module) == str:
-            # boto3
+            # this is boto3
             session_token = boto3.session.Session(
                             region_name=instance.aws_region_name,
                             profile_name=instance.aws_profile_name
@@ -70,15 +70,13 @@ def connect_to_aws(module, instance):
             conn = session_token.client(module)
             return conn
         else:
-            # old boto
+            # this is *NOT* boto3
             conn = module.connect_to_region(
                 region_name=instance.aws_region_name,
                 profile_name=instance.aws_profile_name
             )
             return conn
-    # TODO:
-    # we need to figure out how to mix boto and boto3 exceptions
-    # we need to add exception handling for boto3
+    # this will catch both boto and boto3 exceptions
     except boto.exception.NoAuthHandlerFound:
         raise errors.NoCredentialsError()
     except boto.provider.ProfileNotFoundError as e:

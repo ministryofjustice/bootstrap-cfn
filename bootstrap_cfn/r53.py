@@ -41,8 +41,8 @@ class R53:
     def update_dns_record(self, zone, record, record_type, record_value):
         '''
         Returns True if update successful or raises an exception if not
+        boto3 WIP 14/10/2015 working on this <<<======
         '''
-        
         print "DEBUG inside update_dns_record"
         print "zone: " + str(zone)
         print "record: " + str(record)
@@ -81,6 +81,7 @@ class R53:
     def get_record(self, zone, zone_id, record, record_type):
         '''
         '''
+        print "DEBUG: start r53 get_record"
         try:
             fqdn = "{0}.{1}.".format(record, zone)
             rrsets = self.conn_r53.list_resource_record_sets(
@@ -101,6 +102,7 @@ class R53:
                 if rrsets['ResourceRecordSets'][0]['Type'] == 'TXT':
                     record_content_stripped = record_content[1:-1]
                     record_content = record_content_stripped
+                print "DEBUG: r53 get_record returning %r" % record_content
                 return record_content
             else:
                 print "ERROR: resource record sets not found for fqdn: %r and record type: %r" % (fqdn,record_type)
