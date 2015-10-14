@@ -221,9 +221,13 @@ def get_stack_name(new=False):
         cfn_config = get_config()
         try:
             r53_conn = get_connection(R53)
-            print "DEBUG:1"
-            zone_name = cfn_config.data['master_zone']
-            print "DEBUG:2"
+            try:
+                zone_name = cfn_config.data['master_zone']
+            except KeyError:
+                logging.warn("No master_zone in yaml, unable to create/find DNS records for "
+                             "stack name, will fallback to legacy stack names: "
+                             "application-environment")
+                env.stack_name = legacy_name
             zone_id = r53_conn.get_hosted_zone_id(zone_name)
             print "DEBUG:3"
             record_name = "stack.{0}.{1}".format(tag, legacy_name)
@@ -238,11 +242,6 @@ def get_stack_name(new=False):
                 env.stack_name = "{0}-{1}".format(legacy_name, stack_suffix)
             else:
                 env.stack_name = legacy_name
-        except KeyError:
-            logging.warn("No master_zone in yaml, unable to create/find DNS records for "
-                         "stack name, will fallback to legacy stack names: "
-                         "application-environment")
-            env.stack_name = legacy_name
         except DNSServerError:
             logging.warn("Couldn't find/create DNS entry for stack suffix, "
                          "stack name, will fallback to legacy stack names: "
