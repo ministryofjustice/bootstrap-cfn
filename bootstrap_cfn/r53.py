@@ -1,10 +1,10 @@
 import boto.route53
-
+import sys
 from bootstrap_cfn import utils
 
-import sys
 
 class R53:
+
 
     conn_cfn = None
     aws_region_name = None
@@ -47,7 +47,7 @@ class R53:
         print "record: " + str(record)
         print "record_type: " + str(record_type)
         print "record_value: " + str(record_value)
-        
+
         changes = self.conn_r53.change_resource_record_sets(
             HostedZoneId=zone,
             ChangeBatch={
