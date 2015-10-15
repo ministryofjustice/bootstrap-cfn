@@ -2,7 +2,6 @@ import boto.route53
 
 from bootstrap_cfn import utils
 
-import boto3
 import sys
 
 class R53:
