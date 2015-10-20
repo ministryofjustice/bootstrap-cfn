@@ -270,6 +270,12 @@ class ConfigParser(object):
         if isinstance(self.data['s3'], dict):
             present_keys = self.data['s3'].keys()
 
+        # Enable specifying multiple buckets
+        if 'buckets' in present_keys:
+            bucket_list = self.data['s3'].get('buckets')
+            for bucket_config in bucket_list:
+                self.create_s3_bucket(bucket_config, template)
+
         # If the static bucket name is manually set then use that,
         # otherwise use the <stackname>-<logical-resource-name>-<random>
         # default
@@ -306,6 +312,56 @@ class ConfigParser(object):
         ))
 
         # Add the resources to the troposphere template
+        map(template.add_resource, [bucket, bucket_policy])
+
+    def create_s3_bucket(self, bucket_config, template):
+        """
+        Create an s3 bucket configuration from config data.
+        This will produce Bucket and BucketPolicy resources along with
+        the bucket name as output, these are all added to the troposphere
+        template.
+
+        Args:
+            bucket_config(dictionary): Keyed bucket config settings
+            template:
+                The troposphere.Template object
+        """
+        bucket_name = bucket_config.get('name')
+        bucket = Bucket(
+            bucket_name,
+            AccessControl="BucketOwnerFullControl",
+        )
+
+        # If a policy has been manually set then use it, otherwise set
+        # a reasonable default of public 'Get' access
+        if 'policy' in bucket_config:
+            policy = json.loads(open(bucket_config['policy']).read())
+        else:
+            arn = Join("", ["arn:aws:s3:::", Ref(bucket), "/*"])
+            policy = {
+                'Action': ['s3:DeleteObject', 's3:GetObject', 's3:PutObject'],
+                "Resource": arn,
+                'Effect': 'Allow',
+                'Principal': '*',
+                "Condition": {
+                    "StringEquals": {
+                        "aws:sourceVpc": {"Ref": "VPC"}
+                    }
+                }
+            }
+        bucket_policy = BucketPolicy(
+            "{}Policy".format(bucket_name),
+            Bucket=Ref(bucket),
+            PolicyDocument={"Statement": [policy]},
+        )
+        # Add the bucket name to the list of cloudformation
+        # outputs
+        template.add_output(Output(
+            "{}Policy".format(bucket_name),
+            Description="S3 bucket name",
+            Value=Ref(bucket)
+        ))
+
         map(template.add_resource, [bucket, bucket_policy])
 
     def ssl(self):
