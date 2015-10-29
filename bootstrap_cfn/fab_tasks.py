@@ -15,6 +15,8 @@ from fabric.utils import abort
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.config import ConfigParser, ProjectConfig
 from bootstrap_cfn.elb import ELB
+from bootstrap_cfn.errors import BootstrapCfnError
+from bootstrap_cfn.errors import CloudResourceNotFoundError
 from bootstrap_cfn.iam import IAM
 from bootstrap_cfn.r53 import R53
 from bootstrap_cfn.utils import tail
@@ -191,6 +193,121 @@ def swap_tags(tag1, tag2):
     fqdn2 = "{0}.{1}".format(record2, zone_name)
     r53_conn.update_dns_record(zone_id, fqdn1, 'TXT', '"{0}"'.format(stack_suffix2))
     r53_conn.update_dns_record(zone_id, fqdn2, 'TXT', '"{0}"'.format(stack_suffix1))
+
+
+def apply_maintenance_criteria(elb):
+    '''
+    Applies maintenance criteria to elb
+
+    Returns True if the maintenance should continue
+    '''
+    return elb['scheme'] == 'internet-facing'
+
+
+@task
+def enter_maintenance(maintenance_ip):
+    '''
+    Puts stack into maintenance mode
+
+    Sets all internet facing elb hostnames to resolve to given maintenance_ip
+    '''
+    cfn_config = get_config()
+    r53_conn = get_connection(R53)
+
+    cached_zone_ids = {}
+    for elb in cfn_config.data['elb']:
+        if not apply_maintenance_criteria(elb):
+            continue
+
+        record = "{name}.{hosted_zone}".format(**elb)
+        zone_id = get_cached_zone_id(r53_conn, cached_zone_ids, elb['hosted_zone'])
+        print green("Attempting to update: \"{0}\":\"{1}\"".format(record, maintenance_ip))
+        r53_conn.update_dns_record(zone_id, record, 'A', maintenance_ip)
+
+
+@task
+def exit_maintenance():
+    """
+    Exit maintenance mode
+
+    Sets internet-facing elbs hostnames
+    back to the ELB DNS alias
+    """
+    r53_conn = get_connection(R53)
+    elb_conn = get_connection(ELB)
+
+    cfn_config = get_config()
+    stack_name = get_stack_name()
+
+    # In order to traverse from config yaml all the way to the DNS alias for the ELB
+    # it is required to construct a logical to physical naming for the elbs. So first
+    # get all elbs for this stack from AWS cloudformation, to be used as a
+    # filter on the next step
+    # Note: if stack does not exist this will throw a BotoServerError
+    stack_elbs = dict([
+        (x.logical_resource_id, x.physical_resource_id)
+        for x in elb_conn.cfn.get_stack_load_balancers(stack_name)])
+
+    # filter stack related load balancers (as opposed to all stack elbs in the account)
+    full_load_balancers = elb_conn.conn_elb.get_all_load_balancers(
+        load_balancer_names=stack_elbs.values())
+
+    cached_zone_ids = {}
+    # loop through elb config entries and change internet facing ones
+    for elb in cfn_config.data['elb']:
+        if not apply_maintenance_criteria(elb):
+            continue
+        record = "{name}.{hosted_zone}".format(**elb)
+        # obtain physical name from dict lookup, by converting elb name into safe name
+        # into logical name
+        phys_name = stack_elbs[mold_to_safe_elb_name(elb['name'])]
+
+        dns_name = [x.dns_name for x in full_load_balancers if x.name == phys_name]
+        if len(dns_name) == 1:
+            dns_name = dns_name[0]
+        else:
+            raise BootstrapCfnError(
+                "Lookup for elb with physical name \"{0}\" returned {1} load balancers, "
+                "while only exactly 1 was expected".format(phys_name, len(dns_name)))
+        zone_id = get_cached_zone_id(r53_conn, cached_zone_ids, elb['hosted_zone'])
+
+        # For record_value provide list of params as needed by function set_alias
+        # http://boto.readthedocs.org/en/latest/ref/route53.html#boto.route53.record.Record.set_alias
+        record_value = [
+            # alias_hosted_zone_id
+            R53.AWS_ELB_ZONE_ID[env.aws_region],
+            # alias_dns_name
+            dns_name,
+            # alias_evaluate_target_health (True/False)
+            False
+        ]
+        print green("Attempting to update: \"{0}\":{1}".format(record, record_value))
+        r53_conn.update_dns_record(zone_id, record, 'A', record_value, is_alias=True)
+
+
+def get_cached_zone_id(r53_conn, zone_dict, zone_name):
+    '''
+    Gets and cache zone id from route53
+
+    If we are looping through ELBs we may just have different hostnames in same zone,
+    so feel free to cache it (and drink a shot because I said 'cache')
+
+    raises CloudResourceNotFoundError if zone is not found
+    '''
+    if zone_name not in zone_dict:
+        # not found, look it up, cache it up ..
+        lookup_zone = r53_conn.get_hosted_zone_id(zone_name)
+        if not lookup_zone:
+            raise CloudResourceNotFoundError("Zone ID not found for zone: {}".format(zone_name))
+        zone_dict[zone_name] = lookup_zone
+    return zone_dict[zone_name]
+
+
+def mold_to_safe_elb_name(elb_name):
+    '''
+    Molds the elb_name to match cloudformation naming of ELBs
+    '''
+    return 'ELB' + elb_name.replace('-', '').replace('.', '').replace('_', '')
 
 
 def get_stack_name(new=False):
