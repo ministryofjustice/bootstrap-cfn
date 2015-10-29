@@ -1,5 +1,10 @@
 ## UNRELEASED
 
+* Adds enter_maintenance and exit_maintenance fab tasks
+* Adds support for updating route53 dns aliases
+
+## Version 0.5.10
+
 * Change AWS connection to use STS AssumeRole when AWS_ROLE_ARN_ID
 environment variable is specified in addition to just the profile being
 called "cross-account".
