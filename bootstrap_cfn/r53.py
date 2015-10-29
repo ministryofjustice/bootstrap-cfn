@@ -3,7 +3,21 @@ import boto.route53
 from bootstrap_cfn import utils
 
 
-class R53:
+class R53(object):
+
+    # ELB zone ids, these are default for AWS
+    # (and may need updating if AWS changes them)
+    AWS_ELB_ZONE_ID = {
+        "ap-northeast-1": "Z2YN17T5R711GT",
+        "ap-southeast-1": "Z1WI8VXHPB1R38",
+        "ap-southeast-2": "Z2999QAZ9SRTIC",
+        "eu-west-1": "Z3NF1Z3NOM5OY2",
+        "eu-central-1": "Z215JYRZR1TBD5",
+        "sa-east-1": "Z2ES78Y61JGQKS",
+        "us-east-1": "Z3DZXE0Q79N41H",
+        "us-west-1": "Z1M58G0W56PQJA",
+        "us-west-2": "Z33MTJ483KN6FU"
+    }
 
     conn_cfn = None
     aws_region_name = None
@@ -25,13 +39,29 @@ class R53:
             zone = zone['GetHostedZoneResponse']['HostedZone']['Id']
             return zone.replace('/hostedzone/', '')
 
-    def update_dns_record(self, zone, record, record_type, record_value):
+    def update_dns_record(self, zone, record, record_type, record_value, is_alias=False):
         '''
+        Updates a dns record in route53
+
+        zone -- a string specifying the zone id
+        record -- a string for the record to update
+        record_value -- a string if it is not an alias
+                        a list, if it is an alias, of parameters to pass to
+                        boto record.set_alias() function
+        is_alias -- a boolean to show if record_value is an alias
+        record_type -- a string to specify the record, eg "A"
+
+
         Returns True if update successful or raises an exception if not
         '''
         changes = boto.route53.record.ResourceRecordSets(self.conn_r53, zone)
         change = changes.add_change("UPSERT", record, record_type, ttl=60)
-        change.add_value(record_value)
+        if is_alias:
+            # provide list of params as needed by function set_alias
+            # http://boto.readthedocs.org/en/latest/ref/route53.html#boto.route53.record.Record.set_alias
+            change.set_alias(*record_value)
+        else:
+            change.add_value(record_value)
         changes.commit()
         return True
 
