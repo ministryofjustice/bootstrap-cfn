@@ -15,7 +15,12 @@ dev:
       - DeviceName: /dev/sda1
         VolumeSize: 10
       - DeviceName: /dev/sdf
+        VolumeType: gp2
         VolumeSize: 10
+      - DeviceName: /dev/sdg
+        VolumeType: io1
+        VolumeSize: 20
+        Iops: 100
     security_groups:
       AnotherSG:
         - IpProtocol: tcp
