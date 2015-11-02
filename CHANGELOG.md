@@ -1,3 +1,10 @@
+## Version 0.6.0
+
+Features:
+* Enable ec2 volume types
+* Add multiple S3 buckets feature
+* Added elasticache with engine redis
+
 ## Version 0.5.11
 
 * Adds enter_maintenance and exit_maintenance fab tasks
