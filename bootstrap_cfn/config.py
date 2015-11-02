@@ -865,10 +865,29 @@ class ConfigParser(object):
         devices = []
         try:
             for i in data['block_devices']:
+                device_name = i['DeviceName']
+                volume_size = i.get('VolumeSize', 20)
+                volume_type = i.get('VolumeType', 'standard')
+                iops = i.get('Iops', None)
+                # Check we have a permitted volume type
+                if volume_type not in ['standard', 'gp2', 'io1']:
+                    raise errors.CfnConfigError("config: Volume type '%s' but must be one of standard', 'gp2' or 'io1"
+                                                % (volume_type))
+                # We need to specifiy iops if we have a volume type of io1
+                if volume_type == 'io1' and not iops:
+                    raise errors.CfnConfigError("config: Volume type io1 must have Iops defined")
+
+                # We dont set a default for iops and troposphere doesnt handle this well
+                if not iops:
+                    ebs = EBSBlockDevice(VolumeType=volume_type, VolumeSize=volume_size)
+                else:
+                    ebs = EBSBlockDevice(VolumeType=volume_type, VolumeSize=volume_size, Iops=iops)
+
                 devices.append(BlockDeviceMapping(
-                    DeviceName=i['DeviceName'],
-                    Ebs=EBSBlockDevice(VolumeSize=i['VolumeSize']),
+                    DeviceName=device_name,
+                    Ebs=ebs
                 ))
+
         except KeyError:
             devices.append(BlockDeviceMapping(
                 DeviceName="/dev/sda1",

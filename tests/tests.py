@@ -1295,11 +1295,15 @@ class TestConfigParser(unittest.TestCase):
             BlockDeviceMappings=[
                 {
                     "DeviceName": "/dev/sda1",
-                    "Ebs": {"VolumeSize": 10}
+                    "Ebs": {"VolumeSize": 10, "VolumeType": "standard"}
                 },
                 {
                     "DeviceName": "/dev/sdf",
-                    "Ebs": {"VolumeSize": 10}
+                    "Ebs": {"VolumeSize": 10, "VolumeType": "gp2"}
+                },
+                {
+                    "DeviceName": "/dev/sdg",
+                    "Ebs": {"VolumeSize": 20, "VolumeType": "io1", "Iops": 100}
                 }
             ],
             KeyName="default",
@@ -1345,11 +1349,15 @@ class TestConfigParser(unittest.TestCase):
             BlockDeviceMappings=[
                 {
                     "DeviceName": "/dev/sda1",
-                    "Ebs": {"VolumeSize": 10}
+                    "Ebs": {"VolumeSize": 10, "VolumeType": "standard"}
                 },
                 {
                     "DeviceName": "/dev/sdf",
-                    "Ebs": {"VolumeSize": 10}
+                    "Ebs": {"VolumeSize": 10, "VolumeType": "gp2"}
+                },
+                {
+                    "DeviceName": "/dev/sdg",
+                    "Ebs": {"VolumeSize": 20, "VolumeType": "io1", "Iops": 100}
                 }
             ],
             KeyName="default",

@@ -162,6 +162,10 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
     The path of the linux device to attach the instance to
   ``VolumeSize``
     Size in gigabytes of the EBS volume
+  ``VolumeType (optional)``
+    The type of the volume to create. One of standard (default), gp2 or io1 (see `AWS API reference <http://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateVolume.html>`_)
+  ``Iops (Required for io1 type)``
+    The Iops value to assign to the io1 volume type.
 
   Example::
 
@@ -172,7 +176,12 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
           - DeviceName: /dev/sda1
             VolumeSize: 10
           - DeviceName: /dev/sdf
+            VolumeType: gp2
             VolumeSize: 100
+          - DeviceName: /dev/sdh
+            VolumeType: io1
+            VolumeSize: 80
+            Iops: 1200
 
 :``security_groups``:
   Dictionary of security groups to create and add the EC2 instances to. The key is the name of the security group and the value is a list of ingress rules following the `Cloudformation reference <http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group-ingress.html>`_
