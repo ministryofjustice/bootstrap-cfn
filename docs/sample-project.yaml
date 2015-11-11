@@ -56,6 +56,30 @@ dev:
         - LoadBalancerPort: 443
           InstancePort: 443
           Protocol: TCP
+    # This ELB defines a set of custom policies to apply
+    - name: test-custom-policies
+      hosted_zone: integration.dsd.io.
+      scheme: internet-facing
+      # We define our policies in a list. Each policy has a name and a type,
+      # with a set of attributes in a list of 'attrubute_name': "attribute_value' pairs.
+      policies:
+        - name: EnableProxyProtocol
+          type: ProxyProtocolPolicyType
+          attributes:
+            - ProxyProtocol: True
+           # We can optionally define the instance or load_balancer ports
+           # to here that the policy will be applied on
+           #instance_ports:
+           #  - 80
+           #  - 443
+           #load_balancer_ports:
+           #  - 80
+           #  - 443
+
+      listeners:
+        - LoadBalancerPort: 80
+          InstancePort: 80
+          Protocol: TCP
   s3:
     static-bucket-name: moj-test-dev-static-integration
   rds:
