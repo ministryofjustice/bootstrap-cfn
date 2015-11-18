@@ -294,6 +294,30 @@ It is possilbe to define a custom health check for an ELB like follows::
       Timeout: 5
       UnhealthyThreshold: 2
 
+ELB Policies
+~~~~~~~~~~~~
+
+Policies can be defined within an ELB block, and optionally applied to a list of 
+instance ports or load balancer ports.
+The below example enable proxy protocol support on instance ports 80 and 443
+
+
+.. code:: yaml
+
+ policies:
+   - name: EnableProxyProtocol
+     type: ProxyProtocolPolicyType
+     attributes:
+       - ProxyProtocol: True
+     # We can optionally define the instance or load_balancer ports
+     # to here that the policy will be applied on
+     instance_ports:
+       - 80
+       - 443
+     #load_balancer_ports:
+     #  - 80
+     #  - 443
+
 Elasticache
 +++++++++++
 

@@ -524,7 +524,7 @@ class ConfigParser(object):
             'ElasticacheSubnetGroup',
             Description="Elasticache Subnet Group",
             SubnetIds=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")]
-            )
+        )
         resources.append(es_subnet_group)
 
         elasticache_replication_group = ReplicationGroup(
@@ -596,6 +596,46 @@ class ConfigParser(object):
                     print "\n\n[ERROR] Missing ELB fields [%s]" % i
                     sys.exit(1)
 
+            # Collect together all policies
+            elb_policies = [
+                Policy(
+                    Attributes=[{'Name': "Reference-Security-Policy", 'Value': "ELBSecurityPolicy-2015-05"}],
+                    PolicyType='SSLNegotiationPolicyType',
+                    PolicyName='PinDownSSLNegotiationPolicy201505'
+                )]
+            for custom_policy_config in elb.get('policies', []):
+                custom_policy_name = custom_policy_config.get('name', False)
+                custom_policy_type = custom_policy_config.get('type', False)
+
+                if not custom_policy_name:
+                    logging.critical("config::elb: Load balancer policy must have a name defined")
+                    sys.exit(1)
+                if not custom_policy_type:
+                    logging.critical("config::elb: Load balancer policy {} must have a type defined".format(custom_policy_name))
+                    sys.exit(1)
+
+                custom_policy_attributes = []
+                for custom_policy_attribute_config in custom_policy_config.get('attributes', []):
+                    for custom_policy_attribute_key, custom_policy_attribute_val in custom_policy_attribute_config.iteritems():
+                        custom_policy_attributes_entry = {
+                            'Name': custom_policy_attribute_key,
+                            'Value': custom_policy_attribute_val
+                        }
+                        custom_policy_attributes.append(custom_policy_attributes_entry)
+
+                custom_policy = Policy(
+                    Attributes=custom_policy_attributes,
+                    PolicyType=custom_policy_type,
+                    PolicyName=custom_policy_name,
+                )
+                # Dont set these unless theyre in the config, other CFN will break
+                if custom_policy_config.get('instance_ports', False):
+                    custom_policy.InstancePorts = custom_policy_config.get('instance_ports')
+                if custom_policy_config.get('load_balancer_ports', False):
+                    custom_policy.LoadBalancerPorts = custom_policy_config.get('load_balancer_ports')
+
+                elb_policies.append(custom_policy)
+
             load_balancer = LoadBalancer(
                 "ELB" + safe_name,
                 Subnets=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
@@ -605,13 +645,7 @@ class ConfigParser(object):
                     Enabled=True,
                     Timeout=120,
                 ),
-                Policies=[
-                    Policy(
-                        Attributes=[{'Name': "Reference-Security-Policy", 'Value': "ELBSecurityPolicy-2015-05"}],
-                        PolicyType='SSLNegotiationPolicyType',
-                        PolicyName='PinDownSSLNegotiationPolicy201505'
-                    )
-                ]
+                Policies=elb_policies
             )
             if "health_check" in elb:
                 load_balancer.HealthCheck = HealthCheck(**elb['health_check'])
@@ -642,7 +676,22 @@ class ConfigParser(object):
                             "ELB Listener for port 443 has no SSL Policy. " +
                             "Using default ELBSecurityPolicy-2015-05")
                         listener['PolicyNames'] = ['PinDownSSLNegotiationPolicy201505']
-
+                """
+                # Get all the listeners policy names and setup the policies they refer to
+                for policy_name in listener.get('PolicyNames', []):
+                    matched_policies = [custom_policy for custom_policy in elb_policies
+                                        if custom_policy.PolicyName == policy_name]
+                    assert(len(matched_policies) == 1)
+                    matched_policy = matched_policies[0]
+                    # Get the current ports defined in the troposphere policies config and append
+                    # the listers ports
+                    updated_instance_ports = matched_policy.properties.get('InstancePorts', [])
+                    updated_instance_ports.append("{}".format(listener['InstancePort']))
+                    matched_policy.properties['InstancePorts'] = updated_instance_ports
+                    updated_instance_ports = matched_policy.properties.get('LoadBalancerPorts', [])
+                    updated_instance_ports.append("{}".format(listener['LoadBalancerPort']))
+                    matched_policy.properties['LoadBalancerPorts'] = updated_instance_ports
+                """
             elb_list.append(load_balancer)
 
             dns_record = RecordSetGroup(
