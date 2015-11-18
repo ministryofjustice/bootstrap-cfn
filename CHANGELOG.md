@@ -1,3 +1,7 @@
+## Version 0.6.1
+Feature:
+* Allow custom ELB policies
+
 ## Version 0.6.0
 
 Features:
