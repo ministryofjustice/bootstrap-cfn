@@ -1,3 +1,7 @@
+## Version 0.6.2
+
+* Bump version
+
 ## Version 0.6.1
 Feature:
 * Allow custom ELB policies
