@@ -1,5 +1,7 @@
+
 import boto.cloudformation
-import boto.ec2
+
+import boto3
 
 from bootstrap_cfn import utils
 
@@ -61,25 +63,38 @@ class Cloudformation:
         resource_type = 'AWS::ElasticLoadBalancing::LoadBalancer'
         return self.get_resource_type(stack_name_or_id, resource_type)
 
-    def get_resource_type(self, stack_name_or_id, resource_type=None):
-        """
-        Collect up a set of specific stack resources
 
-        Args:
-            stack_name_or_id (string): Name or id used to identify the stack
-            resource_type(string): The resource type identifier
+def get_resource_type(stack_name_or_id,
+                      resource_type=None):
+    """
+    Collect up a set of specific stack resources
 
-        Returns:
-            resources: Set of stack resources containing only
-                the resource type for this stack
-        """
-        # get the stack
-        resources = []
-        stack = self.conn_cfn.describe_stacks(stack_name_or_id)
-        if stack:
-            resources = stack[0].list_resources()
-            if resource_type:
-                # get the resources
-                resources = filter(lambda x: x.resource_type == resource_type,
-                                   resources)
-        return resources
+    Args:
+        stack_name_or_id (string): Name or id used to identify the stack
+        resource_type(string): The resource type identifier
+
+    Returns:
+        resources: Set of stack resources containing only
+            the resource type for this stack
+    """
+    client = boto3.client('cloudformation')
+    all_resources = client.describe_stack_resources(StackName=stack_name_or_id)
+    resources = [resource for resource in all_resources['StackResources'] if resource['ResourceType'] == resource_type]
+    return resources
+
+
+def get_stack_ids_by_name(stack_name_search_term):
+    """
+    Collect up a set of specific stacks matching a search term
+
+    Args:
+        stack_name_search_term (string): Search term used to identify the stack
+
+    Returns:
+        stack_ids: Set of stack ids containing only
+            the stacks matching the search term.
+    """
+    client = boto3.client('cloudformation')
+    all_stacks = client.describe_stacks()
+    stacks = [stack for stack in all_stacks['Stacks'] if stack_name_search_term in stack['StackId']]
+    return stacks
