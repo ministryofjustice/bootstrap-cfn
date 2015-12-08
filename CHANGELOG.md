@@ -1,3 +1,7 @@
+## Version 0.6.3
+
+* Fix broken pypi release
+
 ## Version 0.6.2
 
 * Bump version
