@@ -1,4 +1,9 @@
 dev:
+  vpc:
+    CIDR: 10.0.0.0/16
+    SubnetA: 10.0.0.0/20
+    SubnetB: 10.0.16.0/20
+    SubnetC: 10.0.32.0/20
   ec2:
     auto_scaling:
       desired: 1

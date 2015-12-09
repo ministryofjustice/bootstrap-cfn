@@ -21,7 +21,7 @@ from troposphere.s3 import Bucket, BucketPolicy
 
 import yaml
 
-from bootstrap_cfn import errors, mime_packer, utils, vpc
+from bootstrap_cfn import errors, mime_packer, utils
 
 
 class ProjectConfig:
@@ -89,7 +89,7 @@ class ConfigParser(object):
             template, sort_keys=True, indent=4, separators=(',', ': '))
 
     def base_template(self):
-
+        from bootstrap_cfn import vpc
         t = Template()
 
         t.add_mapping("AWSRegion2AMI", {

@@ -35,7 +35,7 @@ class TestConfig(unittest.TestCase):
         self.assertEquals(
             sorted(
                 config.config.keys()), [
-                'ec2', 'elasticache', 'elb', 'rds', 's3', 'ssl'])
+                'ec2', 'elasticache', 'elb', 'rds', 's3', 'ssl', 'vpc'])
 
     def test_project_config_merge_password(self):
         '''
