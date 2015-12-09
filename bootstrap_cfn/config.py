@@ -21,7 +21,7 @@ from troposphere.s3 import Bucket, BucketPolicy
 
 import yaml
 
-from bootstrap_cfn import errors, mime_packer, utils
+from bootstrap_cfn import errors, mime_packer, utils, vpc
 
 
 class ProjectConfig:
@@ -97,19 +97,43 @@ class ConfigParser(object):
         })
 
         if 'vpc' in self.data:
+            logging.info('bootstrap-cfn::base_template: Using configuration VPC address settings')
             t.add_mapping("SubnetConfig", {
                 "VPC": self.data['vpc']
             })
         else:
+            default_vpc_cidr_prefix = 24
+            default_vpc_subnet_prefix = 28
+            default_vpc_subnet_count = 3
+
+            # Try to get random CIDR
+            available_cidr_block, subnet_cidr_blocks = (
+                vpc.get_available_cidr_block(
+                    default_vpc_cidr_prefix,
+                    subnet_prefix=default_vpc_subnet_prefix)
+            )
+            if available_cidr_block and len(subnet_cidr_blocks) > (default_vpc_subnet_count - 1):
+                logging.info('bootstrap-cfn::base_template: Using dynamic VPC address settings')
+                vpc_cidr = available_cidr_block
+                subneta_cidr = subnet_cidr_blocks[0]
+                subnetb_cidr = subnet_cidr_blocks[1]
+                subnetc_cidr = subnet_cidr_blocks[2]
+            else:
+                # Fallback to default
+                logging.info('bootstrap-cfn::base_template: Using static fallback VPC address settings')
+                vpc_cidr = "10.0.0.0/24"
+                subneta_cidr = "10.0.0.0/20"
+                subnetb_cidr = "10.0.16.0/20"
+                subnetc_cidr = "10.0.32.0/20"
+
             t.add_mapping("SubnetConfig", {
                 "VPC": {
-                    "CIDR": "10.0.0.0/16",
-                    "SubnetA": "10.0.0.0/20",
-                    "SubnetB": "10.0.16.0/20",
-                    "SubnetC": "10.0.32.0/20"
+                    "CIDR": vpc_cidr,
+                    "SubnetA": subneta_cidr,
+                    "SubnetB": subnetb_cidr,
+                    "SubnetC": subnetc_cidr
                 }
             })
-
         return t
 
     def vpc(self):
