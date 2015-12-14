@@ -6,11 +6,11 @@ import boto3
 
 from botocore.exceptions import ClientError
 
+import netaddr
+
 from bootstrap_cfn import cloudformation
 
 from bootstrap_cfn.errors import CloudResourceNotFoundError
-
-import netaddr
 
 
 class VPC:
@@ -174,10 +174,9 @@ class VPC:
                     peering_conn_id=peering_conn.id,
                     route_table_ids=[route_table_config['route_table_id']]
                 )
-
         target_route_tables = peering_stack_config.get('target_routes')
-        for route_table_key, route_table_key in target_route_tables.iteritems():
-            cidr_blocks = route_table_key.get('cidr_blocks')
+        for route_table_key, route_table_config in target_route_tables.iteritems():
+            cidr_blocks = route_table_config.get('cidr_blocks')
             for cidr_block in cidr_blocks:
                 self.create_route_vpc_to_vpc_peer(
                     vpc_id=peering_conn.accepter_vpc_info['VpcId'],
@@ -364,7 +363,7 @@ class VPC:
                             route_table_ids.append(route_table.id)
         return route_table_ids
 
-    def get_vpc_cidr_block(
+    def get_vpc_cidr_blocks(
             self,
             vpc_id):
         """
@@ -396,7 +395,6 @@ class VPC:
                 to setup the route on. If None, setup on all route tables.
         """
         ec2_client = boto3.client('ec2')
-
         for route_table_id in route_table_ids:
             try:
                 self.logger.info("VPC::create_route_vpc_to_vpc_peer: Creating route in '%s'"
@@ -484,7 +482,8 @@ class VPC:
             if found_stacks:
                 peering_stack_name = found_stacks[0]['StackName']
                 peering_stack_vpc_id = self.get_stack_vpc_id(peering_stack_name)
-
+                self.logger.info("vpc::parse_config: Found stack '%s' with vpc '%s'"
+                                 % (peering_stack_search_name, peering_stack_vpc_id))
                 # Setup layout for stack peering config
                 parsed_peering_config[peering_stack_search_name] = {}
                 parsed_peering_config[peering_stack_search_name]['source_routes'] = {}
@@ -495,28 +494,43 @@ class VPC:
                 # Expand all wildcards recursively
                 # If the entry is wildcarded then peer the vpcs cidr blocks to all route_tables
                 if peering_config[peering_stack_search_name] == '*':
+                    self.logger.info("vpc::parse_config: Found stack wildcard, matching all routes and addresses...")
                     peering_config[peering_stack_search_name] = {}
                     peering_config[peering_stack_search_name]['source_routes'] = '*'
                     peering_config[peering_stack_search_name]['target_routes'] = '*'
 
                 # If the route set is wildcarded then apply the cidr_blocks to all route tables
                 # source_routes: '*'
-                for route_set, routes_vpc_id in {'source_routes': self.vpc_id, 'target_routes': peering_stack_vpc_id}.iteritems():
+                route_config_dictionary = {
+                    'source_routes': {'route_tables_vpc_id': self.vpc_id, 'cidr_blocks_vpc_id': peering_stack_vpc_id},
+                    'target_routes': {'route_tables_vpc_id': peering_stack_vpc_id, 'cidr_blocks_vpc_id': self.vpc_id}
+                }
+
+                for route_set, routes_vpc_config in route_config_dictionary.iteritems():
+                    route_tables_vpc_id = routes_vpc_config['route_tables_vpc_id']
+                    cidr_blocks_vpc_id = routes_vpc_config['cidr_blocks_vpc_id']
                     if peering_config[peering_stack_search_name][route_set] == '*':
-                        all_vpc_cidr_blocks = [self.get_vpc_cidr_block(routes_vpc_id)]
-                        for vpc_route_table_id in self.get_vpc_route_table_ids(routes_vpc_id):
+                        self.logger.info("vpc::parse_config: Found %s wildcard, matching all %s routes and addresses..."
+                                         % (route_set, route_set))
+                        all_vpc_cidr_blocks = self.get_vpc_cidr_blocks(cidr_blocks_vpc_id)
+                        for vpc_route_table_id in self.get_vpc_route_table_ids(route_tables_vpc_id):
                             parsed_peering_config[peering_stack_search_name][route_set][vpc_route_table_id] = {}
                             parsed_peering_config[peering_stack_search_name][route_set][vpc_route_table_id]['route_table_id'] = vpc_route_table_id
                             parsed_peering_config[peering_stack_search_name][route_set][vpc_route_table_id]['cidr_blocks'] = all_vpc_cidr_blocks
                     else:
                         for route_table_name, route_table_config in peering_config[peering_stack_search_name].get(route_set, {}).iteritems():
                             if route_table_config['cidr_blocks'] == '*':
-                                cidr_blocks = [self.get_vpc_cidr_block(routes_vpc_id)]
+                                self.logger.info("vpc::parse_config: Found cidr block wildcard, using '%s' for route table %s..."
+                                                 % (cidr_blocks_vpc_id, route_table_name))
+                                cidr_blocks = self.get_vpc_cidr_blocks(cidr_blocks_vpc_id)
                             else:
                                 cidr_blocks = route_table_config['cidr_blocks']
 
                             if route_table_name == '*':
-                                for vpc_route_table_id in self.get_vpc_route_table_ids(routes_vpc_id):
+                                self.logger.info("vpc::parse_config: Found route table wildcard, "
+                                                 "applying cidr blocks to all %s route tables..."
+                                                 % (route_set))
+                                for vpc_route_table_id in self.get_vpc_route_table_ids(route_tables_vpc_id):
                                     parsed_peering_config[peering_stack_search_name][route_set][vpc_route_table_id] = {}
                                     parsed_peering_config[peering_stack_search_name][route_set][vpc_route_table_id]['route_table_id'] = vpc_route_table_id
                                     parsed_peering_config[peering_stack_search_name][route_set][vpc_route_table_id]['cidr_blocks'] = cidr_blocks
@@ -526,14 +540,12 @@ class VPC:
                                     self.get_vpc_route_table_ids(peering_stack_vpc_id, route_table_name)[0]
                                 )
                                 parsed_peering_config[peering_stack_search_name][route_set][route_table_name]['cidr_blocks'] = cidr_blocks
-
-                return (parsed_peering_config)
             else:
                 self.logger.error("vpc::setup_config: Not stack found that matches search term '%s'"
                                   % (peering_stack_search_name))
                 raise CloudResourceNotFoundError
 
-        return {}
+        return parsed_peering_config
 
 # Setup the logging
 logger = logging.getLogger('vpc_available_addresses')

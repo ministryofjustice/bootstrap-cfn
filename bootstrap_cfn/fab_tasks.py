@@ -427,6 +427,10 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
         for callback in pre_delete_callbacks:
             callback(stack_name=stack_name, config=cfn_config)
 
+    # Disable all vpc peering before deletion
+    print green("\nSTACK {0}: Disabling VPC peering before deletion...\n").format(stack_name)
+    disable_vpc_peering()
+
     print green("\nSTACK {0} DELETING...\n").format(stack_name)
 
     cfn.delete(stack_name)

@@ -10,13 +10,13 @@ from bootstrap_cfn import vpc
 class TestVPC(unittest.TestCase):
 
     @patch("bootstrap_cfn.vpc.VPC.get_vpc_route_table_ids")
-    @patch("bootstrap_cfn.vpc.VPC.get_vpc_cidr_block")
+    @patch("bootstrap_cfn.vpc.VPC.get_vpc_cidr_blocks")
     @patch("bootstrap_cfn.vpc.VPC.get_stack_vpc_id")
     @patch("bootstrap_cfn.vpc.VPC.get_stack_name_by_match")
     def test_init_stack_wildcard(self,
                                  mock_get_stack_name_by_match,
                                  mock_get_stack_vpc_id,
-                                 mock_get_vpc_cidr_block,
+                                 mock_get_vpc_cidr_blocks,
                                  mock_get_vpc_route_table_ids):
         """
         TestVPC::test_init_stack_wildcard: Test that we generate the correct config when we have a wildcard on the entire stack
@@ -37,9 +37,9 @@ class TestVPC(unittest.TestCase):
             "vpc_123",
             "peervpc_xyz"
         ]
-        mock_get_vpc_cidr_block.side_effect = [
-            "1.2.3.4/8",  # Self VPC cidr block
-            "10.11.12.13/24"  # Peer VPC cidr block
+        mock_get_vpc_cidr_blocks.side_effect = [
+            ["1.2.3.4/8"],  # Self VPC cidr block
+            ["10.11.12.13/24"]  # Peer VPC cidr block
         ]
         mock_get_vpc_route_table_ids.side_effect = [
             ["rt_abc", "rt_def"],  # All self vpc route tables
@@ -90,7 +90,7 @@ class TestVPC(unittest.TestCase):
         mock_get_stack_name_by_match.assert_called_with('peer_stack_1', min_results=1, max_results=1)
         mock_get_stack_vpc_id.assert_called_with('peer_stack_1-abc')
         # Getting the cidr block for self as its wildcarded
-        mock_get_vpc_cidr_block.assert_called_with('peervpc_xyz')
+        mock_get_vpc_cidr_blocks.assert_called_with('vpc_123')
         # Getting the route tables ids for one route on the peer only
         mock_get_vpc_route_table_ids.assert_called_with('peervpc_xyz')
         self.assertDictEqual(expected_result,
@@ -100,13 +100,13 @@ class TestVPC(unittest.TestCase):
                              % (compare(expected_result, actual_result)))
 
     @patch("bootstrap_cfn.vpc.VPC.get_vpc_route_table_ids")
-    @patch("bootstrap_cfn.vpc.VPC.get_vpc_cidr_block")
+    @patch("bootstrap_cfn.vpc.VPC.get_vpc_cidr_blocks")
     @patch("bootstrap_cfn.vpc.VPC.get_stack_vpc_id")
     @patch("bootstrap_cfn.vpc.VPC.get_stack_name_by_match")
     def test_init_source_route_table_wildcard(self,
                                               mock_get_stack_name_by_match,
                                               mock_get_stack_vpc_id,
-                                              mock_get_vpc_cidr_block,
+                                              mock_get_vpc_cidr_blocks,
                                               mock_get_vpc_route_table_ids):
         """
         TestVPC::test_init_source_route_table_wildcard: Test that we generate the correct config when we have a wildcard on the source routes
@@ -134,9 +134,9 @@ class TestVPC(unittest.TestCase):
             "vpc_123",
             "peervpc_xyz"
         ]
-        mock_get_vpc_cidr_block.side_effect = [
-            "1.2.3.4/8",  # Self VPC cidr block
-            "10.11.12.13/24"  # Peer VPC cidr block
+        mock_get_vpc_cidr_blocks.side_effect = [
+            ["1.2.3.4/8"],  # Self VPC cidr block
+            ["10.11.12.13/24"]  # Peer VPC cidr block
         ]
         mock_get_vpc_route_table_ids.side_effect = [
             ["rt_abc", "rt_def"],  # All self vpc route tables
@@ -182,13 +182,13 @@ class TestVPC(unittest.TestCase):
                              % (compare(expected_result, actual_result)))
 
     @patch("bootstrap_cfn.vpc.VPC.get_vpc_route_table_ids")
-    @patch("bootstrap_cfn.vpc.VPC.get_vpc_cidr_block")
+    @patch("bootstrap_cfn.vpc.VPC.get_vpc_cidr_blocks")
     @patch("bootstrap_cfn.vpc.VPC.get_stack_vpc_id")
     @patch("bootstrap_cfn.vpc.VPC.get_stack_name_by_match")
     def test_init_target_route_table_wildcard(self,
                                               mock_get_stack_name_by_match,
                                               mock_get_stack_vpc_id,
-                                              mock_get_vpc_cidr_block,
+                                              mock_get_vpc_cidr_blocks,
                                               mock_get_vpc_route_table_ids):
         """
          TestVPC::test_init_target_route_table_wildcard: Test that we generate the correct config when we have a wildcard on the target routes
@@ -216,8 +216,8 @@ class TestVPC(unittest.TestCase):
             "vpc_123",
             "peervpc_xyz"
         ]
-        mock_get_vpc_cidr_block.side_effect = [
-            "1.2.3.4/8",  # Self VPC cidr block
+        mock_get_vpc_cidr_blocks.side_effect = [
+            ["1.2.3.4/8"],  # Self VPC cidr block
         ]
         mock_get_vpc_route_table_ids.side_effect = [
             ["rt_def"],  # Self vpc route tables matched to rt_def
@@ -265,13 +265,13 @@ class TestVPC(unittest.TestCase):
                              % (compare(expected_result, actual_result)))
 
     @patch("bootstrap_cfn.vpc.VPC.get_vpc_route_table_ids")
-    @patch("bootstrap_cfn.vpc.VPC.get_vpc_cidr_block")
+    @patch("bootstrap_cfn.vpc.VPC.get_vpc_cidr_blocks")
     @patch("bootstrap_cfn.vpc.VPC.get_stack_vpc_id")
     @patch("bootstrap_cfn.vpc.VPC.get_stack_name_by_match")
     def test_init_cidr_block_wildcards(self,
                                        mock_get_stack_name_by_match,
                                        mock_get_stack_vpc_id,
-                                       mock_get_vpc_cidr_block,
+                                       mock_get_vpc_cidr_blocks,
                                        mock_get_vpc_route_table_ids):
         """
         TestVPC::test_init_cidr_block_wildcards: Test that we generate the correct config when we have a wildcard on the cidr blocks
@@ -283,9 +283,9 @@ class TestVPC(unittest.TestCase):
             "vpc_123",
             "peervpc_xyz"
         ]
-        mock_get_vpc_cidr_block.side_effect = [
-            "1.0.0.0/8",  # First Peer VPC cidr block
-            "2.0.0.0/8",  # Self VPC cidr block
+        mock_get_vpc_cidr_blocks.side_effect = [
+            ["1.0.0.0/8"],  # First Peer VPC cidr block
+            ["2.0.0.0/8"],  # Self VPC cidr block
         ]
         mock_get_vpc_route_table_ids.side_effect = [
             ["rt_def"],

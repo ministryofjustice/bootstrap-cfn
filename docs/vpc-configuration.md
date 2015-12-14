@@ -6,17 +6,6 @@
 
 ##### [1. Basic configuration](#basic-configuration)
 
-VPC configuration is done in the under the 'vpc' key section of the cloudformation configuration file.
-
-Defaults are set so that without specifying anything, we get a VPC with CIDR `10.128.0.0/16` and 3 subnets, `10.0.0.0/20`, `10.0.16.0/20`, and `10.0.32.0/20`
-
-We can alter this by specifying the CIDR and subnets specically, for example,
-
-	vpc:
-	    CIDR: 10.128.0.0/16
-	    SubnetX: 10.128.0.0/20
-	    SubnetY: 10.128.16.0/20
-
 ##### [2. Peering](#peering)
 
 ##### [A1. Examples](#examples)
@@ -26,6 +15,17 @@ We can alter this by specifying the CIDR and subnets specically, for example,
 --------------------------------------------------------------------------
 
 ### Basic configuration 
+
+VPC configuration is done in the under the 'vpc' key section of the cloudformation configuration file.
+
+Defaults are set so that without specifying anything, we get a VPC with CIDR `10.128.0.0/16` and 3 subnets, `10.128.0.0/20`, `10.128.16.0/20`, and `10.128.32.0/20`
+
+We can alter this by specifying the CIDR and subnets specically, for example,
+
+	vpc:
+	    CIDR: 10.128.0.0/16
+	    SubnetX: 10.128.0.0/20
+	    SubnetY: 10.128.16.0/20
 
 
 ### Peering

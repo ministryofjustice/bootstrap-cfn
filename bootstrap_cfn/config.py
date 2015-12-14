@@ -98,10 +98,11 @@ class ConfigParser(object):
 
         if 'vpc' in self.data:
             logging.info('bootstrap-cfn::base_template: Using configuration VPC address settings')
-            vpc_cidr = self.data.get('vpc', {}).get('CIDR', '10.0.0.0/16')
-            subneta_cidr = self.data.get('SubnetA', {}).get('CIDR', '10.0.0.0/20')
-            subnetb_cidr = self.data.get('SubnetB', {}).get('CIDR', '10.0.16.0/20')
-            subnetc_cidr = self.data.get('SubnetC', {}).get('CIDR', '10.0.32.0/20')
+            vpc_data = self.data.get('vpc', {})
+            vpc_cidr = vpc_data.get('CIDR', '10.0.0.0/16')
+            subneta_cidr = vpc_data.get('SubnetA', '10.0.0.0/20')
+            subnetb_cidr = vpc_data.get('SubnetB', '10.0.16.0/20')
+            subnetc_cidr = vpc_data.get('SubnetC', '10.0.32.0/20')
             t.add_mapping("SubnetConfig", {
                 "VPC": {
                     "CIDR": vpc_cidr,
@@ -143,9 +144,7 @@ class ConfigParser(object):
                     "SubnetC": subnetc_cidr
                 }
             })
-=======
 
->>>>>>> 234e59f... Add advanced settings and wildcards for peering vpcs
         return t
 
     def vpc(self):
