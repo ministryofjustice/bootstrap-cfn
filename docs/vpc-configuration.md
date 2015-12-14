@@ -1,5 +1,7 @@
 # VPC Configuration
 
+----------------------------------------------------------------------
+
 ### Contents
 
 ##### [1. Basic configuration](#basic-configuration)
@@ -21,29 +23,74 @@ We can alter this by specifying the CIDR and subnets specically, for example,
 
 * [Peered VPCs](#peered-vpcs)
 
+--------------------------------------------------------------------------
+
 ### Basic configuration 
 
 
 ### Peering
 
-Using the VPC class, we can setup up peering to another VPC by calling enable_peering. This call will then
+Using the VPC class, we can setup up peering to another stacks VPC by calling `enable_vpc_peering`. This call will then
 
 * Use the cloudformation configuration file to get a list of stacks to peer to
 * Use the stack names to try and match to an existing stack, required since stack names have a random element
 * Create a peering connection between the two stacks
-* Add routes between the two stacks to each others default route table
+* Add all or a specific set of routes between the two stacks.
 
 Note that if security groups are needed, these are set up separately in the security_groups section of the cloudformation configuration file.
 
-##### Setting peering stacks
+The configuration also understands wildcards, so the following configuration segments can be used to match a set of
+route tables or cidr blocks.
 
-##### Set the security groups
+We use the term 'source' to refer to the currently defined stack, and 'target' to refer to the stack we want to peer to. The peer stack does not need any additional vpc definition and is automatically set up using the source stacks configuration.
+
+
+##### Add the target and source stacks VPC cidr blocks to all the route tables on a each stack
+ 
+		vpc:
+		    peering:
+		      helloworld-dev1: '*'
+		            
+##### Add defined cidr blocks to all of the route tables on the source stack
+ 
+		vpc:
+		    peering:
+		      helloworld-dev1:
+		        source_routes:
+		            '*':
+		              cidr_blocks:
+		                - 192.128.0.0/24
+		                - 192.128.1.0/24
+		       .....
+		       
+##### Add the target stacks full cidr block to the route table 'PublicRouteTable'
+ 
+		vpc:
+		    peering:
+		      helloworld-dev1:
+		        source_routes:
+		            PublicRouteTable: "*"
+		       .....
+		       
+
 
 ### Examples
 
 ##### Peered VPCs
 
-	dev:
+We can test out the stack below using the commands
+
+	fab application:dev1 ... cfn_create
+	fab application:dev2 ... cfn_create
+
+Once both stacks have been created, we can then enable and disable peering by,
+
+	fab application:dev1 ... enable_vpc_peering
+	fab application:dev2 ... disable_vpc_peering
+
+The cloudformation file,
+
+	dev1:
 	  vpc:
 	    CIDR: 10.128.0.0/16
 	    SubnetA: 10.128.0.0/20
@@ -84,7 +131,7 @@ Note that if security groups are needed, these are set up separately in the secu
 	          FromPort: 80
 	          ToPort: 80
 	          SourceSecurityGroupId:
-	            Ref: DefaultSGhelloworlddev
+	            Ref: DefaultSGhelloworlddev1
 	      MySaltSG:
 	        - IpProtocol: tcp
 	          FromPort: 4505
@@ -92,7 +139,7 @@ Note that if security groups are needed, these are set up separately in the secu
 	          SourceSecurityGroupId:
 	            Ref: MyBaseSG
 	  elb:
-	    - name: helloworld-dev
+	    - name: helloworld-dev1
 	      # This zone must exist in the AWS account you are using.
 	      hosted_zone: dsd.io.
 	      scheme: internet-facing
@@ -106,7 +153,7 @@ Note that if security groups are needed, these are set up separately in the secu
 	
 	
 	
-	dev1:
+	dev2:
 	  master_zone: dsd.io
 	  ec2:
 	    auto_scaling:
@@ -147,7 +194,7 @@ Note that if security groups are needed, these are set up separately in the secu
 	          SourceSecurityGroupId:
 	            Ref: MyBaseSG
 	  elb:
-	    - name: helloworld-dev1
+	    - name: helloworld-dev2
 	      hosted_zone: dsd.io.
 	      scheme: internet-facing
 	      listeners:

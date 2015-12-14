@@ -575,7 +575,7 @@ def enable_vpc_peering():
     cfg = get_config()
     vpc_cfg = cfg.data.get('vpc', False)
     if vpc_cfg:
-        vpc_obj = VPC(cfg, get_stack_name())
+        vpc_obj = VPC(cfg.data, get_stack_name())
         vpc_obj.enable_peering()
 
 
@@ -588,5 +588,5 @@ def disable_vpc_peering():
     cfg = get_config()
     vpc_cfg = cfg.data.get('vpc', False)
     if vpc_cfg:
-        vpc_obj = VPC(cfg, get_stack_name())
+        vpc_obj = VPC(cfg.data, get_stack_name())
         vpc_obj.disable_peering()

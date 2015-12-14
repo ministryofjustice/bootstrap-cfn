@@ -13,6 +13,7 @@ The objective of this repo is to enable MoJ teams to create project infrastructu
 - Elastic Load Balancers (ELB)
 - Relational Database Service (RDS)
 - S3 Storage for web static content
+- `VPC Configuration <docs/vpc-configuration.md>`_
 
 Installation
 ============
