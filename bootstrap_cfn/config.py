@@ -377,24 +377,37 @@ class ConfigParser(object):
             template:
                 The troposphere.Template object
         """
-        # REQUIRED FIELDS MAPPING
-        required_fields = {
-            'db-name': 'DBName',
+        replica_required_fields = {
             'storage': 'AllocatedStorage',
             'storage-type': 'StorageType',
-            'backup-retention-period': 'BackupRetentionPeriod',
-            'db-master-username': 'MasterUsername',
-            'db-master-password': 'MasterUserPassword',
             'db-engine': 'Engine',
             'db-engine-version': 'EngineVersion',
             'instance-class': 'DBInstanceClass',
+        }
+
+        # REQUIRED FIELDS MAPPING
+        required_fields = {
+            'db-name': 'DBName',
+            'backup-retention-period': 'BackupRetentionPeriod',
+            'db-master-username': 'MasterUsername',
+            'db-master-password': 'MasterUserPassword',
             'multi-az': 'MultiAZ'
         }
 
+        required_fields.update(replica_required_fields)
+
+        # We *cant* specify db-name for SQL Server based RDS instances. :(
+        if 'db-engine' in self.data['rds'] and self.data['rds']['db-engine'].startswith("sqlserver"):
+            required_fields.pop('db-name')
+
+        replica_optional_fields = {
+            'storage-encrypted': 'StorageEncrypted'
+        }
+
         optional_fields = {
-            'storage-encrypted': 'StorageEncrypted',
             'identifier': 'DBInstanceIdentifier'
         }
+        optional_fields.update(replica_optional_fields)
 
         # LOAD STACK TEMPLATE
         resources = []
@@ -422,46 +435,69 @@ class ConfigParser(object):
         )
         resources.append(database_sg)
 
-        rds_instance = DBInstance(
-            "RDSInstance",
-            PubliclyAccessible=False,
-            AllowMajorVersionUpgrade=False,
-            AutoMinorVersionUpgrade=False,
-            VPCSecurityGroups=[GetAtt(database_sg, "GroupId")],
-            DBSubnetGroupName=Ref(rds_subnet_group),
-            StorageEncrypted=False,
-            DependsOn=database_sg.title
+        databases = []
+
+        def set_rdsi_attrs(rdsi):
+            # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
+            for yaml_key, rds_prop in rdsi.required_fields.iteritems():
+                if yaml_key not in self.data['rds']:
+                    print "\n\n[ERROR] Missing RDS fields [%s]" % yaml_key
+                    sys.exit(1)
+                else:
+                    rdsi.__setattr__(rds_prop, self.data['rds'][yaml_key])
+
+            for yaml_key, rds_prop in rdsi.optional_fields.iteritems():
+                if yaml_key in self.data['rds']:
+                    rdsi.__setattr__(rds_prop, self.data['rds'][yaml_key])
+
+            resources.append(rdsi)
+            databases.append(rdsi)
+
+        rds_instance = BootstrapDBInstance(
+            database_sg,
+            rds_subnet_group,
+            required_fields,
+            optional_fields
         )
-        resources.append(rds_instance)
 
-        # We *cant* specify db-name for SQL Server based RDS instances. :(
-        if 'db-engine' in self.data['rds'] and self.data['rds']['db-engine'].startswith("sqlserver"):
-            required_fields.pop('db-name')
+        set_rdsi_attrs(rds_instance)
 
-        # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
-        for yaml_key, rds_prop in required_fields.iteritems():
-            if yaml_key not in self.data['rds']:
-                print "\n\n[ERROR] Missing RDS fields [%s]" % yaml_key
+        for i in range(self.data['rds'].pop('read-replicas', 0)):
+            print 'ADDING REPLICA'
+            if 'identifier' not in self.data['rds']:
+                print '\n\n[ERROR] Missing RDS identifier when read-replicas > 0'
                 sys.exit(1)
-            else:
-                rds_instance.__setattr__(rds_prop, self.data['rds'][yaml_key])
+            rdsi = BootstrapDBInstance(
+                database_sg,
+                rds_subnet_group,
+                replica_required_fields,
+                replica_optional_fields,
+                SourceDBInstanceIdentifier=self.data['rds']['identifier'],
+                DBInstanceIdentifier='%s-replica-%s' % (
+                    self.data['rds']['identifier'],
+                    i + 1
+                )
+            )
 
-        for yaml_key, rds_prop in optional_fields.iteritems():
-            if yaml_key in self.data['rds']:
-                rds_instance.__setattr__(rds_prop, self.data['rds'][yaml_key])
+            set_rdsi_attrs(rdsi)
 
         # Add resources and outputs
         map(template.add_resource, resources)
-        template.add_output(Output(
-            "dbhost",
-            Description="RDS Hostname",
-            Value=GetAtt(rds_instance, "Endpoint.Address")
-        ))
-        template.add_output(Output(
-            "dbport",
-            Description="RDS Port",
-            Value=GetAtt(rds_instance, "Endpoint.Port")
-        ))
+
+        for i, rdsi in enumerate(databases):
+            suffix = ''
+            if rdsi.is_replica:
+                suffix = '-replica-%s' % i
+            template.add_output(Output(
+                "dbhost%s" % suffix,
+                Description="RDS Hostname",
+                Value=GetAtt(rdsi, "Endpoint.Address")
+            ))
+            template.add_output(Output(
+                "dbport%s" % suffix,
+                Description="RDS Port",
+                Value=GetAtt(rdsi, "Endpoint.Port")
+            ))
 
     def elasticache(self, template):
         """
@@ -1006,3 +1042,22 @@ class ConfigParser(object):
             template.resources[asgs[0].title] = asgs[0]
 
         return template
+
+
+class BootstrapDBInstance(DBInstance):
+    def __init__(self, database_sg, rds_subnet_group, required_fields,
+                 optional_fields, **extra):
+        self.required_fields = required_fields
+        self.optional_fields = optional_fields
+        self.is_replica = 'SourceDBInstanceIdentifier' in extra
+        super(BootstrapDBInstance, self).__init__(
+            "RDSInstance",
+            PubliclyAccessible=False,
+            AllowMajorVersionUpgrade=False,
+            AutoMinorVersionUpgrade=False,
+            VPCSecurityGroups=[GetAtt(database_sg, "GroupId")],
+            DBSubnetGroupName=Ref(rds_subnet_group),
+            StorageEncrypted=False,
+            DependsOn=database_sg.title,
+            **extra
+        )
