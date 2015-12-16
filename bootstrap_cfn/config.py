@@ -438,6 +438,20 @@ class ConfigParser(object):
         if 'db-engine' in self.data['rds'] and self.data['rds']['db-engine'].startswith("sqlserver"):
             required_fields.pop('db-name')
 
+        if self.data['rds'].pop('read-replica'):
+            if 'identifier' not in self.data['rds']:
+                print '\n\n[ERROR] Missing RDS field identifier when ' \
+                      'read-replica set to true'
+            rds_instance.__setattr__("ReplicaDB", {
+                "Type": "AWS::RDS::DBInstance",
+                "Condition" : "CreateReadReplica",
+                "Properties": {
+                    "SourceDBInstanceIdentifier": { "Ref": "MasterDB"},
+                    "DBInstanceClass": { "Ref": "DBInstanceClass"},
+                    "Tags": [{"Key": "Name", "Value": '%s-replica' % self.data['rds']['identifier']}]
+                }
+            })
+
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         for yaml_key, rds_prop in required_fields.iteritems():
             if yaml_key not in self.data['rds']:
