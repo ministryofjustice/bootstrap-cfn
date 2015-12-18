@@ -98,8 +98,18 @@ class ConfigParser(object):
 
         if 'vpc' in self.data:
             logging.info('bootstrap-cfn::base_template: Using configuration VPC address settings')
+            vpc_data = self.data.get('vpc', {})
+            vpc_cidr = vpc_data.get('CIDR', '10.0.0.0/16')
+            subneta_cidr = vpc_data.get('SubnetA', '10.0.0.0/20')
+            subnetb_cidr = vpc_data.get('SubnetB', '10.0.16.0/20')
+            subnetc_cidr = vpc_data.get('SubnetC', '10.0.32.0/20')
             t.add_mapping("SubnetConfig", {
-                "VPC": self.data['vpc']
+                "VPC": {
+                    "CIDR": vpc_cidr,
+                    "SubnetA": subneta_cidr,
+                    "SubnetB": subnetb_cidr,
+                    "SubnetC": subnetc_cidr
+                }
             })
         else:
             default_vpc_cidr_prefix = 24
@@ -134,6 +144,7 @@ class ConfigParser(object):
                     "SubnetC": subnetc_cidr
                 }
             })
+
         return t
 
     def vpc(self):

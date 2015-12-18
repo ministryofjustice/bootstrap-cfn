@@ -20,6 +20,7 @@ from bootstrap_cfn.errors import CloudResourceNotFoundError
 from bootstrap_cfn.iam import IAM
 from bootstrap_cfn.r53 import R53
 from bootstrap_cfn.utils import tail
+from bootstrap_cfn.vpc import VPC
 
 
 # Default fab config. Set via the tasks below or --set
@@ -426,6 +427,10 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
         for callback in pre_delete_callbacks:
             callback(stack_name=stack_name, config=cfn_config)
 
+    # Disable all vpc peering before deletion
+    print green("\nSTACK {0}: Disabling VPC peering before deletion...\n").format(stack_name)
+    disable_vpc_peering()
+
     print green("\nSTACK {0} DELETING...\n").format(stack_name)
 
     cfn.delete(stack_name)
@@ -563,3 +568,29 @@ def display_elb_dns_entries():
     elb_dns_list = elb.list_domain_names(stack_name)
     for elb_dns in elb_dns_list:
         print "\n\nELB name: {0}        DNS: {1}".format(elb_dns['elb_name'], elb_dns['dns_name'])
+
+
+@task
+def enable_vpc_peering():
+    """
+    Enables vpc peering to stacks named in the cloudformation config.
+    """
+    # peer vpc
+    cfg = get_config()
+    vpc_cfg = cfg.data.get('vpc', False)
+    if vpc_cfg:
+        vpc_obj = VPC(cfg.data, get_stack_name())
+        vpc_obj.enable_peering()
+
+
+@task
+def disable_vpc_peering():
+    """
+    Disables vpc peering to stacks named in the cloudformation config.
+    """
+    # peer vpc
+    cfg = get_config()
+    vpc_cfg = cfg.data.get('vpc', False)
+    if vpc_cfg:
+        vpc_obj = VPC(cfg.data, get_stack_name())
+        vpc_obj.disable_peering()
