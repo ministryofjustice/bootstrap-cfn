@@ -138,38 +138,6 @@ class TestIAM(unittest.TestCase):
                          "Should be able update certs"
                          )
 
-    @raises(CloudResourceNotFoundError)
-    @patch("boto.iam.IAMConnection.delete_server_cert")
-    @patch("boto.iam.IAMConnection.upload_server_cert")
-    @patch("bootstrap_cfn.iam.IAM.get_remote_certificate")
-    def test_update_ssl_certificates_not_exist(self,
-                                               mock_get_remote_certificate,
-                                               mock_upload_server_cert,
-                                               mock_delete_server_cert):
-        """
-        Test we cause an exception trying update over
-        non existing certificates
-        """
-        mock_get_remote_certificate.side_effect = [True,
-                                                   False,
-                                                   False,
-                                                   None]
-        mock_upload_server_cert.side_effect = [self.successful_response,
-                                               self.unsuccessful_response,
-                                               None]
-        mock_delete_server_cert.side_effect = [self.successful_response,
-                                               self.unsuccessful_response,
-                                               None]
-        ssl_config = self.test_certs
-        stack_name = "test_stack"
-        update_count = self.mock_iam.update_ssl_certificates(ssl_config,
-                                                             stack_name)
-        self.assertEqual(update_count,
-                         1,
-                         "TestIAM::test_update_ssl_certificates_force: "
-                         "Should only be able to update existing certificates "
-                         )
-
     @patch("boto.iam.IAMConnection.upload_server_cert")
     @patch("bootstrap_cfn.iam.IAM.get_remote_certificate")
     def test_upload_certificate_not_exists(self,
@@ -228,11 +196,9 @@ class TestIAM(unittest.TestCase):
         mock_delete_server_cert.return_value = self.successful_response
         cert_name = "cert1"
         stack_name = "test_stack"
-        ssl_data = self.test_certs["test_cert_1"]
 
         success = self.mock_iam.delete_certificate(cert_name,
-                                                   stack_name,
-                                                   ssl_data)
+                                                   stack_name)
         mock_get_remote_certificate.assert_called_once_with(cert_name,
                                                             stack_name)
         self.assertTrue(success,
@@ -252,11 +218,8 @@ class TestIAM(unittest.TestCase):
         mock_delete_server_cert.return_value = self.unsuccessful_response
         cert_name = "cert1"
         stack_name = "test_stack"
-        ssl_data = self.test_certs["test_cert_1"]
-
         success = self.mock_iam.delete_certificate(cert_name,
-                                                   stack_name,
-                                                   ssl_data)
+                                                   stack_name)
         mock_get_remote_certificate.assert_called_once_with(cert_name,
                                                             stack_name)
         self.assertFalse(success,

@@ -61,7 +61,7 @@ class Cloudformation:
                 load balancers for this stack
         """
         resource_type = 'AWS::ElasticLoadBalancing::LoadBalancer'
-        return self.get_resource_type(stack_name_or_id, resource_type)
+        return get_resource_type(stack_name_or_id, resource_type)
 
 
 def get_resource_type(stack_name_or_id,

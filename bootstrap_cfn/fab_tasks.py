@@ -20,7 +20,6 @@ from bootstrap_cfn.errors import CloudResourceNotFoundError
 from bootstrap_cfn.iam import IAM
 from bootstrap_cfn.r53 import R53
 from bootstrap_cfn.utils import tail
-from bootstrap_cfn.vpc import VPC
 
 
 # Default fab config. Set via the tasks below or --set
@@ -427,10 +426,6 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
         for callback in pre_delete_callbacks:
             callback(stack_name=stack_name, config=cfn_config)
 
-    # Disable all vpc peering before deletion
-    print green("\nSTACK {0}: Disabling VPC peering before deletion...\n").format(stack_name)
-    disable_vpc_peering()
-
     print green("\nSTACK {0} DELETING...\n").format(stack_name)
 
     cfn.delete(stack_name)
@@ -507,42 +502,42 @@ def cfn_create(test=False):
 
 
 @task
-def update_certs():
+def update_certs(delete_replaced_certificates=True):
     """
     Update the ssl certificates
 
     This will read in the certificates from the config
     file, update them in AWS Iam, and then also handle
-    setting the certificates on ELB's
+    setting the certificates on ELB's. By default, replaced
+    SSL certs will be deleted.
+
+    Args:
+        delete_replaced_certificates: Delete the certificates we have replaced
     """
 
     stack_name = get_stack_name()
     cfn_config = get_config()
     # Upload any SSL certificates to our EC2 instances
-    updated_count = False
     if 'ssl' in cfn_config.data:
-        logging.info("Reloading SSL certificates...")
+        logging.info("update_certs: Updating SSL certificates...")
         iam = get_connection(IAM)
-        updated_count = iam.update_ssl_certificates(cfn_config.ssl(),
+        updated_certs = iam.update_ssl_certificates(cfn_config.ssl(),
                                                     stack_name)
     else:
-        logging.error("No ssl section found in cloud config file, aborting...")
+        logging.error("update_certs: No ssl section found in cloud config file, aborting...")
         sys.exit(1)
 
-    # Arbitrary wait to allow SSL upload to register with AWS
-    # Otherwise, we can get an ARN for the load balancer certificates
-    # without it being ready to assign
-    time.sleep(3)
-
     # Set the certificates on ELB's if we have any
-    if updated_count > 0:
-        if 'elb' in cfn_config.data:
-            logging.info("Setting load balancer certificates...")
-            elb = get_connection(ELB)
-            elb.set_ssl_certificates(cfn_config.ssl(), stack_name)
-    else:
+    if len(updated_certs) <= 0:
         logging.error("No certificates updated so skipping "
                       "ELB certificate update...")
+    if 'elb' in cfn_config.data:
+        logging.info("update_certs: Setting load balancer certificates...")
+        elb = get_connection(ELB)
+        replaced_certificates = elb.set_ssl_certificates(updated_certs, stack_name, max_retries=3)
+        if delete_replaced_certificates:
+            for replaced_certificate in replaced_certificates:
+                iam.delete_certificate(replaced_certificate, stack_name, max_retries=3)
 
 
 def get_cloudformation_tags():

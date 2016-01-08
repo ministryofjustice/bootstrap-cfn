@@ -1,10 +1,14 @@
 import logging
 
+import time
+
 from boto.connection import AWSQueryConnection
+
+from boto.exception import BotoServerError
+
 import boto.iam
 
 from bootstrap_cfn import utils
-from bootstrap_cfn.errors import CloudResourceNotFoundError
 
 
 class IAM:
@@ -36,8 +40,9 @@ class IAM:
 
     def update_ssl_certificates(self, ssl_config, stack_name):
         """
-        Update all the ssl certificates in the identified stack. Raise an
-        exception if we try to update a non-existent certificate
+        Update all the ssl certificates in the identified stack. Note,
+        this creates a uniquely named ssl certificate and doesn't overwrite
+        the current ones.
 
         Args:
             ssl_config(dictionary): A dictionary of ssl configuration data
@@ -51,34 +56,26 @@ class IAM:
         updated_certificates = []
         for cert_name, ssl_data in ssl_config.items():
             try:
-                    delete_success = self.delete_certificate(cert_name,
-                                                             stack_name,
-                                                             ssl_data)
-                    if delete_success:
-                        upload_success = self.upload_certificate(cert_name,
-                                                                 stack_name,
-                                                                 ssl_data,
-                                                                 force=True)
-                        if upload_success:
-                            updated_certificates.append(cert_name)
-                            logging.info("IAM::update_ssl_certificates: "
-                                         "Updated certificate '%s': "
-                                         % (cert_name))
-                        else:
-                            logging.warn("IAM::update_ssl_certificates: "
-                                         "Failed to update certificate '%s': "
-                                         % (cert_name))
-                    else:
-                        msg = ("IAM::update_ssl_certificates: "
-                               "Could not update certificate '%s': "
-                               "Certificate does not exist remotely"
-                               % (cert_name))
-                        raise CloudResourceNotFoundError(msg)
-
+                # Generate uniquely timestamped certificate name and upload it
+                timestamped_cert_name = ("%s-%s"
+                                         % (cert_name, time.time()))
+                upload_success = self.upload_certificate(timestamped_cert_name,
+                                                         stack_name,
+                                                         ssl_data,
+                                                         force=True)
+                if upload_success:
+                    updated_certificates.append(timestamped_cert_name)
+                    logging.info("IAM::update_ssl_certificates: "
+                                 "Uploaded certificate with key '%s' to '%s': "
+                                 % (cert_name, timestamped_cert_name))
+                else:
+                    logging.warn("IAM::update_ssl_certificates: "
+                                 "Failed to upload certificate '%s' as '%s': "
+                                 % (cert_name, timestamped_cert_name))
             except AWSQueryConnection.ResponseError as error:
                 logging.warn("IAM::update_ssl_certificates: "
                              "Could not update certificate '%s': "
-                             "Error %s - %s" % (cert_name,
+                             "Error %s - %s" % (timestamped_cert_name,
                                                 error.status,
                                                 error.reason))
         return updated_certificates
@@ -100,7 +97,7 @@ class IAM:
         try:
             cert_id = "{0}-{1}".format(cert_name, stack_name)
             logging.info("IAM::get_remote_certificate: "
-                         "Found certificate '%s'.."
+                         "Looking for certificate '%s'.."
                          % (cert_id))
 
             # Fetch the remote AWS certificate configuration data
@@ -144,7 +141,7 @@ class IAM:
         try:
             cert_id = "{0}-{1}".format(cert_name, stack_name)
             logging.info("IAM::get_remote_certificate: "
-                         "Found certificate '%s'.."
+                         "Looking for certificate '%s'.."
                          % (cert_id))
 
             # Fetch the remote AWS certificate configuration data
@@ -282,15 +279,16 @@ class IAM:
 
         return False
 
-    def delete_certificate(self, cert_name, stack_name, ssl_data):
+    def delete_certificate(self, cert_name, stack_name, max_retries=1, retry_delay=10):
         """
-        Delete a certificate from AWS
+        Delete a certificate from AWS, we can retry with delay, default is to only
+        try once.
 
         Args:
                 cert_name(string): The name of the certificate entry to look up
                 stack_name(string): The name of the stack
-                ssl_data(dictionary): The configuration data for this
-                    certificate entry
+                max_retries(int): The number of retries to carry out on the operation
+                retry_delay(int): The retry delay of the operation
 
         Returns:
             success(bool): True if a certificate is deleted, False otherwise
@@ -299,27 +297,35 @@ class IAM:
         # Try to delete cert, but handle any problems on
         # individual deletes and
         # continue to delete other certs
-        try:
-            if self.get_remote_certificate(cert_name,
-                                           stack_name):
-                self.conn_iam.delete_server_cert(cert_id)
-                logging.info("IAM::delete_certificate: "
-                             "Deleting certificate '%s'.."
-                             % (cert_name))
-                return True
-            else:
-                logging.info("IAM::delete_certificate: "
-                             "Certificate '%s' does not exist, "
-                             "not deleting." % (cert_name))
-                return False
-        except AWSQueryConnection.ResponseError as error:
-            logging.warn("IAM::delete_certificate: "
-                         "Could not find expected certificate '%s': "
-                         "Error %s - %s" % (cert_id,
-                                            error.status,
-                                            error.reason))
-            return False
-
+        retries = 0
+        while retries < max_retries:
+            retries += 1
+            try:
+                if self.get_remote_certificate(cert_name,
+                                               stack_name):
+                    try:
+                        self.conn_iam.delete_server_cert(cert_id)
+                        logging.info("IAM::delete_certificate: "
+                                     "Deleting certificate '%s'.."
+                                     % (cert_name))
+                        return True
+                    except BotoServerError as e:
+                        logging.warning("IAM::delete_certificate: Cannot delete ssl cert, reason '%s', "
+                                        "waiting %s seconds on retry %s/%s"
+                                        % (e.error_message, retry_delay, retries, max_retries))
+                        # Only sleep if we're going to try again
+                        if retries < max_retries:
+                            time.sleep(retry_delay)
+                else:
+                    logging.info("IAM::delete_certificate: "
+                                 "Certificate '%s' does not exist, "
+                                 "not deleting." % (cert_name))
+            except AWSQueryConnection.ResponseError as error:
+                logging.warn("IAM::delete_certificate: "
+                             "Could not find expected certificate '%s': "
+                             "Error %s - %s" % (cert_id,
+                                                error.status,
+                                                error.reason))
         return False
 
     def get_arn_for_cert(self, cert_name):

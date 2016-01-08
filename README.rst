@@ -284,8 +284,6 @@ By default the ELBs will have a security group opening them to the world on 80 a
 
 If you set the protocol on an ELB to HTTPS you must include a key called ``certificate_name`` in the ELB block (as example above) and matching cert data in a key with the same name as the cert under ``ssl`` (see example above). The ``cert`` and ``key`` are required and the ``chain`` is optional.
 
-The certificate will be uploaded before the stack is created and removed after it is deleted.
-
 It is possilbe to define a custom health check for an ELB like follows::
 
     health_check:
@@ -294,6 +292,20 @@ It is possilbe to define a custom health check for an ELB like follows::
       Target: HTTP:80/ping.json
       Timeout: 5
       UnhealthyThreshold: 2
+
+ELB Certificates
+~~~~~~~~~~~~~~~~
+
+The SSL certificate will be uploaded before the stack is created and removed after it is deleted.
+To update the SSL certificate on ELB listeners run the fab task below, this uploads and updates the
+certificate on each HTTPS listener on your ELBs, by default the old certificate is deleted.
+
+.. code:: bash
+
+   fab load_env:<env_data> update_certs
+
+Note that some errors appear in the log due to the time taken for AWS changes to propogate across infrastructure
+elements, these are handled internally and are not neccessarily a sign of failure.
 
 ELB Policies
 ~~~~~~~~~~~~
