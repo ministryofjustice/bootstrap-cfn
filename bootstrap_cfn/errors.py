@@ -34,5 +34,20 @@ class ProfileNotFoundError(BootstrapCfnError):
         )
 
 
+class ZoneIDNotFoundError(BootstrapCfnError):
+    def __init__(self, zone_name):
+        msg = ("Could not find a zone id for zone name '{}'."
+               "Please check that this hosted zone exists "
+               "and is in the account you've specified".format(zone_name))
+        super(ZoneIDNotFoundError, self).__init__(msg)
+
+
+class ZoneRoute53RecordNotFoundError(BootstrapCfnError):
+    def __init__(self, zone_name, zone_id):
+        msg = ("Could not find an AWS Route53 record for zone name '{}' with zone id '{}'. "
+               "Please check that this record exists in the account you've specified".format(zone_name, zone_id))
+        super(ZoneRoute53RecordNotFoundError, self).__init__(msg)
+
+
 class CloudResourceNotFoundError(BootstrapCfnError):
     pass
