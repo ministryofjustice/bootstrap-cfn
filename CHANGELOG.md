@@ -1,3 +1,8 @@
+## Version 0.7.3
+
+Fixes:
+  * Restore the previous cloudformation_resource_type_for_back_compatibility
+  
 ## Version 0.7.2
 
 Fixes:
