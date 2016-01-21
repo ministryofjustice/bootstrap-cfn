@@ -63,13 +63,26 @@ class Cloudformation:
         resource_type = 'AWS::ElasticLoadBalancing::LoadBalancer'
         return get_resource_type(stack_name_or_id, resource_type)
 
-    def get_resource_type(self,
-                          stack_name_or_id,
-                          resource_type=None):
+    def get_resource_type(self, stack_name_or_id, resource_type=None):
         """
-        Backwards compatible call to get_resource_type
+        Collect up a set of specific stack resources
+        Args:
+            stack_name_or_id (string): Name or id used to identify the stack
+            resource_type(string): The resource type identifier
+        Returns:
+            resources: Set of stack resources containing only
+                the resource type for this stack
         """
-        return get_resource_type(stack_name_or_id, resource_type)
+        # get the stack
+        resources = []
+        stack = self.conn_cfn.describe_stacks(stack_name_or_id)
+        if stack:
+            resources = stack[0].list_resources()
+            if resource_type:
+                # get the resources
+                resources = filter(lambda x: x.resource_type == resource_type,
+                                   resources)
+        return resources
 
 
 def get_resource_type(stack_name_or_id,
