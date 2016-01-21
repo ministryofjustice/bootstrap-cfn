@@ -1,3 +1,8 @@
+## Version 0.7.2
+
+Fixes:
+  * Fix back compatibility of cloudformation:get_resource_type
+
 ## Version 0.7.1
 
 Fixes:
