@@ -63,6 +63,14 @@ class Cloudformation:
         resource_type = 'AWS::ElasticLoadBalancing::LoadBalancer'
         return get_resource_type(stack_name_or_id, resource_type)
 
+    def get_resource_type(self,
+                          stack_name_or_id,
+                          resource_type=None):
+        """
+        Backwards compatible call to get_resource_type
+        """
+        return get_resource_type(stack_name_or_id, resource_type)
+
 
 def get_resource_type(stack_name_or_id,
                       resource_type=None):
