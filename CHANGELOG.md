@@ -1,3 +1,8 @@
+## Version 0.7.1
+
+Fixes:
+  * Fix certificate updating on live elbs
+
 ## Version 0.7.0
 
 Fixes:
