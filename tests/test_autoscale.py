@@ -4,6 +4,7 @@ import unittest
 
 import boto.ec2.autoscale
 from boto.ec2.autoscale.group import AutoScalingGroup
+from boto.resultset import ResultSet
 
 import mock
 
@@ -12,7 +13,7 @@ from bootstrap_cfn import autoscale
 
 def get_all_groups(names=None, max_records=None, next_token=None):
 
-    groups = []
+    groups = ResultSet()
 
     for i in xrange(1, 3):
         tags = [
@@ -26,7 +27,7 @@ def get_all_groups(names=None, max_records=None, next_token=None):
         asg.name = 'test{0}'.format(i)
         asg.tags = tags
         groups.append(asg)
-
+        groups.next_token = None
     return groups
 
 
