@@ -1,3 +1,11 @@
+## Version 0.7.0
+
+Fixes:
+  * Add vpc peering
+  * Add dynamic VPC address block subnetting
+Features:
+  * Fix autoscale get_all_groups paging
+
 ## Version 0.6.3
 
 * Fix broken pypi release
