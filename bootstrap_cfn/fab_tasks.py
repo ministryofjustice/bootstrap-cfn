@@ -15,8 +15,7 @@ from fabric.utils import abort
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.config import ConfigParser, ProjectConfig
 from bootstrap_cfn.elb import ELB
-from bootstrap_cfn.errors import BootstrapCfnError
-from bootstrap_cfn.errors import CloudResourceNotFoundError
+from bootstrap_cfn.errors import BootstrapCfnError, CfnConfigError, CloudResourceNotFoundError, ZoneIDNotFoundError, ZoneRoute53RecordNotFoundError
 from bootstrap_cfn.iam import IAM
 from bootstrap_cfn.r53 import R53
 from bootstrap_cfn.utils import tail
@@ -39,6 +38,10 @@ RETRY_INTERVAL = 10
 # imported in a fabfile.
 path = env.real_fabfile or os.getcwd()
 sys.path.append(os.path.dirname(path))
+
+# Set up the logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("bootstrap-cfn")
 
 
 @task
@@ -336,32 +339,37 @@ def get_stack_name(new=False):
         # know it yet...
         env.stack_name = 'temp'
         cfn_config = get_config()
-        try:
-            r53_conn = get_connection(R53)
+        r53_conn = get_connection(R53)
+        zone_name = cfn_config.data.get('master_zone', None)
+        if not zone_name:
+            raise CfnConfigError("No master_zone in yaml, unable to create/find DNS records for stack name")
+        logger.info("fab_tasks::get_stack_name: Found master zone '{}' in config...".format(zone_name))
+
+        zone_id = r53_conn.get_hosted_zone_id(zone_name)
+        if not zone_id:
+            raise ZoneIDNotFoundError(zone_name)
+        logger.info("fab_tasks::get_stack_name: Found zone id '{}' "
+                    "for zone name '{}'...".format(zone_id, zone_name))
+        record_name = "stack.{0}.{1}".format(tag, legacy_name)
+        if new:
+            stack_suffix = uuid.uuid4().__str__()[-8:]
+            record = "{0}.{1}".format(record_name, zone_name)
+            logger.info("fab_tasks::get_stack_name: "
+                        "Creating stack suffix {} "
+                        "for record '{}' "
+                        "in zone id '{}'...".format(stack_suffix, record, zone_id))
+            # Let DNS update DNSServerError propogate
+            r53_conn.update_dns_record(zone_id, record, 'TXT', '"{0}"'.format(stack_suffix))
+        else:
             try:
-                zone_name = cfn_config.data['master_zone']
-            except KeyError:
-                logging.warn("No master_zone in yaml, unable to create/find DNS records for "
-                             "stack name, will fallback to legacy stack names: "
-                             "application-environment")
-                env.stack_name = legacy_name
-            zone_id = r53_conn.get_hosted_zone_id(zone_name)
-            record_name = "stack.{0}.{1}".format(tag, legacy_name)
-            if new:
-                stack_suffix = uuid.uuid4().__str__()[-8:]
-                record = "{0}.{1}".format(record_name, zone_name)
-                r53_conn.update_dns_record(zone_id, record, 'TXT', '"{0}"'.format(stack_suffix))
-            else:
                 stack_suffix = r53_conn.get_record(zone_name, zone_id, record_name, 'TXT')
-            if stack_suffix:
+                logger.info("fab_tasks::get_stack_name: Found stack suffix '{}' "
+                            "for record name '{}'... ".format(stack_suffix, record_name, zone_id))
                 env.stack_name = "{0}-{1}".format(legacy_name, stack_suffix)
-            else:
-                env.stack_name = legacy_name
-        except DNSServerError:
-            logging.warn("Couldn't find/create DNS entry for stack suffix, "
-                         "stack name, will fallback to legacy stack names: "
-                         "application-environment")
-            env.stack_name = legacy_name
+                logger.info("fab_tasks::get_stack_name: Found stack name '{}'...".format(env.stack_name))
+            except DNSServerError:
+                raise ZoneRoute53RecordNotFoundError(zone_name, zone_id)
+
     return env.stack_name
 
 
@@ -502,42 +510,42 @@ def cfn_create(test=False):
 
 
 @task
-def update_certs(delete_replaced_certificates=True):
+def update_certs():
     """
     Update the ssl certificates
 
     This will read in the certificates from the config
     file, update them in AWS Iam, and then also handle
-    setting the certificates on ELB's. By default, replaced
-    SSL certs will be deleted.
-
-    Args:
-        delete_replaced_certificates: Delete the certificates we have replaced
+    setting the certificates on ELB's
     """
 
     stack_name = get_stack_name()
     cfn_config = get_config()
     # Upload any SSL certificates to our EC2 instances
+    updated_count = False
     if 'ssl' in cfn_config.data:
-        logging.info("update_certs: Updating SSL certificates...")
+        logger.info("Reloading SSL certificates...")
         iam = get_connection(IAM)
-        updated_certs = iam.update_ssl_certificates(cfn_config.ssl(),
+        updated_count = iam.update_ssl_certificates(cfn_config.ssl(),
                                                     stack_name)
     else:
-        logging.error("update_certs: No ssl section found in cloud config file, aborting...")
+        logger.error("No ssl section found in cloud config file, aborting...")
         sys.exit(1)
 
+    # Arbitrary wait to allow SSL upload to register with AWS
+    # Otherwise, we can get an ARN for the load balancer certificates
+    # without it being ready to assign
+    time.sleep(3)
+
     # Set the certificates on ELB's if we have any
-    if len(updated_certs) <= 0:
-        logging.error("No certificates updated so skipping "
-                      "ELB certificate update...")
-    if 'elb' in cfn_config.data:
-        logging.info("update_certs: Setting load balancer certificates...")
-        elb = get_connection(ELB)
-        replaced_certificates = elb.set_ssl_certificates(updated_certs, stack_name, max_retries=3)
-        if delete_replaced_certificates:
-            for replaced_certificate in replaced_certificates:
-                iam.delete_certificate(replaced_certificate, stack_name, max_retries=3)
+    if updated_count > 0:
+        if 'elb' in cfn_config.data:
+            logger.info("Setting load balancer certificates...")
+            elb = get_connection(ELB)
+            elb.set_ssl_certificates(cfn_config.ssl(), stack_name)
+    else:
+        logger.error("No certificates updated so skipping "
+                     "ELB certificate update...")
 
 
 def get_cloudformation_tags():
