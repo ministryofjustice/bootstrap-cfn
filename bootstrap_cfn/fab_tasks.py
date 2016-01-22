@@ -390,15 +390,21 @@ def _validate_fabric_env():
         sys.exit(1)
 
 
-def get_config():
+def get_basic_config():
+    """
+    Returns the basic unparsed configuration file for the project
+    """
     _validate_fabric_env()
     project_config = ProjectConfig(
         env.config,
         env.environment,
         passwords=env.stack_passwords)
+    return project_config.config
 
+
+def get_config():
     Parser = env.get('cloudformation_parser', ConfigParser)
-    cfn_config = Parser(project_config.config, get_stack_name(), environment=env.environment, application=env.application)
+    cfn_config = Parser(get_basic_config(), get_stack_name(), environment=env.environment, application=env.application)
     return cfn_config
 
 
