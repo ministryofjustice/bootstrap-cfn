@@ -6,7 +6,7 @@ import sys
 import time
 import uuid
 
-from boto.route53.exception import DNSServerError
+import dns.resolver
 
 from fabric.api import env, task
 from fabric.colors import green, red
@@ -15,7 +15,7 @@ from fabric.utils import abort
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.config import ConfigParser, ProjectConfig
 from bootstrap_cfn.elb import ELB
-from bootstrap_cfn.errors import BootstrapCfnError, CfnConfigError, CloudResourceNotFoundError, ZoneIDNotFoundError, ZoneRoute53RecordNotFoundError
+from bootstrap_cfn.errors import BootstrapCfnError, CfnConfigError, CloudResourceNotFoundError, DNSRecordNotFoundError, ZoneIDNotFoundError
 from bootstrap_cfn.iam import IAM
 from bootstrap_cfn.r53 import R53
 from bootstrap_cfn.utils import tail
@@ -328,47 +328,85 @@ def get_stack_name(new=False):
     dns records to retreive it in the future.
 
     """
+    if new:
+        # For back-compatibility
+        set_stack_name()
+
     if hasattr(env, 'tag'):
-        tag = env.tag
+        stack_tag = env.tag
     else:
-        tag = 'active'
-        env.tag = tag
-    if not hasattr(env, 'stack_name') or new:
+        stack_tag = 'active'
+        env.tag = stack_tag
+    if not hasattr(env, 'stack_name'):
         legacy_name = "{0}-{1}".format(env.application, env.environment)
         # get_config needs a stack_name so this is a hack because we don't
         # know it yet...
         env.stack_name = 'temp'
-        cfn_config = get_config()
-        r53_conn = get_connection(R53)
-        zone_name = cfn_config.data.get('master_zone', None)
+        zone_name = get_basic_config().get('master_zone', None)
         if not zone_name:
             raise CfnConfigError("No master_zone in yaml, unable to create/find DNS records for stack name")
         logger.info("fab_tasks::get_stack_name: Found master zone '{}' in config...".format(zone_name))
 
-        zone_id = r53_conn.get_hosted_zone_id(zone_name)
-        if not zone_id:
-            raise ZoneIDNotFoundError(zone_name)
-        logger.info("fab_tasks::get_stack_name: Found zone id '{}' "
-                    "for zone name '{}'...".format(zone_id, zone_name))
-        record_name = "stack.{0}.{1}".format(tag, legacy_name)
-        if new:
-            stack_suffix = uuid.uuid4().__str__()[-8:]
-            record = "{0}.{1}".format(record_name, zone_name)
-            logger.info("fab_tasks::get_stack_name: "
-                        "Creating stack suffix {} "
-                        "for record '{}' "
-                        "in zone id '{}'...".format(stack_suffix, record, zone_id))
-            # Let DNS update DNSServerError propogate
-            r53_conn.update_dns_record(zone_id, record, 'TXT', '"{0}"'.format(stack_suffix))
-        else:
-            try:
-                stack_suffix = r53_conn.get_record(zone_name, zone_id, record_name, 'TXT')
-                logger.info("fab_tasks::get_stack_name: Found stack suffix '{}' "
-                            "for record name '{}'... ".format(stack_suffix, record_name, zone_id))
-                env.stack_name = "{0}-{1}".format(legacy_name, stack_suffix)
-                logger.info("fab_tasks::get_stack_name: Found stack name '{}'...".format(env.stack_name))
-            except DNSServerError:
-                raise ZoneRoute53RecordNotFoundError(zone_name, zone_id)
+        record_name = "stack.{0}.{1}".format(stack_tag, legacy_name)
+        dns_name = "{}.{}".format(record_name, zone_name)
+        try:
+            stack_suffix = dns.resolver.query(dns_name, 'TXT')[0].to_text().replace('"', "")
+            logger.info("fab_tasks::get_stack_name: Found stack suffix '{}' "
+                        "for dns record '{}'... ".format(stack_suffix, dns_name))
+            env.stack_name = "{0}-{1}".format(legacy_name, stack_suffix)
+            logger.info("fab_tasks::get_stack_name: Found stack name '{}'...".format(env.stack_name))
+        except dns.resolver.NXDOMAIN:
+            raise DNSRecordNotFoundError(zone_name)
+
+    return env.stack_name
+
+
+def set_stack_name():
+    """
+    Set the name of the stack
+
+    The name of the stack is a combination
+    of the application and environment names
+    and a randomly generated suffix.
+
+    The env.tag dictates which randomly generated suffix
+    the default env.tag is 'active'
+
+    We generate a new stack_name and create the
+    dns records to retreive it in the future.
+
+    """
+    if hasattr(env, 'tag'):
+        stack_tag = env.tag
+    else:
+        stack_tag = 'active'
+        env.tag = stack_tag
+    legacy_name = "{0}-{1}".format(env.application, env.environment)
+    # get_config needs a stack_name so this is a hack because we don't
+    # know it yet...
+    env.stack_name = 'temp'
+    cfn_config = get_config()
+    r53_conn = get_connection(R53)
+    zone_name = cfn_config.data.get('master_zone', None)
+    if not zone_name:
+        raise CfnConfigError("No master_zone in yaml, unable to create/find DNS records for stack name")
+    logger.info("fab_tasks::set_stack_name: Found master zone '{}' in config...".format(zone_name))
+
+    zone_id = r53_conn.get_hosted_zone_id(zone_name)
+    if not zone_id:
+        raise ZoneIDNotFoundError(zone_name)
+    logger.info("fab_tasks::set_stack_name: Found zone id '{}' "
+                "for zone name '{}'...".format(zone_id, zone_name))
+    record_name = "stack.{0}.{1}".format(stack_tag, legacy_name)
+
+    stack_suffix = uuid.uuid4().__str__()[-8:]
+    record = "{0}.{1}".format(record_name, zone_name)
+    logger.info("fab_tasks::set_stack_name: "
+                "Creating stack suffix {} "
+                "for record '{}' "
+                "in zone id '{}'...".format(stack_suffix, record, zone_id))
+    # Let DNS update DNSServerError propogate
+    r53_conn.update_dns_record(zone_id, record, 'TXT', '"{0}"'.format(stack_suffix))
 
     return env.stack_name
 
