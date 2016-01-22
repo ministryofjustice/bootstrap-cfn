@@ -21,6 +21,7 @@ setup(
         'PyYAML>=3.11',
         'boto>=2.36.0',
         'boto3>=1.2.2',
+        'dnspython>=1.12.0',
         'netaddr>=0.7.18',
         'troposphere>=1.0.0',
     ],

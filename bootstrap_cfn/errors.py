@@ -49,5 +49,12 @@ class ZoneRoute53RecordNotFoundError(BootstrapCfnError):
         super(ZoneRoute53RecordNotFoundError, self).__init__(msg)
 
 
+class DNSRecordNotFoundError(BootstrapCfnError):
+    def __init__(self, zone_name):
+        msg = ("Could not find a dns record for zone name '{}'. "
+               "Please check that this record exists".format(zone_name))
+        super(DNSRecordNotFoundError, self).__init__(msg)
+
+
 class CloudResourceNotFoundError(BootstrapCfnError):
     pass
