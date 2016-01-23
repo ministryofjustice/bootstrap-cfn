@@ -1,3 +1,10 @@
+## Version 0.7.4
+
+Fixes:
+ * Separate get and set_stack name
+ * Remove the fallback when route53 stack name is missing
+ * Add a function to return the basic config file with no AWS API calls
+
 ## Version 0.7.3
 
 Fixes:
