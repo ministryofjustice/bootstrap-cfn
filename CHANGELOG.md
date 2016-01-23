@@ -1,3 +1,8 @@
+## Version 0.7.5
+
+Fixes:
+ * Fix settings stack_name in set_stack_name
+ 
 ## Version 0.7.4
 
 Fixes:
