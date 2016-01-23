@@ -407,7 +407,7 @@ def set_stack_name():
                 "in zone id '{}'...".format(stack_suffix, record, zone_id))
     # Let DNS update DNSServerError propogate
     r53_conn.update_dns_record(zone_id, record, 'TXT', '"{0}"'.format(stack_suffix))
-
+    env.stack_name = "{0}-{1}".format(legacy_name, stack_suffix)
     return env.stack_name
 
 
