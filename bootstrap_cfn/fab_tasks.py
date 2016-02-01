@@ -582,11 +582,11 @@ def update_certs():
     time.sleep(3)
 
     # Set the certificates on ELB's if we have any
-    if updated_count > 0:
+    if updated_count:
         if 'elb' in cfn_config.data:
             logger.info("Setting load balancer certificates...")
             elb = get_connection(ELB)
-            elb.set_ssl_certificates(cfn_config.ssl(), stack_name)
+            elb.set_ssl_certificates(updated_count, stack_name)
     else:
         logger.error("No certificates updated so skipping "
                      "ELB certificate update...")
