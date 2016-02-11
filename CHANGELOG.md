@@ -1,3 +1,8 @@
+## Version 0.7.6
+
+Fixes:
+ * Fix update_certs fab task.
+ 
 ## Version 0.7.5
 
 Fixes:
