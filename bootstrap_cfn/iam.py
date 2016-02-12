@@ -34,8 +34,7 @@ class IAM:
     def delete_ssl_certificate(self, ssl_config, stack_name):
         for cert_name, ssl_data in ssl_config.items():
             self.delete_certificate(cert_name,
-                                    stack_name,
-                                    ssl_data)
+                                    stack_name)
         return True
 
     def update_ssl_certificates(self, ssl_config, stack_name):
