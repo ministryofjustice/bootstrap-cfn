@@ -1,3 +1,7 @@
+## Version 0.7.7
+
+ * Add ability to create Windows 2012 machines
+
 ## Version 0.7.6
 
 Fixes:
