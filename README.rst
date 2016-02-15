@@ -156,6 +156,15 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
           KeyName: default
           InstanceType: t2.micro
 
+:``os``:
+  Which operating system to use.  In reality this simply selects which AMI to use. Only 1 value is recognised, namely ``windows2012`` which selects that OS. Any other value (or a missing value) results in a default of Ubuntu 14.04 LTS.
+
+  Example::
+
+    dev:
+      ec2:
+        os: windows2012
+
 :``block_devices``:
   A list of EBS volumes to create and attach to per instance. Each list should have
 

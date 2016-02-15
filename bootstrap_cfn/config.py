@@ -91,10 +91,14 @@ class ConfigParser(object):
     def base_template(self):
         from bootstrap_cfn import vpc
         t = Template()
-
-        t.add_mapping("AWSRegion2AMI", {
-            "eu-west-1": {"AMI": "ami-00d88f77"},
-        })
+        if 'os' in self.data['ec2'] and self.data['ec2']['os'] == 'windows2012':
+            t.add_mapping("AWSRegion2AMI", {
+                "eu-west-1": {"AMI": "ami-7943ec0a"},
+            })
+        else:
+            t.add_mapping("AWSRegion2AMI", {
+                "eu-west-1": {"AMI": "ami-00d88f77"},
+            })
 
         if 'vpc' in self.data:
             logging.info('bootstrap-cfn::base_template: Using configuration VPC address settings')
