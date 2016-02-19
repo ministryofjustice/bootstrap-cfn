@@ -12,6 +12,7 @@ from fabric.api import env, task
 from fabric.colors import green, red
 from fabric.utils import abort
 
+from bootstrap_cfn.autoscale import Autoscale
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.config import ConfigParser, ProjectConfig
 from bootstrap_cfn.elb import ELB
@@ -42,6 +43,7 @@ sys.path.append(os.path.dirname(path))
 # Set up the logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bootstrap-cfn")
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 @task
@@ -641,3 +643,41 @@ def disable_vpc_peering():
     if vpc_cfg:
         vpc_obj = VPC(cfg.data, get_stack_name())
         vpc_obj.disable_peering()
+
+
+@task
+def set_autoscaling_desired_capacity(capacity, block=True):
+    """
+   Set the desired capacity the autoscaling group
+
+    Args:
+        capacity(int): Number of instances desired in
+            the autoscaling group.
+        block(bool): Wait for instances to become healthy
+            and in-service.
+    """
+    asg = get_connection(Autoscale)
+    if not asg.group:
+        asg.set_autoscaling_group(get_stack_name())
+    asg.set_autoscaling_desired_capacity(capacity=int(capacity))
+    if block:
+        asg.wait_for_instances(int(capacity))
+
+
+@task
+def cycle_instances(delay=None):
+    """
+    Cycle the instances in the autoscaling group
+
+    Args:
+        delay(int): Number of seconds between new instance
+            becoming healthy and killing the old one.
+    """
+    asg = get_connection(Autoscale)
+    if not asg.group:
+        asg.set_autoscaling_group(get_stack_name())
+    if delay:
+        termination_delay = int(delay)
+    else:
+        termination_delay = None
+    asg.cycle_instances(termination_delay=termination_delay)

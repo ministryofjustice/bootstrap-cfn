@@ -58,3 +58,16 @@ class DNSRecordNotFoundError(BootstrapCfnError):
 
 class CloudResourceNotFoundError(BootstrapCfnError):
     pass
+
+
+class AutoscalingGroupNotFound(BootstrapCfnError):
+    pass
+
+
+class AutoscalingInstanceCountError(BootstrapCfnError):
+    def __init__(self, autoscaling_group, expected_instance_count, instances):
+        super(ProfileNotFoundError, self).__init__(
+            "Could not find {} instances in autoscaling group {}. Actual state is {} instances, {}"
+            .format(expected_instance_count, autoscaling_group, len(instances), instances)
+        )
+    pass
