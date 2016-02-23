@@ -1072,7 +1072,7 @@ class ConfigParser(object):
             os_data(dict): Dictionary of OS data in the form
                 {
                     'name': 'ubuntu-1404',
-                    'ami': 'ami-00d88f77',
+                    'ami': 'ami-464af835',
                     'region': 'eu-west-1',
                     'distribution': 'ubuntu',
                     'type': 'linux',
@@ -1087,7 +1087,7 @@ class ConfigParser(object):
         available_types = {
             'ubuntu-1404': {
                 'name': 'ubuntu-1404',
-                'ami': 'ami-00d88f77',
+                'ami': 'ami-464af835',
                 'region': 'eu-west-1',
                 'distribution': 'ubuntu',
                 'type': 'linux',

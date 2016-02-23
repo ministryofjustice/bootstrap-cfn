@@ -757,7 +757,7 @@ class TestConfigParser(unittest.TestCase):
 
         mappings = cfn_template['Mappings']
         expected = {
-            'AWSRegion2AMI': {'eu-west-1': {'AMI': 'ami-00d88f77'}},
+            'AWSRegion2AMI': {'eu-west-1': {'AMI': 'ami-464af835'}},
             'SubnetConfig': {
                 'VPC': {
                     'CIDR': '10.0.0.0/16',
@@ -820,7 +820,7 @@ class TestConfigParser(unittest.TestCase):
 
         mappings = cfn_template['Mappings']
         expected = {
-            'AWSRegion2AMI': {'eu-west-1': {'AMI': 'ami-00d88f77'}},
+            'AWSRegion2AMI': {'eu-west-1': {'AMI': 'ami-464af835'}},
             'SubnetConfig': {
                 'VPC': {
                     'CIDR': '172.22.0.0/16',
