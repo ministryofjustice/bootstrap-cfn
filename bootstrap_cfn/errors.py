@@ -58,3 +58,10 @@ class DNSRecordNotFoundError(BootstrapCfnError):
 
 class CloudResourceNotFoundError(BootstrapCfnError):
     pass
+
+
+class OSTypeNotFoundError(BootstrapCfnError):
+    def __init__(self, type, available_types):
+        msg = ("The os type '{}' is not recognised, should be one of {}. "
+               .format(type, available_types))
+        super(OSTypeNotFoundError, self).__init__(msg)
