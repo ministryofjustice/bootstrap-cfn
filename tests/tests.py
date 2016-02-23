@@ -1265,6 +1265,8 @@ class TestConfigParser(unittest.TestCase):
             VPCZoneIdentifier=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
             LaunchConfigurationName=Ref("BaseHostLaunchConfig"),
             AvailabilityZones=GetAZs(""),
+            HealthCheckGracePeriod=300,
+            HealthCheckType='EC2'
         )
 
         BaseHostSG = SecurityGroup(

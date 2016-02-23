@@ -1028,15 +1028,30 @@ class ConfigParser(object):
                 logging.warning("config: Tag '%s' is deprecated.."
                                 % (k))
 
+        # Setup ASG defaults
+        auto_scaling_config = data.get('auto_scaling', {})
+        asg_min_size = auto_scaling_config.get('min', 1)
+        asg_max_size = auto_scaling_config.get('max', 5)
+        asg_desired_size = auto_scaling_config.get('desired', 2)
+        health_check_type = auto_scaling_config.get('health_check_type', 'EC2').upper()
+        # The basic EC2 healthcheck has a low grace period need, if we switch to ELB then
+        # theres a lot more setup to be done before we should attempt a healthcheck
+        if health_check_type == 'ELB':
+            default_health_check_grace_period = 600
+        else:
+            default_health_check_grace_period = 300
+        health_check_grace_period = auto_scaling_config.get('health_check_grace_period', default_health_check_grace_period)
         scaling_group = AutoScalingGroup(
             "ScalingGroup",
             VPCZoneIdentifier=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
-            MinSize=data['auto_scaling']['min'],
-            MaxSize=data['auto_scaling']['max'],
-            DesiredCapacity=data['auto_scaling']['desired'],
+            MinSize=asg_min_size,
+            MaxSize=asg_max_size,
+            DesiredCapacity=asg_desired_size,
             AvailabilityZones=GetAZs(),
             Tags=ec2_tags,
             LaunchConfigurationName=Ref(launch_config),
+            HealthCheckGracePeriod=health_check_grace_period,
+            HealthCheckType=health_check_type,
         )
         resources.append(scaling_group)
 
