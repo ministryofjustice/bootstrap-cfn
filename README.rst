@@ -162,8 +162,18 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
           KeyName: default
           InstanceType: t2.micro
 
+:``ami``:
+  Selects which AWS AMI to use. This can be a AWS-provided AMI, a community one, or one which exists under the account in which you're building the stack. The ``ami-`` prefix is required. If not specified then a suitable default will be chosen for the ``os`` in use. If this value is present then it is recommended to specify the ``os`` too, so that other areas of the cloud formation template are correctly generated.
+
+  Example::
+
+    dev:
+      ec2:
+        ami: ami-7943ec0a
+        os: windows2012
+
 :``os``:
-  Which operating system to use.  In reality this simply selects which AMI to use. Only 1 value is recognised, namely ``windows2012`` which selects that OS. Any other value (or a missing value) results in a default of Ubuntu 14.04 LTS.
+  Which operating system to use.  This selects a default AMI and also builds relevant user_data for use by instances when spun up by the ASG. Only 2 values are recognised: ``windows2012`` and ``ubuntu-1404``. The default is ``ubuntu-1404``.  If you wish to specify an AMI manually then use ``ami`` in addition.
 
   Example::
 
