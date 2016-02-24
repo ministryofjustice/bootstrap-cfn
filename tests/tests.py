@@ -1253,6 +1253,7 @@ class TestConfigParser(unittest.TestCase):
         self.maxDiff = None
 
         tags = [
+            ('Name', {u'Fn::Join': [u'', [{u'Ref': u'AWS::StackName'}, u'-', u'ec2']]}),
             ('Role', 'docker'),
             ('Apps', 'test'),
         ]
