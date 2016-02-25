@@ -90,15 +90,12 @@ class Autoscale:
 
         # Iterate through the current instances, replacing current instances with new ones
         for current_instance_id in current_instance_ids:
-            logging.getLogger("bootstrap-cfn").info("current instance: %s" % current_instance_id)
             # Set the desired instances +1 and wait for it to be created
-
             logging.getLogger("bootstrap-cfn").info("cycle_instances: Creating new instance...")
             self.set_autoscaling_desired_capacity(len(current_instance_ids) + 1)
             self.wait_for_instances(len(current_instance_ids) + 1)
             logging.getLogger("bootstrap-cfn").info("cycle_instances: Terminating recycled instance {} after {} seconds..."
                                                     .format(current_instance_id, termination_delay))
-
             # wait for the same time as the "HealthCheckGracePeriod" in the ASG
             logging.getLogger("bootstrap-cfn").info("Waiting %ss - HealthCheckGracePeriod" % health_check_grace_period)
             time.sleep(health_check_grace_period)
