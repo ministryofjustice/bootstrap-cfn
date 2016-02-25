@@ -1021,6 +1021,9 @@ class ConfigParser(object):
         # Allow deprecation of tags
         ec2_tags = []
         deprecated_tags = ["Env"]
+        # Add a name tag for easy ec2 instance identification in the AWS console
+        ec2_tags.append(self._get_default_resource_name_tag(type="ec2"))
+        # Get all tags from the config
         for k, v in data['tags'].items():
             if k not in deprecated_tags:
                 ec2_tags.append(Tag(k, v, True))
@@ -1121,3 +1124,16 @@ class ConfigParser(object):
         if not available_types.get(os_choice, False):
             raise errors.OSTypeNotFoundError(self.data['ec2']['os'], available_types.keys())
         return available_types.get(os_choice)
+
+    def _get_default_resource_name_tag(self, type):
+        """
+        Get the name tag we will use for ec2 instances
+
+        Returns:
+            name_tag(string): The Name: tag to use.
+            type(string): The type of the resource
+        """
+        # Use the stack name as the tag
+        value = Join("", [{"Ref": "AWS::StackName"}, "-", type])
+        name_tag = Tag("Name", value, True)
+        return name_tag
