@@ -1,7 +1,5 @@
 import logging
 
-import time
-
 import boto.ec2.autoscale
 
 import boto3
@@ -97,7 +95,7 @@ class Autoscale:
 
             # wait for the same time as the "HealthCheckGracePeriod" in the ASG
             logging.getLogger("bootstrap-cfn").info("Waiting %ss - HealthCheckGracePeriod" % health_check_grace_period)
-            time.sleep(health_check_grace_period)
+            utils.sleep_countdown(health_check_grace_period)
             logging.getLogger("bootstrap-cfn").info("End of waiting period")
 
             # check if the number of healthy instances is = to the number of expected instances, where
@@ -119,7 +117,7 @@ class Autoscale:
                                                     .format(current_instance_id, termination_delay))
             if termination_delay:
                 logging.getLogger("bootstrap-cfn").info("Waiting %ss - termination_delay" % termination_delay)
-                time.sleep(termination_delay)
+                utils.sleep_countdown(termination_delay)
                 logging.getLogger("bootstrap-cfn").info("End of waiting period")
             client.terminate_instance_in_auto_scaling_group(
                 InstanceId=current_instance_id,
@@ -175,7 +173,7 @@ class Autoscale:
                                                     .format(retry_delay, count, retry_max))
             if count == retry_max:
                 raise AutoscalingInstanceCountError(self.group.name, expected_instance_count, instances)
-            time.sleep(retry_delay)
+            utils.sleep_countdown(retry_delay)
             instances = self.get_healthy_instances()
         logging.getLogger("bootstrap-cfn").info("wait_for_instances: Found {} instances, {}"
                                                 .format(len(instances), [instance.get('InstanceId') for instance in instances]))
