@@ -8,7 +8,7 @@ import boto3
 
 from bootstrap_cfn import utils
 
-from bootstrap_cfn.errors import AutoscalingInstanceCountError, AutoscalingGroupNotFound
+from bootstrap_cfn.errors import AutoscalingGroupNotFound, AutoscalingInstanceCountError
 
 
 class Autoscale:
@@ -81,6 +81,13 @@ class Autoscale:
         logging.getLogger("bootstrap-cfn").info("cycle_instances: Found {} instance ids, {}"
                                                 .format(len(current_instance_ids), current_instance_ids))
 
+        # save the number of instances before starting the upgrade
+        num_instances = len(current_instance_ids)
+
+        # get the ASG HealthCheckGracePeriod
+        health_check_grace_period = self.group.health_check_period
+        logging.getLogger("bootstrap-cfn").info("ASG HealthCheckGracePeriod: %s" % health_check_grace_period)
+
         # Iterate through the current instances, replacing current instances with new ones
         for current_instance_id in current_instance_ids:
             # Set the desired instances +1 and wait for it to be created
@@ -89,9 +96,30 @@ class Autoscale:
             self.wait_for_instances(len(current_instance_ids) + 1)
             logging.getLogger("bootstrap-cfn").info("cycle_instances: Terminating recycled instance {} after {} seconds..."
                                                     .format(current_instance_id, termination_delay))
+            # wait for the same time as the "HealthCheckGracePeriod" in the ASG
+            logging.getLogger("bootstrap-cfn").info("Waiting %ss - HealthCheckGracePeriod" % health_check_grace_period)
+            time.sleep(health_check_grace_period)
+            logging.getLogger("bootstrap-cfn").info("End of waiting period")
+
+            # check if the number of healthy instances is = to the number of expected instances, where
+            # expected instances is num_instances + 1
+            new_curr_inst_ids = [instance.get('InstanceId') for instance in self.get_healthy_instances()]
+            logging.getLogger("bootstrap-cfn").info("new instance list %r" % new_curr_inst_ids)
+            if len(new_curr_inst_ids) != num_instances + 1:
+                logging.getLogger("bootstrap-cfn").error("Expected %s instances, found %s." % (
+                    num_instances + 1, len(new_curr_inst_ids))
+                )
+                raise AutoscalingInstanceCountError(self.group.name, num_instances + 1, new_curr_inst_ids)
+            else:
+                logging.getLogger("bootstrap-cfn").info("Expected %s instances, found %s." % (
+                    num_instances + 1, len(new_curr_inst_ids))
+                )
+
             # If we have a delay before termination defined, delay before terminating the current instance
             if termination_delay:
+                logging.getLogger("bootstrap-cfn").info("Waiting %ss - termination_delay" % termination_delay)
                 time.sleep(termination_delay)
+                logging.getLogger("bootstrap-cfn").info("End of waiting period")
             client.terminate_instance_in_auto_scaling_group(
                 InstanceId=current_instance_id,
                 ShouldDecrementDesiredCapacity=True

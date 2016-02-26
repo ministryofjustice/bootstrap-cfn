@@ -91,14 +91,12 @@ class ConfigParser(object):
     def base_template(self):
         from bootstrap_cfn import vpc
         t = Template()
-        if 'os' in self.data['ec2'] and self.data['ec2']['os'] == 'windows2012':
-            t.add_mapping("AWSRegion2AMI", {
-                "eu-west-1": {"AMI": "ami-7943ec0a"},
-            })
-        else:
-            t.add_mapping("AWSRegion2AMI", {
-                "eu-west-1": {"AMI": "ami-00d88f77"},
-            })
+
+        # Get the OS specific data
+        os_data = self._get_os_data()
+        t.add_mapping("AWSRegion2AMI", {
+            os_data.get('region'): {"AMI": os_data.get('ami')},
+        })
 
         if 'vpc' in self.data:
             logging.info('bootstrap-cfn::base_template: Using configuration VPC address settings')
@@ -837,9 +835,29 @@ class ConfigParser(object):
         return dict([(k, ref_fixup(v)) for k, v in o.items()])
 
     def get_ec2_userdata(self):
+        """
+        Build and return the user_data that'll be used for ec2 instances.
+        This contains a series of required entries, default config, and
+        and data specified in the template.
+        """
+        os_data = self._get_os_data()
         data = self.data['ec2']
-
         parts = []
+
+        ami_type = os_data.get('type')
+
+        # Below is the ami flavour specific defaults
+        if ami_type == 'linux':
+            parts.append({
+                'content': yaml.dump(
+                    {
+                        'package_update': True,
+                        'package_upgrade': True,
+                        'package_reboot_if_required': True
+                    }
+                ),
+                'mime_type': 'text/cloud-config'
+            })
 
         boothook = self.get_hostname_boothook(data)
 
@@ -1010,15 +1028,30 @@ class ConfigParser(object):
                 logging.warning("config: Tag '%s' is deprecated.."
                                 % (k))
 
+        # Setup ASG defaults
+        auto_scaling_config = data.get('auto_scaling', {})
+        asg_min_size = auto_scaling_config.get('min', 1)
+        asg_max_size = auto_scaling_config.get('max', 5)
+        asg_desired_size = auto_scaling_config.get('desired', 2)
+        health_check_type = auto_scaling_config.get('health_check_type', 'EC2').upper()
+        # The basic EC2 healthcheck has a low grace period need, if we switch to ELB then
+        # theres a lot more setup to be done before we should attempt a healthcheck
+        if health_check_type == 'ELB':
+            default_health_check_grace_period = 600
+        else:
+            default_health_check_grace_period = 300
+        health_check_grace_period = auto_scaling_config.get('health_check_grace_period', default_health_check_grace_period)
         scaling_group = AutoScalingGroup(
             "ScalingGroup",
             VPCZoneIdentifier=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
-            MinSize=data['auto_scaling']['min'],
-            MaxSize=data['auto_scaling']['max'],
-            DesiredCapacity=data['auto_scaling']['desired'],
+            MinSize=asg_min_size,
+            MaxSize=asg_max_size,
+            DesiredCapacity=asg_desired_size,
             AvailabilityZones=GetAZs(),
             Tags=ec2_tags,
             LaunchConfigurationName=Ref(launch_config),
+            HealthCheckGracePeriod=health_check_grace_period,
+            HealthCheckType=health_check_type,
         )
         resources.append(scaling_group)
 
@@ -1045,3 +1078,46 @@ class ConfigParser(object):
             template.resources[asgs[0].title] = asgs[0]
 
         return template
+
+    def _get_os_data(self):
+        """
+        Get details about the OS from the config data
+
+        Return:
+            os_data(dict): Dictionary of OS data in the form
+                {
+                    'name': 'ubuntu-1404',
+                    'ami': 'ami-464af835',
+                    'region': 'eu-west-1',
+                    'distribution': 'ubuntu',
+                    'type': 'linux',
+                    'release': '20160217.1'
+                }
+
+        Exceptions:
+            OSTypeNotFoundError: Raised when the OS in the config file is not
+                recognised
+        """
+        os_default = 'ubuntu-1404'
+        available_types = {
+            'ubuntu-1404': {
+                'name': 'ubuntu-1404',
+                'ami': 'ami-464af835',
+                'region': 'eu-west-1',
+                'distribution': 'ubuntu',
+                'type': 'linux',
+                'release': '20160217.1'
+            },
+            'windows2012': {
+                'name': 'windows2012',
+                'ami': 'ami-7943ec0a',
+                'region': 'eu-west-1',
+                'distribution': 'windows',
+                'type': 'windows',
+                'release': '2015.12.31'
+            }
+        }
+        os_choice = self.data['ec2'].get('os', os_default)
+        if not available_types.get(os_choice, False):
+            raise errors.OSTypeNotFoundError(self.data['ec2']['os'], available_types.keys())
+        return available_types.get(os_choice)

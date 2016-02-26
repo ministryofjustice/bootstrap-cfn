@@ -20,6 +20,7 @@ from bootstrap_cfn.errors import BootstrapCfnError, CfnConfigError, CloudResourc
 from bootstrap_cfn.iam import IAM
 from bootstrap_cfn.r53 import R53
 from bootstrap_cfn.utils import tail
+from bootstrap_cfn.vpc import VPC
 
 
 # Default fab config. Set via the tasks below or --set

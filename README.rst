@@ -115,6 +115,10 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
     Maximum number of instances to scale up to
   ``min``
     Minimum number of instances to maintain.
+  ``health_check_grace_period``
+    Seconds before running the healthcheck on an instance. Default 300
+  ``health_check_type``
+    Use EC2 or ELB healthcheck types. Default EC2
 
   Example::
 
@@ -125,6 +129,8 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
           desired: 1
           max: 3
           min: 0
+          health_check_grace_period: 360
+          health_check_type: ELB
 
 :``tags``:
   A dictionary of tag name to value to apply to all instances of the ASG. Note that the environment you select via ``fab aws`` will be applied as a tag with a name of ``Env``.
