@@ -94,8 +94,7 @@ class Autoscale:
             logging.getLogger("bootstrap-cfn").info("cycle_instances: Creating new instance...")
             self.set_autoscaling_desired_capacity(len(current_instance_ids) + 1)
             self.wait_for_instances(len(current_instance_ids) + 1)
-            logging.getLogger("bootstrap-cfn").info("cycle_instances: Terminating recycled instance {} after {} seconds..."
-                                                    .format(current_instance_id, termination_delay))
+
             # wait for the same time as the "HealthCheckGracePeriod" in the ASG
             logging.getLogger("bootstrap-cfn").info("Waiting %ss - HealthCheckGracePeriod" % health_check_grace_period)
             time.sleep(health_check_grace_period)
@@ -116,6 +115,8 @@ class Autoscale:
                 )
 
             # If we have a delay before termination defined, delay before terminating the current instance
+            logging.getLogger("bootstrap-cfn").info("cycle_instances: Terminating recycled instance {} after {} seconds..."
+                                                    .format(current_instance_id, termination_delay))
             if termination_delay:
                 logging.getLogger("bootstrap-cfn").info("Waiting %ss - termination_delay" % termination_delay)
                 time.sleep(termination_delay)
