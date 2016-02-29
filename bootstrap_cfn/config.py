@@ -1113,7 +1113,7 @@ class ConfigParser(object):
             },
             'windows2012': {
                 'name': 'windows2012',
-                'ami': 'ami-7943ec0a',
+                'ami': 'ami-8519a9f6',
                 'region': 'eu-west-1',
                 'distribution': 'windows',
                 'type': 'windows',
