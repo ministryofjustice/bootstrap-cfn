@@ -6,6 +6,8 @@ import sys
 import time
 import uuid
 
+import boto3
+
 import dns.resolver
 
 from fabric.api import env, task
@@ -58,6 +60,8 @@ def aws(profile_name):
         variable to
     """
     env.aws = str(profile_name).lower()
+    # Setup boto so we actually use this environment
+    boto3.setup_default_session(profile_name=env.aws)
 
 
 @task
