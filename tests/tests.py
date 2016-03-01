@@ -840,6 +840,19 @@ class TestConfigParser(unittest.TestCase):
         config = ConfigParser(project_config.config, 'my-stack-name')
         config.process()
 
+    def test_ami_overrides_os_default(self):
+        self.maxDiff = None
+        project_config = ProjectConfig(
+                'tests/sample-project.yaml',
+                'dev',
+                'tests/sample-project-passwords.yaml')
+
+        project_config.config['ec2']['ami'] = 'ami-0000000000'
+        project_config.config['ec2']['os'] = 'windows2012'
+        config = ConfigParser(project_config.config, 'my-stack-name')
+        cfn_template = json.loads(config.process())
+        compare(cfn_template['Mappings']['AWSRegion2AMI'], {'eu-west-1': {'AMI': 'ami-0000000000'}})
+
     def test_elb_missing_cert(self):
 
         self.maxDiff = None

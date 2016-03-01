@@ -1113,7 +1113,7 @@ class ConfigParser(object):
             },
             'windows2012': {
                 'name': 'windows2012',
-                'ami': 'ami-7943ec0a',
+                'ami': 'ami-8519a9f6',
                 'region': 'eu-west-1',
                 'distribution': 'windows',
                 'type': 'windows',
@@ -1123,7 +1123,13 @@ class ConfigParser(object):
         os_choice = self.data['ec2'].get('os', os_default)
         if not available_types.get(os_choice, False):
             raise errors.OSTypeNotFoundError(self.data['ec2']['os'], available_types.keys())
-        return available_types.get(os_choice)
+        os_data = available_types.get(os_choice)
+        ami = self.data['ec2'].get('ami')
+        if ami:
+            logging.info('** Using override AMI of ' + str(ami))
+            os_data['ami'] = ami
+            logging.info('overridden os data is: ' + repr(os_data))
+        return os_data
 
     def _get_default_resource_name_tag(self, type):
         """
