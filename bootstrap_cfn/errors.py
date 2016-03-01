@@ -65,3 +65,15 @@ class OSTypeNotFoundError(BootstrapCfnError):
         msg = ("The os type '{}' is not recognised, should be one of {}. "
                .format(type, available_types))
         super(OSTypeNotFoundError, self).__init__(msg)
+
+
+class AutoscalingGroupNotFound(BootstrapCfnError):
+    pass
+
+
+class AutoscalingInstanceCountError(BootstrapCfnError):
+    def __init__(self, autoscaling_group, expected_instance_count, instances):
+        super(AutoscalingInstanceCountError, self).__init__(
+            "Could not find {} instances in autoscaling group {}. Actual state is {} instances, {}"
+            .format(expected_instance_count, autoscaling_group, len(instances), instances)
+        )

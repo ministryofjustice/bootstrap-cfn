@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 
 from copy import deepcopy
@@ -134,3 +135,19 @@ def get_events(stack, stack_name):
         next = events.next_token
         time.sleep(1)
     return reversed(sum(event_list, []))
+
+
+def sleep_countdown(sleep_time):
+    """
+    Simple terminal countdown of the form mm:ss
+
+    Args:
+        sleep_time(int): The number of seconds to countdown from.
+    """
+    while sleep_time > 0:
+        mins, secs = divmod(sleep_time, 60)
+        timeformat = '{:02d}:{:02d}'.format(mins, secs)
+        sys.stdout.write("{}\r".format(timeformat))
+        sys.stdout.flush()
+        time.sleep(1)
+        sleep_time -= 1
