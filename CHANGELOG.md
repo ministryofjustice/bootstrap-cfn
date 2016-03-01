@@ -1,3 +1,15 @@
+## Version 0.8.0
+
+Features: 
+* Add a Name tag to instances
+* Allow the ASG config to use ELB healthchecks
+* Update to latest Ubuntu 14.04 LTS AMI
+* Add automatic upgrades to cloud-init.
+* Add cycle instances task
+Fixes:
+* Add missing VPC class import to fab_tasks
+* Set boto3 to use aws profile session
+
 ## Version 0.7.7
 
  * Add ability to create Windows 2012 machines
