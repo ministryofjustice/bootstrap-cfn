@@ -1,3 +1,7 @@
+## Version 0.8.2
+ * Provide the ability to override the AMI used
+ * Change to use the AWS Windows 2012 AMI
+
 ## Version 0.8.1
 
 Features: 
