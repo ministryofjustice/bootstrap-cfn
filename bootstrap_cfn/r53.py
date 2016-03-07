@@ -39,7 +39,7 @@ class R53(object):
             zone = zone['GetHostedZoneResponse']['HostedZone']['Id']
             return zone.replace('/hostedzone/', '')
 
-    def update_dns_record(self, zone, record, record_type, record_value, is_alias=False):
+    def update_dns_record(self, zone, record, record_type, record_value, is_alias=False, dry_run=False):
         '''
         Updates a dns record in route53
 
@@ -62,7 +62,10 @@ class R53(object):
             change.set_alias(*record_value)
         else:
             change.add_value(record_value)
-        changes.commit()
+        if dry_run:
+            print changes
+        else:
+            changes.commit()
         return True
 
     def get_record(self, zone, zone_id, record, record_type):

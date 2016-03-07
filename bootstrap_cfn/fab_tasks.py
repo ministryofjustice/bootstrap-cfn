@@ -33,6 +33,7 @@ env.setdefault('config')
 env.setdefault('stack_passwords')
 env.setdefault('blocking', True)
 env.setdefault('aws_region', 'eu-west-1')
+env.setdefault('aws_r53', None)
 
 # GLOBAL VARIABLES
 TIMEOUT = 3600
@@ -64,6 +65,23 @@ def aws(profile_name):
     env.aws = str(profile_name).lower()
     # Setup boto so we actually use this environment
     boto3.setup_default_session(profile_name=env.aws)
+
+
+@task
+def aws_r53(profile_name):
+    """
+    Set the AWS account to use for route53
+
+    Sets the environment variable 'aws_r53' to the name of the
+    account to use in the AWS config file (~/.aws/credentials.yaml)
+    and allows to override the 'aws' variable, for cases where the
+    Route53 zones exist under a different AWS account
+
+    Args:
+        profile_name(string): The string to set the environment
+        variable to
+    """
+    env.aws_r53 = str(profile_name).lower()
 
 
 @task
@@ -214,15 +232,28 @@ def apply_maintenance_criteria(elb):
     return elb['scheme'] == 'internet-facing'
 
 
+def override_route53_if_needed():
+    '''
+    Allows to override AWS account for Route53 Maintenance modes
+
+    Returns a dictionary with the route53 account specified in aws_r53 from
+    command line, eg "fab aws:account1 aws_r53:account2"
+    '''
+    if aws_r53:
+        return dict(aws=env.aws_r53)
+    else:
+        return {}
+
+
 @task
-def enter_maintenance(maintenance_ip):
+def enter_maintenance(maintenance_ip, dry_run=False):
     '''
     Puts stack into maintenance mode
 
     Sets all internet facing elb hostnames to resolve to given maintenance_ip
     '''
     cfn_config = get_config()
-    r53_conn = get_connection(R53)
+    r53_conn = get_connection(R53, **override_route53_if_needed())
 
     cached_zone_ids = {}
     for elb in cfn_config.data['elb']:
@@ -232,18 +263,18 @@ def enter_maintenance(maintenance_ip):
         record = "{name}.{hosted_zone}".format(**elb)
         zone_id = get_cached_zone_id(r53_conn, cached_zone_ids, elb['hosted_zone'])
         print green("Attempting to update: \"{0}\":\"{1}\"".format(record, maintenance_ip))
-        r53_conn.update_dns_record(zone_id, record, 'A', maintenance_ip)
+        r53_conn.update_dns_record(zone_id, record, 'A', maintenance_ip, dry_run=dry_run)
 
 
 @task
-def exit_maintenance():
+def exit_maintenance(dry_run=False):
     """
     Exit maintenance mode
 
     Sets internet-facing elbs hostnames
     back to the ELB DNS alias
     """
-    r53_conn = get_connection(R53)
+    r53_conn = get_connection(R53, **override_route53_if_needed())
     elb_conn = get_connection(ELB)
 
     cfn_config = get_config()
@@ -292,7 +323,7 @@ def exit_maintenance():
             False
         ]
         print green("Attempting to update: \"{0}\":{1}".format(record, record_value))
-        r53_conn.update_dns_record(zone_id, record, 'A', record_value, is_alias=True)
+        r53_conn.update_dns_record(zone_id, record, 'A', record_value, is_alias=True, dry_run=dry_run)
 
 
 def get_cached_zone_id(r53_conn, zone_dict, zone_name):
@@ -453,9 +484,9 @@ def get_config():
     return cfn_config
 
 
-def get_connection(klass):
+def get_connection(klass, aws=env.aws, aws_region=env.aws_region):
     _validate_fabric_env()
-    return klass(env.aws, env.aws_region)
+    return klass(aws, aws_region)
 
 
 @task
