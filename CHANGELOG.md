@@ -1,3 +1,8 @@
+## Version 0.8.3
+
+Fixes:
+* Stop attempting to set Name tag if its already manually set
+
 ## Version 0.8.2
  * Provide the ability to override the AMI used
  * Change to use the AWS Windows 2012 AMI
