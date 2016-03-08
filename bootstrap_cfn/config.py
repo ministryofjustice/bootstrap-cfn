@@ -1022,7 +1022,8 @@ class ConfigParser(object):
         ec2_tags = []
         deprecated_tags = ["Env"]
         # Add a name tag for easy ec2 instance identification in the AWS console
-        ec2_tags.append(self._get_default_resource_name_tag(type="ec2"))
+        if data['tags'].get("Name", None) is None:
+            ec2_tags.append(self._get_default_resource_name_tag(type="ec2"))
         # Get all tags from the config
         for k, v in data['tags'].items():
             if k not in deprecated_tags:
