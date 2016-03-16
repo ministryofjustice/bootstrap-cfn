@@ -592,6 +592,13 @@ def update_certs():
                                                       stack_name,
                                                       max_retries=3,
                                                       retry_delay=10)
+            for cert_name in replaced_certs:
+                logger.info("Deleting replaced certificate '%s'..."
+                            % (cert_name))
+                iam.delete_certificate(cert_name,
+                                       stack_name,
+                                       max_retries=3,
+                                       retry_delay=10)
     else:
         logger.error("No certificates updated so skipping "
                      "ELB certificate update...")
