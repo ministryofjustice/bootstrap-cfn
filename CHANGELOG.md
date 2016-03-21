@@ -1,3 +1,9 @@
+## v0.8.4
+
+Fixes: 
+* Delete server certificates after we've replaced them
+* Make update_certs task use set_ssl_certificates retry logic
+
 ## Version 0.8.3
 
 Fixes:
