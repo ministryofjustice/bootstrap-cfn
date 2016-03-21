@@ -572,28 +572,33 @@ def update_certs():
 
     stack_name = get_stack_name()
     cfn_config = get_config()
+    iam = get_connection(IAM)
     # Upload any SSL certificates to our EC2 instances
     updated_count = False
     if 'ssl' in cfn_config.data:
         logger.info("Reloading SSL certificates...")
-        iam = get_connection(IAM)
         updated_count = iam.update_ssl_certificates(cfn_config.ssl(),
                                                     stack_name)
     else:
         logger.error("No ssl section found in cloud config file, aborting...")
         sys.exit(1)
 
-    # Arbitrary wait to allow SSL upload to register with AWS
-    # Otherwise, we can get an ARN for the load balancer certificates
-    # without it being ready to assign
-    time.sleep(3)
-
     # Set the certificates on ELB's if we have any
     if updated_count:
         if 'elb' in cfn_config.data:
             logger.info("Setting load balancer certificates...")
             elb = get_connection(ELB)
-            elb.set_ssl_certificates(updated_count, stack_name)
+            replaced_certs = elb.set_ssl_certificates(updated_count,
+                                                      stack_name,
+                                                      max_retries=3,
+                                                      retry_delay=10)
+            for cert_name in replaced_certs:
+                logger.info("Deleting replaced certificate '%s'..."
+                            % (cert_name))
+                iam.delete_certificate(cert_name,
+                                       stack_name,
+                                       max_retries=3,
+                                       retry_delay=10)
     else:
         logger.error("No certificates updated so skipping "
                      "ELB certificate update...")
