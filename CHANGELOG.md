@@ -1,3 +1,8 @@
+## v0.8.5
+
+Fixes:
+*Add MSSQL to EC2->RDS Security Group
+
 ## v0.8.4
 
 Fixes: 
