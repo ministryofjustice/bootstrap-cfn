@@ -216,7 +216,7 @@ def apply_maintenance_criteria(elb):
 
 
 @task
-def enter_maintenance(maintenance_ip):
+def enter_maintenance(maintenance_ip, dry_run=False):
     '''
     Puts stack into maintenance mode
 
@@ -233,11 +233,11 @@ def enter_maintenance(maintenance_ip):
         record = "{name}.{hosted_zone}".format(**elb)
         zone_id = get_cached_zone_id(r53_conn, cached_zone_ids, elb['hosted_zone'])
         print green("Attempting to update: \"{0}\":\"{1}\"".format(record, maintenance_ip))
-        r53_conn.update_dns_record(zone_id, record, 'A', maintenance_ip)
+        r53_conn.update_dns_record(zone_id, record, 'A', maintenance_ip, dry_run=dry_run)
 
 
 @task
-def exit_maintenance():
+def exit_maintenance(dry_run=False):
     """
     Exit maintenance mode
 
@@ -293,7 +293,7 @@ def exit_maintenance():
             False
         ]
         print green("Attempting to update: \"{0}\":{1}".format(record, record_value))
-        r53_conn.update_dns_record(zone_id, record, 'A', record_value, is_alias=True)
+        r53_conn.update_dns_record(zone_id, record, 'A', record_value, is_alias=True, dry_run=dry_run)
 
 
 def get_cached_zone_id(r53_conn, zone_dict, zone_name):
