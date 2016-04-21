@@ -63,7 +63,8 @@ def aws(profile_name):
     """
     env.aws = str(profile_name).lower()
     # Setup boto so we actually use this environment
-    boto3.setup_default_session(profile_name=env.aws)
+    boto3.setup_default_session(profile_name=env.aws,
+                                region_name=env.aws_region)
 
 
 @task
