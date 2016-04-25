@@ -256,8 +256,17 @@ def exit_maintenance(dry_run=False):
     # filter on the next step
     # Note: if stack does not exist this will throw a BotoServerError
     stack_elbs = dict([
-        (x.logical_resource_id, x.physical_resource_id)
+        (x.get('logical_resource_id', x.get('LogicalResourceId', None)),
+         x.get('physical_resource_id', x.get('PhysicalResourceId', None)))
         for x in elb_conn.cfn.get_stack_load_balancers(stack_name)])
+    if None in stack_elbs.keys():
+        raise BootstrapCfnError(
+            "Unable to retrieve logical resource IDs for a stack load balancer.\n"
+            "ELB Dict: ".format(stack_elbs))
+    if None in stack_elbs.values():
+        raise BootstrapCfnError(
+            "Unable to retrieve physical resource IDs for a stack load balancer.\n"
+            "ELB Dict: ".format(stack_elbs))
 
     # filter stack related load balancers (as opposed to all stack elbs in the account)
     full_load_balancers = elb_conn.conn_elb.get_all_load_balancers(
