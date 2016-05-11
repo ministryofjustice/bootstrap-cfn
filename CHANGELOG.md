@@ -1,3 +1,10 @@
+## v0.8.6
+
+* Fixes exit_maintenance error
+* add dry_run option to the maintenance tasks
+* Add a test to check coverage levels
+* Setup boto3 default session with default region
+
 ## v0.8.5
 
 Fixes:
