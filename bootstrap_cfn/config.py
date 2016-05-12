@@ -1095,11 +1095,11 @@ class ConfigParser(object):
             os_data(dict): Dictionary of OS data in the form
                 {
                     'name': 'ubuntu-1404',
-                    'ami': 'ami-464af835',
+                    'ami': 'ami-f9a62c8a',
                     'region': 'eu-west-1',
                     'distribution': 'ubuntu',
                     'type': 'linux',
-                    'release': '20160217.1'
+                    'release': '20160509.1'
                 }
 
         Exceptions:
@@ -1110,11 +1110,11 @@ class ConfigParser(object):
         available_types = {
             'ubuntu-1404': {
                 'name': 'ubuntu-1404',
-                'ami': 'ami-464af835',
+                'ami': 'ami-f95ef58a',
                 'region': 'eu-west-1',
                 'distribution': 'ubuntu',
                 'type': 'linux',
-                'release': '20160217.1'
+                'release': '20160509.1'
             },
             'windows2012': {
                 'name': 'windows2012',
