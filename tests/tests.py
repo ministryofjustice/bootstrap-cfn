@@ -73,7 +73,7 @@ class TestConfigParser(unittest.TestCase):
                            'Principal': {'Service': ['ec2.amazonaws.com']}}
                           ]
         }
-        basehost_role_ref = iam.Ref(basehost_role)
+        basehost_role_ref = Ref(basehost_role)
 
         role_policy = iam.PolicyType('RolePolicies')
         role_policy.PolicyName = 'BaseHost'
@@ -761,7 +761,7 @@ class TestConfigParser(unittest.TestCase):
 
         mappings = cfn_template['Mappings']
         expected = {
-            'AWSRegion2AMI': {'eu-west-1': {'AMI': 'ami-464af835'}},
+            'AWSRegion2AMI': {'eu-west-1': {'AMI': 'ami-f95ef58a'}},
             'SubnetConfig': {
                 'VPC': {
                     'CIDR': '10.0.0.0/16',
@@ -824,7 +824,7 @@ class TestConfigParser(unittest.TestCase):
 
         mappings = cfn_template['Mappings']
         expected = {
-            'AWSRegion2AMI': {'eu-west-1': {'AMI': 'ami-464af835'}},
+            'AWSRegion2AMI': {'eu-west-1': {'AMI': 'ami-f95ef58a'}},
             'SubnetConfig': {
                 'VPC': {
                     'CIDR': '172.22.0.0/16',
