@@ -1,3 +1,7 @@
+## v0.9.0
+
+* Update Ubuntu AMI to 20160509.1 version ami-f9a62c8a
+
 ## v0.8.6
 
 * Fixes exit_maintenance error
