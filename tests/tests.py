@@ -281,7 +281,7 @@ class TestConfigParser(unittest.TestCase):
         db_instance.MasterUserPassword = 'testpassword'
         db_instance.DBName = 'test'
         db_instance.PubliclyAccessible = False
-        db_instance.StorageEncrypted = False
+        db_instance.StorageEncrypted = True
         db_instance.StorageType = 'gp2'
         db_instance.AllocatedStorage = 5
         db_instance.AllowMajorVersionUpgrade = False

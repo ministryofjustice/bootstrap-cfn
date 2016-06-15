@@ -470,7 +470,7 @@ class ConfigParser(object):
             AutoMinorVersionUpgrade=False,
             VPCSecurityGroups=[GetAtt(database_sg, "GroupId")],
             DBSubnetGroupName=Ref(rds_subnet_group),
-            StorageEncrypted=False,
+            StorageEncrypted=True,
             DependsOn=database_sg.title
         )
         resources.append(rds_instance)
