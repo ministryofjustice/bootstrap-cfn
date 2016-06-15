@@ -28,20 +28,87 @@ class ProjectConfig:
 
     config = None
 
-    def __init__(self, config, environment, passwords=None):
+    def __init__(self,
+                 config,
+                 environment,
+                 passwords=None,
+                 defaults=os.path.join(os.path.dirname(__file__), 'config_defaults.yaml')):
         try:
-            self.config = self.load_yaml(config)[environment]
+            self.config = {}
+            # Load all the necessary config files and defaults
+            config_defaults = self.load_yaml(defaults).get(environment,
+                                                           self.load_yaml(defaults)['default'])
+            user_config = self.load_yaml(config)[environment]
+            passwords_config = {}
+            if passwords:
+                passwords_config = self.load_yaml(passwords).get(environment, {})
+
+            # Validate all the settings we have loaded in
+            logging.info('bootstrap-cfn:: Validating default settings for environment %s in file %s'
+                         % (environment, defaults))
+            self.validate_configuration_settings(config_defaults)
+            logging.info('bootstrap-cfn:: Validating user settings for environment %s in file %s'
+                         % (environment, config))
+            self.validate_configuration_settings(user_config)
+            logging.info('bootstrap-cfn:: Validating passwords settings for environment %s in file %s'
+                         % (environment, passwords))
+            self.validate_configuration_settings(passwords_config)
+
+            # Collect together all the config keys the user has specified
+            all_user_config_keys = set(user_config.keys()) | set(passwords_config.keys())
+
+            # Only set configuration settings where we have specified that component in the user config
+            # This means we only get non-required components RDS, elasticache, etc if we have requested them
+            for config_key in all_user_config_keys:
+                # we're going to merge in order of,
+                # defaults <- user_config <- secrets_config
+
+                # Catch badly formatted yaml where we get NoneType values,
+                # merging in these will overwrite all the other config
+                config_defaults_value = config_defaults.get(config_key, {})
+                if config_defaults_value is None:
+                    raise errors.CfnConfigError("Defaults config value '%s' in None"
+                                                % (config_key))
+                self.config[config_key] = config_defaults_value
+
+                # Overwrite defaults with user_config values
+                user_config_value = user_config.get(config_key, {})
+                if user_config_value is None:
+                    raise errors.CfnConfigError("User config value '%s' in None"
+                                                % (config_key))
+                self.config[config_key] = utils.dict_merge(self.config[config_key],
+                                                           user_config_value)
+
+                # Overwrite user config with password config values
+                passwords_config_value = passwords_config.get(config_key, {})
+                if passwords_config_value is None:
+                    raise errors.CfnConfigError("Passwords config value '%s' in None"
+                                                % (config_key))
+                self.config[config_key] = utils.dict_merge(self.config[config_key],
+                                                           passwords_config_value)
         except KeyError:
             raise errors.BootstrapCfnError("Environment " + environment + " not found")
-
-        if passwords:
-            passwords_dict = self.load_yaml(passwords)[environment]
-            self.config = utils.dict_merge(self.config, passwords_dict)
 
     @staticmethod
     def load_yaml(fp):
         if os.path.exists(fp):
             return yaml.load(open(fp).read())
+
+    @staticmethod
+    def validate_configuration_settings(configuration_settings):
+        """
+        Run some sanity checks on the configuration settings we're going to use
+
+        Args:
+            config: The settings object we want to validate
+
+        Raises:
+            CfnConfigError
+        """
+        # Basic settings checks
+        # settings should be a dictionary
+        if not isinstance(configuration_settings, dict):
+            raise errors.CfnConfigError("Configuration settings are not in dictionary format")
 
 
 class ConfigParser(object):
@@ -417,18 +484,18 @@ class ConfigParser(object):
         # REQUIRED FIELDS MAPPING
         required_fields = {
             'db-name': 'DBName',
-            'storage': 'AllocatedStorage',
-            'storage-type': 'StorageType',
-            'backup-retention-period': 'BackupRetentionPeriod',
             'db-master-username': 'MasterUsername',
             'db-master-password': 'MasterUserPassword',
-            'db-engine': 'Engine',
-            'db-engine-version': 'EngineVersion',
-            'instance-class': 'DBInstanceClass',
-            'multi-az': 'MultiAZ'
         }
 
         optional_fields = {
+            'storage': 'AllocatedStorage',
+            'storage-type': 'StorageType',
+            'backup-retention-period': 'BackupRetentionPeriod',
+            'db-engine': 'Engine',
+            'db-engine-version': 'EngineVersion',
+            'instance-class': 'DBInstanceClass',
+            'multi-az': 'MultiAZ',
             'storage-encrypted': 'StorageEncrypted',
             'identifier': 'DBInstanceIdentifier'
         }
@@ -470,7 +537,6 @@ class ConfigParser(object):
             AutoMinorVersionUpgrade=False,
             VPCSecurityGroups=[GetAtt(database_sg, "GroupId")],
             DBSubnetGroupName=Ref(rds_subnet_group),
-            StorageEncrypted=True,
             DependsOn=database_sg.title
         )
         resources.append(rds_instance)
@@ -524,20 +590,8 @@ class ConfigParser(object):
             'port': 'Port',
         }
 
-        # Setup params and config
-        component_config = self.data['elasticache']
-        # Setup defaults
-        if 'clusters' not in component_config:
-            component_config['clusters'] = 3
-        if 'node_type' not in component_config:
-            component_config['node_type'] = 'cache.m1.small'
-        if 'port' not in component_config:
-            component_config['port'] = 6379
-
-        engine = 'redis'
-
         # Generate snapshot arns
-        seeds = component_config.get('seeds', None)
+        seeds = self.data['elasticache'].get('seeds', None)
         snapshot_arns = []
         if seeds:
             # Get s3 seeds
@@ -551,8 +605,8 @@ class ConfigParser(object):
         es_sg = SecurityGroup(
             "ElasticacheSG",
             SecurityGroupIngress=[
-                {"ToPort": component_config['port'],
-                 "FromPort": component_config['port'],
+                {"ToPort": self.data['elasticache']['port'],
+                 "FromPort": self.data['elasticache']['port'],
                  "IpProtocol": "tcp",
                  "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")}
             ],
@@ -571,9 +625,9 @@ class ConfigParser(object):
         elasticache_replication_group = ReplicationGroup(
             "ElasticacheReplicationGroup",
             ReplicationGroupDescription='Elasticache Replication Group',
-            Engine=engine,
-            NumCacheClusters=component_config['clusters'],
-            CacheNodeType=component_config['node_type'],
+            Engine=self.data['elasticache'].get('engine'),
+            NumCacheClusters=self.data['elasticache']['clusters'],
+            CacheNodeType=self.data['elasticache']['node_type'],
             SecurityGroupIds=[GetAtt(es_sg, "GroupId")],
             CacheSubnetGroupName=Ref(es_subnet_group),
             SnapshotArns=snapshot_arns
@@ -582,15 +636,15 @@ class ConfigParser(object):
 
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         for yaml_key, prop in required_fields.iteritems():
-            if yaml_key not in component_config:
+            if yaml_key not in self.data['elasticache']:
                 print "\n\n[ERROR] Missing Elasticache fields [%s]" % yaml_key
                 sys.exit(1)
             else:
-                elasticache_replication_group.__setattr__(prop, component_config[yaml_key])
+                elasticache_replication_group.__setattr__(prop, self.data['elasticache'][yaml_key])
 
         for yaml_key, prop in optional_fields.iteritems():
-            if yaml_key in component_config:
-                elasticache_replication_group.__setattr__(prop, component_config[yaml_key])
+            if yaml_key in self.data['elasticache']:
+                elasticache_replication_group.__setattr__(prop, self.data['elasticache'][yaml_key])
 
         # Add resources and outputs
         map(template.add_resource, resources)
@@ -603,7 +657,7 @@ class ConfigParser(object):
         template.add_output(Output(
             "ElasticacheEngine",
             Description="Elasticache Engine",
-            Value=engine
+            Value=self.data['elasticache'].get('engine')
         ))
 
     def elb(self, template):
