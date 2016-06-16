@@ -64,7 +64,7 @@ class TestConfigParser(unittest.TestCase):
             cls=awsencode)
         )
 
-    def test_iam(self):
+    def test_iam_default(self):
         basehost_role = iam.Role('BaseHostRole')
         basehost_role.Path = '/'
         basehost_role.AssumeRolePolicyDocument = {
@@ -82,6 +82,46 @@ class TestConfigParser(unittest.TestCase):
                 {'Action': ['autoscaling:Describe*'],
                  'Resource': '*',
                  'Effect': 'Allow'},
+                {'Action': ['cloudformation:Describe*'],
+                 'Resource': '*',
+                 'Effect': 'Allow'}]
+        }
+        role_policy.Roles = [basehost_role_ref]
+
+        instance_profile = iam.InstanceProfile('InstanceProfile')
+        instance_profile.Path = '/'
+        instance_profile.Roles = [basehost_role_ref]
+
+        config = ConfigParser({}, 'my-stack-name')
+        known = [role_policy, instance_profile, basehost_role]
+        known = self._resources_to_dict(known)
+        iam_dict = self._resources_to_dict(config.iam())
+        compare(known, iam_dict)
+
+    def test_iam(self):
+        """
+        Test the case when all the components that can have IAM actions are enabled
+        """
+        basehost_role = iam.Role('BaseHostRole')
+        basehost_role.Path = '/'
+        basehost_role.AssumeRolePolicyDocument = {
+            'Statement': [{'Action': ['sts:AssumeRole'],
+                           'Effect': 'Allow',
+                           'Principal': {'Service': ['ec2.amazonaws.com']}}
+                          ]
+        }
+        basehost_role_ref = Ref(basehost_role)
+
+        role_policy = iam.PolicyType('RolePolicies')
+        role_policy.PolicyName = 'BaseHost'
+        role_policy.PolicyDocument = {
+            'Statement': [
+                {'Action': ['autoscaling:Describe*'],
+                 'Resource': '*',
+                 'Effect': 'Allow'},
+                {'Action': ['cloudformation:Describe*'],
+                 'Resource': '*',
+                 'Effect': 'Allow'},
                 {'Action': ['ec2:Describe*'],
                  'Resource': '*',
                  'Effect': 'Allow'},
@@ -97,9 +137,6 @@ class TestConfigParser(unittest.TestCase):
                 {'Action': ['elasticache:Describe*'],
                  'Resource': '*',
                  'Effect': 'Allow'},
-                {'Action': ['cloudformation:Describe*'],
-                 'Resource': '*',
-                 'Effect': 'Allow'},
                 {'Action': ['s3:List*'],
                  'Resource': '*',
                  'Effect': 'Allow'}]
@@ -109,8 +146,8 @@ class TestConfigParser(unittest.TestCase):
         instance_profile = iam.InstanceProfile('InstanceProfile')
         instance_profile.Path = '/'
         instance_profile.Roles = [basehost_role_ref]
-
-        config = ConfigParser(None, 'my-stack-name')
+        # Setup config with dummy config sections so that policies are generated for those components
+        config = ConfigParser({'ec2': {}, 'rds': {}, 's3': {}, 'elasticache': {}}, 'my-stack-name')
         known = [role_policy, instance_profile, basehost_role]
         known = self._resources_to_dict(known)
         iam_dict = self._resources_to_dict(config.iam())
