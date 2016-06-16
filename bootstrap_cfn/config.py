@@ -110,6 +110,12 @@ class ProjectConfig:
         if not isinstance(configuration_settings, dict):
             raise errors.CfnConfigError("Configuration settings are not in dictionary format")
 
+        for key, value in configuration_settings.iteritems():
+            # No base keys should have a None value
+            if value is None:
+                raise errors.CfnConfigError("Configuration key value %s is None."
+                                            % (key))
+
 
 class ConfigParser(object):
 
