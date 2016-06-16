@@ -328,20 +328,26 @@ class ConfigParser(object):
                 }]
             },
         )
+        # Set required policy actions
+        policy_actions = [{"Action": ["autoscaling:Describe*"], "Resource": "*", "Effect": "Allow"},
+                          {"Action": ["cloudformation:Describe*"], "Resource": "*", "Effect": "Allow"}]
+
+        # Only define policy actions if the components are enabled in the config
+        if 'ec2' in self.data:
+            policy_actions.append({"Action": ["ec2:Describe*"], "Resource": "*", "Effect": "Allow"})
+            policy_actions.append({"Action": ["ec2:CreateTags"], "Resource": "*", "Effect": "Allow"})
+        if 'rds' in self.data:
+            policy_actions.append({"Action": ["rds:Describe*"], "Resource": "*", "Effect": "Allow"})
+        if 'elasticache' in self.data:
+            policy_actions.append({"Action": ["elasticloadbalancing:Describe*"], "Resource": "*", "Effect": "Allow"})
+            policy_actions.append({"Action": ["elasticache:Describe*"], "Resource": "*", "Effect": "Allow"})
+        if 's3' in self.data:
+            policy_actions.append({"Action": ["s3:List*"], "Resource": "*", "Effect": "Allow"})
 
         role_policies = PolicyType(
             "RolePolicies",
             PolicyName="BaseHost",
-            PolicyDocument={"Statement": [
-                {"Action": ["autoscaling:Describe*"], "Resource": "*", "Effect": "Allow"},
-                {"Action": ["ec2:Describe*"], "Resource": "*", "Effect": "Allow"},
-                {"Action": ["ec2:CreateTags"], "Resource": "*", "Effect": "Allow"},
-                {"Action": ["rds:Describe*"], "Resource": "*", "Effect": "Allow"},
-                {"Action": ["elasticloadbalancing:Describe*"], "Resource": "*", "Effect": "Allow"},
-                {"Action": ["elasticache:Describe*"], "Resource": "*", "Effect": "Allow"},
-                {"Action": ["cloudformation:Describe*"], "Resource": "*", "Effect": "Allow"},
-                {"Action": ["s3:List*"], "Resource": "*", "Effect": "Allow"}
-            ]},
+            PolicyDocument={"Statement": policy_actions},
             Roles=[Ref(role)],
         )
         instance_profile = InstanceProfile(
