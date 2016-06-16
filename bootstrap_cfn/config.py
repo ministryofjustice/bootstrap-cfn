@@ -65,27 +65,13 @@ class ProjectConfig:
 
                 # Catch badly formatted yaml where we get NoneType values,
                 # merging in these will overwrite all the other config
-                config_defaults_value = config_defaults.get(config_key, {})
-                if config_defaults_value is None:
-                    raise errors.CfnConfigError("Defaults config value '%s' in None"
-                                                % (config_key))
-                self.config[config_key] = config_defaults_value
-
+                self.config[config_key] = config_defaults.get(config_key, {})
                 # Overwrite defaults with user_config values
-                user_config_value = user_config.get(config_key, {})
-                if user_config_value is None:
-                    raise errors.CfnConfigError("User config value '%s' in None"
-                                                % (config_key))
                 self.config[config_key] = utils.dict_merge(self.config[config_key],
-                                                           user_config_value)
-
+                                                           user_config.get(config_key, {}))
                 # Overwrite user config with password config values
-                passwords_config_value = passwords_config.get(config_key, {})
-                if passwords_config_value is None:
-                    raise errors.CfnConfigError("Passwords config value '%s' in None"
-                                                % (config_key))
                 self.config[config_key] = utils.dict_merge(self.config[config_key],
-                                                           passwords_config_value)
+                                                           passwords_config.get(config_key, {}))
         except KeyError:
             raise errors.BootstrapCfnError("Environment " + environment + " not found")
 
