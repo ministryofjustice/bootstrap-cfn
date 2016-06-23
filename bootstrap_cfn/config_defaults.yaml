@@ -42,7 +42,7 @@ dev:
   rds: &dev_rds
     storage: 5
     storage-type: 'gp2'
-    backup-retention-period: 30
+    backup-retention-period: 1
     db-engine: 'postgres'
     db-engine-version: '9.3.5'
     instance-class: 'db.t2.small'
