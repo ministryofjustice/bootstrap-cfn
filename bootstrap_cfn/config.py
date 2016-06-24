@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import textwrap
+import uuid
 
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
 from troposphere.autoscaling import AutoScalingGroup, BlockDeviceMapping, \
@@ -50,6 +51,7 @@ class ConfigParser(object):
 
     def __init__(self, data, stack_name, environment=None, application=None):
         self.stack_name = stack_name
+        self.stack_id = uuid.uuid4().__str__()[-8:]
         self.data = data
 
         # Some things possibly used in user data templates
@@ -742,7 +744,7 @@ class ConfigParser(object):
                 RecordSets=[
                     RecordSet(
                         "TitleIsIgnoredForThisResource",
-                        Name="%s.%s" % (elb['name'], elb['hosted_zone']),
+                        Name="%s-%s.%s" % (elb['name'], self.stack_id, elb['hosted_zone']),
                         Type="A",
                         AliasTarget=AliasTarget(
                             GetAtt(load_balancer, "CanonicalHostedZoneNameID"),
