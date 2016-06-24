@@ -57,20 +57,52 @@ If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabr
 Multiple Stacks
 ===============
 
+Each environment can have multiple stacks.
+Stack tagged with ``active`` points to host's entry point.
+
 If you want to run multiple stacks with the same name and environment place the following in the yaml configuration::
 
     master_zone:
       my-zone.dsd.io
 
+cfn_create
+++++++++++
+
 Then when you create a stack you can specify a tag before cfn_create, like::
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml tag:active cfn_create
 
-NB active is the default.
+
+set_active_stack(tag_name)
+++++++++++++++++++++++++++
+
+NB active is the default. You can also set other stack as active using another fab task ``set_active_stack(tag_name)``::
+
+    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml set_active_stack:[tag_name]
+
+cfn_delete
+++++++++++
+
+You can also delete any stack you want no more by specifying the tag::
+
+    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml tag:[tag_name] cfn_delete
+
+NB ``tag_name`` can be any created tag. active is the default. 
+When deleting an active stack, only active DNS records are removed. Otherwise whole stack is removed.
+
+
+swap_tags
++++++++++
 
 Then you can refer to this stack by its tag in the future. In this way it is easier to bring up two stacks from the same config. If you want to swap the names of the stacks you can do the following::
 
-    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml swap_tags:inactive,active
+    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml swap_tags:inactive, active
+
+
+others
+++++++
+
+There are also some fab tasks for example ``get_active_stack`` that returns active stack for this application and environment; ``get_stack_list`` returns any related stacks.
 
 Example Configuration
 =====================

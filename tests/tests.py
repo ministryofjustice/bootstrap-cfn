@@ -300,7 +300,7 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'tests/sample-project.yaml',
                 'dev',
-                'tests/sample-project-passwords.yaml').config, 'my-stack-name')
+                'tests/sample-project-passwords.yaml').config, 'my-stack-name-12345678')
 
         db_sg = ec2.SecurityGroup('DatabaseSG')
         db_sg.VpcId = Ref('VPC')
@@ -356,7 +356,7 @@ class TestConfigParser(unittest.TestCase):
         # Identifier can be optionally be defined in the yaml template for compatibility.
         # We're only testing the case where it's defined. If left undefined AWS will
         # generate a random one.
-        self.assertEquals(identifier, 'test-dev')
+        self.assertEquals(identifier, 'test-dev-12345678')
         rds_dict["RDSInstance"]["Properties"].pop("DBInstanceIdentifier")
         known = self._resources_to_dict(known)
         compare(known, rds_dict)
@@ -384,7 +384,7 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'tests/sample-project.yaml',
                 'dev',
-                'tests/sample-project-passwords.yaml').config, 'my-stack-name')
+                'tests/sample-project-passwords.yaml').config, 'my-stack-name-12345678')
         # generate and add the VPCGatewayAttachment resource to the template
         # to ensure it is passed as an attachment (DependsOn) later
         vpc_resources_needed_for_rds = [
@@ -447,7 +447,7 @@ class TestConfigParser(unittest.TestCase):
         # Identifier can be optionally be defined in the yaml template for compatibility.
         # We're only testing the case where it's defined. If left undefined AWS will
         # generate a random one.
-        self.assertEquals(identifier, 'test-dev')
+        self.assertEquals(identifier, 'test-dev-12345678')
         rds_dict["RDSInstance"]["Properties"].pop("DBInstanceIdentifier")
         # keep just the keys (rds) we want to compare,
         # we are done with the vpc so pop the vpc gw attachment
@@ -620,7 +620,7 @@ class TestConfigParser(unittest.TestCase):
                                                "CanonicalHostedZoneNameID"),
                         "DNSName": GetAtt("ELBtestdevexternal", "DNSName")
                     },
-                    "Name": "test-dev-external.kyrtest.pf.dsd.io."
+                    "Name": "test-dev-external-name.kyrtest.pf.dsd.io."
                 }
             ],
         )
@@ -637,7 +637,7 @@ class TestConfigParser(unittest.TestCase):
                             GetAtt(lb, "CanonicalHostedZoneNameID"),
                         "DNSName": GetAtt(lb, "DNSName")
                     },
-                    "Name": "test-dev-internal.kyrtest.pf.dsd.io."
+                    "Name": "test-dev-internal-name.kyrtest.pf.dsd.io."
                 }
             ],
         )
@@ -1058,7 +1058,7 @@ class TestConfigParser(unittest.TestCase):
                                             "CanonicalHostedZoneNameID"),
                      "DNSName": GetAtt("ELBdockerregistryservice", "DNSName")
                  },
-                 "Name": "docker-registry.service.kyrtest.foo.bar."
+                 "Name": "docker-registry.service-name.kyrtest.foo.bar."
                  }
             ],
         )
@@ -1175,7 +1175,7 @@ class TestConfigParser(unittest.TestCase):
                                                "CanonicalHostedZoneNameID"),
                         "DNSName": GetAtt("ELBdockerregistryservice", "DNSName")
                     },
-                    "Name": "docker-registry.service.kyrtest.foo.bar."
+                    "Name": "docker-registry.service-name.kyrtest.foo.bar."
                 }
             ],
         )
@@ -1328,7 +1328,7 @@ class TestConfigParser(unittest.TestCase):
                      "DNSName": GetAtt(ELBdevdockerregistryservice,
                                        "DNSName")
                  },
-                 "Name": "dev_docker-registry.service.kyrtest.foo.bar."
+                 "Name": "dev_docker-registry.service-name.kyrtest.foo.bar."
                  }
             ],
         )
