@@ -183,6 +183,15 @@ def user(username):
     env.user = username
 
 
+
+def apply_maintenance_criteria(elb):
+    '''
+    Applies maintenance criteria to elb
+
+    Returns True if the maintenance should continue
+    '''
+    return elb['scheme'] == 'internet-facing'
+
 @task
 def swap_tags(tag1, tag2):
     """
@@ -204,17 +213,7 @@ def swap_tags(tag1, tag2):
     fqdn2 = "{0}.{1}".format(record2, zone_name)
     r53_conn.update_dns_record(zone_id, fqdn1, 'TXT', '"{0}"'.format(stack_suffix2))
     r53_conn.update_dns_record(zone_id, fqdn2, 'TXT', '"{0}"'.format(stack_suffix1))
-
-
-def apply_maintenance_criteria(elb):
-    '''
-    Applies maintenance criteria to elb
-
-    Returns True if the maintenance should continue
-    '''
-    return elb['scheme'] == 'internet-facing'
-
-
+    
 @task
 def enter_maintenance(maintenance_ip, dry_run=False):
     '''
@@ -387,28 +386,26 @@ def set_stack_name():
     and a randomly generated suffix.
 
     The env.tag dictates which randomly generated suffix
-    the default env.tag is 'active'
+    tag='active' should be saved as key to switch stacks.
 
     We generate a new stack_name and create the
     dns records to retreive it in the future.
 
     """
-    stack_suffix = uuid.uuid4().__str__()[-8:]
-    if hasattr(env, 'tag'):
-        # should check if the tag is used already
-        if env.tag == 'active':
-            raise CfnConfigError("tag cannot be 'active'")
-        else:
-            stack_tag = env.tag
+    env.stack_name = 'temp'
+    cfn_config = get_config()
+    if not hasattr(env, 'tag'):
+        stack_tag = cfn_config.stack_id
     else:
-        stack_tag = stack_suffix
-        env.tag = stack_tag
+        stack_tag = env.tag
+    if env.tag=='active':
+        raise CfnConfigError("The value of tag cannot be 'active'")
+    env.tag = stack_tag
     legacy_name = "{0}-{1}".format(env.application, env.environment)
     # get_config needs a stack_name so this is a hack because we don't
     # know it yet...
-    env.stack_name = 'temp'
     r53_conn = get_connection(R53)
-    zone_name = get_basic_config().get('master_zone', None)
+    zone_name = cfn_config.data.get('master_zone', None)
     if not zone_name:
         raise CfnConfigError("No master_zone in yaml, unable to create/find DNS records for stack name")
     logger.info("fab_tasks::set_stack_name: Found master zone '{}' in config...".format(zone_name))
@@ -420,6 +417,7 @@ def set_stack_name():
                 "for zone name '{}'...".format(zone_id, zone_name))
     record_name = "stack.{0}.{1}".format(stack_tag, legacy_name)
 
+    stack_suffix = cfn_config.stack_id
     record = "{0}.{1}".format(record_name, zone_name)
     logger.info("fab_tasks::set_stack_name: "
                 "Creating stack suffix {} "

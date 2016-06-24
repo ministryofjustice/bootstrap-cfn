@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import textwrap
+import uuid
 
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
 from troposphere.autoscaling import AutoScalingGroup, BlockDeviceMapping, \
@@ -50,8 +51,9 @@ class ConfigParser(object):
 
     def __init__(self, data, stack_name, environment=None, application=None):
         self.stack_name = stack_name
+        self.stack_id = uuid.uuid4().__str__()[-8:]
         self.data = data
-        self.stack_id = self.stack_name.split('-')[-1]
+
         # Some things possibly used in user data templates
         self.environment = environment
         self.application = application
@@ -470,7 +472,7 @@ class ConfigParser(object):
             AutoMinorVersionUpgrade=False,
             VPCSecurityGroups=[GetAtt(database_sg, "GroupId")],
             DBSubnetGroupName=Ref(rds_subnet_group),
-            StorageEncrypted=True,
+            StorageEncrypted=False,
             DependsOn=database_sg.title
         )
         resources.append(rds_instance)
