@@ -318,6 +318,22 @@ It is possilbe to define a custom health check for an ELB like follows::
       Timeout: 5
       UnhealthyThreshold: 2
 
+Additional Aliases
+~~~~~~~~~~~~~~~~~~
+
+You can also have additional entries in the cloudformation config specifying ELB aliases.
+For example,
+
+.. code:: yaml
+
+   elb:
+   - name: myelb
+     aliases:
+       - thiselb
+       - yourelb
+
+The above setup would create route53 A records as aliases to the elb name address. If the aliases already exist, they will not be overwritten by default, although there is the option to forcibly do so.
+
 ELB Certificates
 ~~~~~~~~~~~~~~~~
 

@@ -701,3 +701,87 @@ def cycle_instances(delay=None):
     else:
         termination_delay = None
     asg.cycle_instances(termination_delay=termination_delay)
+
+
+@task
+def create_route_aliases(force=False):
+    """
+    Create the route aliases as specified in the cloudformation config elb aliases section
+
+    Args:
+        force(bool): True to overwrite any existing records, False otherwise
+    """
+    update_route_aliases(action="UPSERT", force=force)
+
+
+@task
+def delete_route_aliases():
+    """
+    Delete the route aliases as specified in the cloudformation config elb aliases section
+    """
+    update_route_aliases(action="DELETE", force=True)
+
+
+def update_route_aliases(action="UPSERT", force=False):
+    """
+    Update route aliases as specified in the cloudformation config elb aliases section
+
+    Args:
+        action(string): The action to perform on the records
+        force(bool): True to try to perform the action no matter what,
+            False otherwise
+    """
+    cfn_config = get_config()
+    r53_conn = get_connection(R53)
+    for elb_config in cfn_config.data.get('elb', []):
+        alias_target = ("%s.%s" % (elb_config.get('name'), elb_config.get('hosted_zone')))
+        hosted_zone_name = elb_config.get('hosted_zone')
+        stripped_hosted_zone_name = hosted_zone_name.rsplit('.', 1)[0]
+        hosted_zone_id = r53_conn.get_hosted_zone_id(hosted_zone_name)
+        for alias_name in elb_config.get('aliases', []):
+            if len(alias_name) == 0:
+                record_name = ("%s" % elb_config.get('hosted_zone'))
+            else:
+                record_name = ("%s.%s" % (alias_name, elb_config.get('hosted_zone')))
+
+            # Check if record already exists
+            record_value = r53_conn.get_record(stripped_hosted_zone_name, hosted_zone_id, alias_name, 'A')
+            if record_value is not None:
+                if not force:
+                    logger.critical("Found an existing record %s with value %s, skipping..."
+                                    % (record_name, record_value))
+                    continue
+                elif action == "UPSERT":
+                    logger.critical("Found an existing record %s, force enabled so overwriting..." % (record_name))
+                elif action == "DELETE":
+                    if record_value == alias_target:
+                        logger.critical("Deleting record %s with value %s..."
+                                        % (record_name, record_value))
+                    else:
+                        logger.critical("Record %s has value %s, which does not match alias default %s, please delete manually..."
+                                        % (record_name, record_value, alias_target))
+                        continue
+                else:
+                    logger.critical("Found an existing record %s, force enabled so performing action '%s'..."
+                                    % (record_name, action))
+            else:
+                if action == "UPSERT":
+                    logger.critical("Creating record %s..." % (record_name))
+                elif action == "DELETE":
+                    logger.critical("Error deleting record, %s does not exist." % (record_name))
+                    continue
+            # http://boto.readthedocs.org/en/latest/ref/route53.html#boto.route53.record.Record.set_alias
+            record_value = [
+                # alias_hosted_zone_id
+                hosted_zone_id,
+                # alias_dns_name
+                alias_target,
+                # alias_evaluate_target_health (True/False)
+                False
+            ]
+            r53_conn.update_dns_record(zone=hosted_zone_id,
+                                       record=record_name,
+                                       record_type='A',
+                                       record_value=record_value,
+                                       action=action,
+                                       is_alias=True)
