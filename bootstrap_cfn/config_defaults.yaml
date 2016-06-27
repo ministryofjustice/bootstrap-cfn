@@ -1,0 +1,73 @@
+# Production is secure by default and may have high resource specifications
+prod:
+  ec2: &prod_ec2
+    auto_scaling: &prod_ec2_auto_scaling
+      desired: 2
+      max: 5
+      min: 1
+    parameters: &prod_ec2_parameters
+      KeyName: default
+      InstanceType: t2.micro
+    block_devices: &prod_ec2_block_devices
+      - DeviceName: /dev/sda1
+        VolumeSize: 20
+  rds: &prod_rds
+    storage: 5
+    storage-type: 'gp2'
+    backup-retention-period: 30
+    db-engine: 'postgres'
+    db-engine-version: '9.3.5'
+    instance-class: 'db.t2.large'
+    multi-az: True
+    storage-encrypted: True
+  elasticache: &prod_elasticache
+    clusters: 3
+    node_type: 'cache.m1.small'
+    port: 6379
+    engine: 'redis'
+
+# Dev is not secure by default and has lower powered resource specifications
+dev:
+  ec2: &dev_ec2
+    auto_scaling: &dev_ec2_auto_scaling
+      desired: 1
+      max: 3
+      min: 1
+    parameters: &dev_ec2_parameters
+      KeyName: default
+      InstanceType: t2.micro
+    block_devices: &dev_ec2_block_devices
+      - DeviceName: /dev/sda1
+        VolumeSize: 20
+  rds: &dev_rds
+    storage: 5
+    storage-type: 'gp2'
+    backup-retention-period: 1
+    db-engine: 'postgres'
+    db-engine-version: '9.3.5'
+    instance-class: 'db.t2.small'
+    multi-az: False
+    storage-encrypted: False
+  elasticache: &dev_elasticache
+    clusters: 3
+    node_type: 'cache.m1.small'
+    port: 6379
+    engine: 'redis'
+
+# Staging should be equivalent to prod
+staging:
+  ec2:
+    <<: *prod_ec2
+  rds:
+    <<: *prod_rds
+  elasticache:
+    <<: *prod_elasticache
+
+# The default should be the most secure
+default:
+  ec2:
+    <<: *prod_ec2
+  rds:
+    <<: *prod_rds
+  elasticache:
+    <<: *prod_elasticache

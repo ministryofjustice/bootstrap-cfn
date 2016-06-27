@@ -1,0 +1,50 @@
+prod:
+  ec2:
+    tags:
+      Apps: test
+    security_groups:
+      AnotherSG:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupName:
+            Ref: BaseHostSG
+      BaseHostSG:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+  elb:
+    - name: test-dev-external
+      hosted_zone: kyrtest.pf.dsd.io.
+      scheme: internet-facing
+      listeners:
+        - LoadBalancerPort: 80
+          InstancePort: 80
+          Protocol: TCP
+        - LoadBalancerPort: 443
+          InstancePort: 443
+          Protocol: TCP
+  s3: {}
+  rds:
+    db-name: test
+    db-master-username: testuser
+  elasticache: {}
+  ssl:
+    my-cert:
+      cert: |
+        -----BEGIN CERTIFICATE-----
+        blahblahblah
+        -----END CERTIFICATE-----
+      key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        blahblahblah
+        -----END RSA PRIVATE KEY-----
+      chain: |
+        -----BEGIN CERTIFICATE-----
+        blahblahblah
+        -----END CERTIFICATE-----
