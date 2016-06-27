@@ -59,7 +59,10 @@ class R53(object):
         if is_alias:
             # provide list of params as needed by function set_alias
             # http://boto.readthedocs.org/en/latest/ref/route53.html#boto.route53.record.Record.set_alias
-            change.set_alias(*record_value)
+            alias_hosted_zone_id = record_value.alias_hosted_zone_id
+            alias_dns_name = record_value.alias_dns_name
+            alias_evaluate_target_health = record_value.alias_evaluate_target_health
+            change.set_alias(alias_hosted_zone_id, alias_dns_name, alias_evaluate_target_health)
         else:
             change.add_value(record_value)
         if dry_run:
@@ -67,6 +70,34 @@ class R53(object):
         else:
             changes.commit()
         return True
+
+    def delete_dns_record(self, zone, record, record_type, record_value, is_alias=False, dry_run=False):
+        '''
+        Delete a dns record in route53
+
+        zone -- a string specifying the zone id
+        record -- a string for the record to update
+        record_type -- a string to specify the record, eg "A"
+
+
+        Returns True if update successful or raises an exception if not
+        '''
+        changes = boto.route53.record.ResourceRecordSets(self.conn_r53, zone)
+        change = changes.add_change("DELETE", record, record_type, ttl=60)
+        if is_alias:
+            # provide list of params as needed by function set_alias
+            # http://boto.readthedocs.org/en/latest/ref/route53.html#boto.route53.record.Record.set_alias
+            alias_hosted_zone_id = record_value.alias_hosted_zone_id
+            alias_dns_name = record_value.alias_dns_name
+            alias_evaluate_target_health = record_value.alias_evaluate_target_health
+            change.set_alias(alias_hosted_zone_id, alias_dns_name, alias_evaluate_target_health)
+        else:
+            change.add_value(record_value)
+        if dry_run:
+            print(changes)
+        else:
+            res = changes.commit()
+        return res
 
     def get_record(self, zone, zone_id, record, record_type):
         '''
@@ -77,5 +108,7 @@ class R53(object):
             if rr.type == record_type and rr.name == fqdn:
                 if rr.type == 'TXT':
                     rr.resource_records[0] = rr.resource_records[0][1:-1]
+                if rr.type == 'A':
+                    return rr
                 return rr.resource_records[0]
         return None
