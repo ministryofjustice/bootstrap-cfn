@@ -483,7 +483,7 @@ class TestConfigParser(unittest.TestCase):
                                                "CanonicalHostedZoneNameID"),
                         "DNSName": GetAtt("ELBtestdevexternal", "DNSName")
                     },
-                    "Name": "test-dev-external.kyrtest.pf.dsd.io."
+                    "Name": "test-dev-external-name.kyrtest.pf.dsd.io."
                 }
             ],
         )
@@ -500,7 +500,7 @@ class TestConfigParser(unittest.TestCase):
                             GetAtt(lb, "CanonicalHostedZoneNameID"),
                         "DNSName": GetAtt(lb, "DNSName")
                     },
-                    "Name": "test-dev-internal.kyrtest.pf.dsd.io."
+                    "Name": "test-dev-internal-name.kyrtest.pf.dsd.io."
                 }
             ],
         )
@@ -921,7 +921,7 @@ class TestConfigParser(unittest.TestCase):
                                             "CanonicalHostedZoneNameID"),
                      "DNSName": GetAtt("ELBdockerregistryservice", "DNSName")
                  },
-                 "Name": "docker-registry.service.kyrtest.foo.bar."
+                 "Name": "docker-registry.service-name.kyrtest.foo.bar."
                  }
             ],
         )
@@ -1038,7 +1038,7 @@ class TestConfigParser(unittest.TestCase):
                                                "CanonicalHostedZoneNameID"),
                         "DNSName": GetAtt("ELBdockerregistryservice", "DNSName")
                     },
-                    "Name": "docker-registry.service.kyrtest.foo.bar."
+                    "Name": "docker-registry.service-name.kyrtest.foo.bar."
                 }
             ],
         )
@@ -1191,7 +1191,7 @@ class TestConfigParser(unittest.TestCase):
                      "DNSName": GetAtt(ELBdevdockerregistryservice,
                                        "DNSName")
                  },
-                 "Name": "dev_docker-registry.service.kyrtest.foo.bar."
+                 "Name": "dev_docker-registry.service-name.kyrtest.foo.bar."
                  }
             ],
         )
