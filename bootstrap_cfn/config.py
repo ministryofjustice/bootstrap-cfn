@@ -748,6 +748,17 @@ class ConfigParser(object):
                 ),
                 Policies=elb_policies
             )
+
+            if elb['scheme'] == 'internet-facing':
+                vpc_gw_att = [
+                    r.title
+                    for r in self._find_resources(
+                        template, "AWS::EC2::VPCGatewayAttachment")]
+                # if a VPCGatewayAttachment exists in template make the ELB depend on it
+                # because ELB is public/internet facing and needs Internet Gateway
+                if vpc_gw_att:
+                    load_balancer.DependsOn = vpc_gw_att
+
             if "health_check" in elb:
                 load_balancer.HealthCheck = HealthCheck(**elb['health_check'])
 
