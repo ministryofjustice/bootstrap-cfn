@@ -2,6 +2,7 @@
 
 * Adds missing permission of ELB `Describe*` on Resource `*` to
   ec2 iam policies.
+* Fixes cloudformation vpc dependency deletion issues
 
 ## v0.10.0
 
