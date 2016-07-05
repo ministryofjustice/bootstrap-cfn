@@ -2,8 +2,8 @@
 
 import logging
 import os
+import re
 import sys
-import time
 import uuid
 
 import boto3
@@ -917,3 +917,16 @@ def get_one_public_elbs():
         logger.info("fab_tasks::set_active_stack: Found multiple ELBs,"
                     "using the first one '{}' as public ELB".format(elbs[0]))
     return elbs[0]
+
+
+@task
+def get_stack_list():
+    r53_conn = get_connection(R53)
+    rrsets = r53_conn.get_all_resource_records(get_zone_id())
+    regex = "stack\.\w+\.{}.+".format(env.application)
+    print regex
+    for rr in rrsets:
+        if re.match(regex, rr.name):
+            stack_id = rr.resource_records[0][1:-1]
+            stack_name = "{}-{}-{}".format(env.application, env.environment, stack_id)
+            print green("DNS record name: {}  stack name: {}".format(rr.name.ljust(40), stack_name.ljust(40)))

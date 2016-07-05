@@ -137,3 +137,13 @@ class R53(object):
             if rr.type == record_type and rr.name == record_fqdn:
                 return rr
         return None
+
+    def get_all_resource_records(self, zone_id):
+        """
+        Args:
+            zone_id:
+        Returns:
+            String
+        """
+        rrsets = self.conn_r53.get_all_rrsets(zone_id)
+        return rrsets
