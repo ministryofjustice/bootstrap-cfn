@@ -84,7 +84,11 @@ class TestConfigParser(unittest.TestCase):
                  'Effect': 'Allow'},
                 {'Action': ['cloudformation:Describe*'],
                  'Resource': '*',
-                 'Effect': 'Allow'}]
+                 'Effect': 'Allow'},
+                {'Action': ['elasticloadbalancing:Describe*'],
+                 'Effect': 'Allow',
+                 'Resource': '*'}
+                ]
         }
         role_policy.Roles = [basehost_role_ref]
 
@@ -122,6 +126,9 @@ class TestConfigParser(unittest.TestCase):
                 {'Action': ['cloudformation:Describe*'],
                  'Resource': '*',
                  'Effect': 'Allow'},
+                {'Action': ['elasticloadbalancing:Describe*'],
+                 'Resource': '*',
+                 'Effect': 'Allow'},
                 {'Action': ['ec2:Describe*'],
                  'Resource': '*',
                  'Effect': 'Allow'},
@@ -129,9 +136,6 @@ class TestConfigParser(unittest.TestCase):
                  'Resource': '*',
                  'Effect': 'Allow'},
                 {'Action': ['rds:Describe*'],
-                 'Resource': '*',
-                 'Effect': 'Allow'},
-                {'Action': ['elasticloadbalancing:Describe*'],
                  'Resource': '*',
                  'Effect': 'Allow'},
                 {'Action': ['elasticache:Describe*'],
