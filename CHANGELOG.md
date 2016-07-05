@@ -1,3 +1,8 @@
+## UNRELEASED
+
+* Adds missing permission of ELB `Describe*` on Resource `*` to
+  ec2 iam policies.
+
 ## v0.10.0
 
 * Default RDS encryption to true
