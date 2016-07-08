@@ -87,7 +87,7 @@ class TagRecordExistConflictError(BootstrapCfnError):
 
 class ActiveTagExistConflictError(BootstrapCfnError):
     def __init__(self, stack_id):
-        msg = ("An active record already exists in. ".format(stack_id))
+        msg = ("An active record already exists in {}. ".format(stack_id))
         super(ActiveTagExistConflictError, self).__init__(msg)
 
 

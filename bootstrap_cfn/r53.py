@@ -107,7 +107,7 @@ class R53(object):
             record_name(String):
             record_type:
         Returns:
-            String
+            String or None, in the event of there being no A or TXT record
         """
         record_fqdn = "{0}.{1}.".format(record_name, zone_name)
         rrsets = self.conn_r53.get_all_rrsets(zone_id, type=record_type, name=record_fqdn)

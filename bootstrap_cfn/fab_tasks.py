@@ -438,7 +438,7 @@ def hastag(stack_tag):
     """
     r53_conn = get_connection(R53)
     zone_id = get_zone_id()
-    record = "{}".format(get_tag_record_name(stack_tag))
+    record = get_tag_record_name(stack_tag)
     try:
         hasrecord = r53_conn.get_record(get_zone_name(), zone_id, record, 'TXT')
     except:
@@ -896,7 +896,7 @@ def get_active_stack():
 
 def get_all_elbs():
     """
-    Returns all available elbs from cloudformation configuration
+    Returns all internet-facing elbs from cloudformation configuration
     """
     cfn_config = get_config()
     elbs = [x.get('name') for x in cfn_config.data.get('elb', {}) if x.get('scheme') == 'internet-facing']
