@@ -294,6 +294,14 @@ class TestConfigParser(unittest.TestCase):
         compare(expected_outputs, actual_outputs)
 
     def test_rds(self):
+
+        template = Template()
+        config = ConfigParser(
+            ProjectConfig(
+                'tests/sample-project.yaml',
+                'dev',
+                'tests/sample-project-passwords.yaml').config, 'my-stack-name')
+
         db_sg = ec2.SecurityGroup('DatabaseSG')
         db_sg.VpcId = Ref('VPC')
         db_sg.GroupDescription = 'SG for EC2 Access to RDS'
@@ -311,6 +319,7 @@ class TestConfigParser(unittest.TestCase):
              "IpProtocol": "tcp",
              "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")}
         ]
+        db_sg.DependsOn = []
 
         db_subnet = rds.DBSubnetGroup('RDSSubnetGroup')
         db_subnet.SubnetIds = [Ref('SubnetA'), Ref('SubnetB'), Ref('SubnetC')]
@@ -336,13 +345,6 @@ class TestConfigParser(unittest.TestCase):
 
         known = [db_instance, db_subnet, db_sg]
 
-        config = ConfigParser(
-            ProjectConfig(
-                'tests/sample-project.yaml',
-                'dev',
-                'tests/sample-project-passwords.yaml').config, 'my-stack-name')
-
-        template = Template()
         config.rds(template)
         resources = template.resources.values()
         rds_dict = self._resources_to_dict(resources)
@@ -356,6 +358,100 @@ class TestConfigParser(unittest.TestCase):
         # generate a random one.
         self.assertEquals(identifier, 'test-dev')
         rds_dict["RDSInstance"]["Properties"].pop("DBInstanceIdentifier")
+        known = self._resources_to_dict(known)
+        compare(known, rds_dict)
+
+        # Test for outputs
+        expected_outputs = {
+            "dbhost": {
+                "Description": "RDS Hostname",
+                "Value": {"Fn::GetAtt": ["RDSInstance", "Endpoint.Address"]}
+            },
+            "dbport": {
+                "Description": "RDS Port",
+                "Value": {
+                    "Fn::GetAtt": ["RDSInstance", "Endpoint.Port"]
+                }
+            }
+        }
+        actual_outputs = self._resources_to_dict(template.outputs.values())
+        compare(expected_outputs, actual_outputs)
+
+    def test_rds_with_vpc_dependencies(self):
+        template = Template()
+
+        config = ConfigParser(
+            ProjectConfig(
+                'tests/sample-project.yaml',
+                'dev',
+                'tests/sample-project-passwords.yaml').config, 'my-stack-name')
+        # generate and add the VPCGatewayAttachment resource to the template
+        # to ensure it is passed as an attachment (DependsOn) later
+        vpc_resources_needed_for_rds = [
+            res for res in config.vpc()
+            if res.resource_type == 'AWS::EC2::VPCGatewayAttachment']
+        map(template.add_resource, vpc_resources_needed_for_rds)
+
+        db_sg = ec2.SecurityGroup('DatabaseSG')
+        db_sg.VpcId = Ref('VPC')
+        db_sg.GroupDescription = 'SG for EC2 Access to RDS'
+        db_sg.SecurityGroupIngress = [
+            {"ToPort": 5432,
+             "FromPort": 5432,
+             "IpProtocol": "tcp",
+             "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")},
+            {"ToPort": 1433,
+             "FromPort": 1433,
+             "IpProtocol": "tcp",
+             "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")},
+            {"ToPort": 3306,
+             "FromPort": 3306,
+             "IpProtocol": "tcp",
+             "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")}
+        ]
+        db_sg.DependsOn = ["AttachGateway"]
+
+        db_subnet = rds.DBSubnetGroup('RDSSubnetGroup')
+        db_subnet.SubnetIds = [Ref('SubnetA'), Ref('SubnetB'), Ref('SubnetC')]
+        db_subnet.DBSubnetGroupDescription = 'VPC Subnets'
+
+        db_instance = rds.DBInstance('RDSInstance', DependsOn=db_sg.title)
+        db_instance.MultiAZ = False
+        db_instance.MasterUsername = 'testuser'
+        db_instance.MasterUserPassword = 'testpassword'
+        db_instance.DBName = 'test'
+        db_instance.PubliclyAccessible = False
+        db_instance.StorageEncrypted = False
+        db_instance.StorageType = 'gp2'
+        db_instance.AllocatedStorage = 5
+        db_instance.AllowMajorVersionUpgrade = False
+        db_instance.AutoMinorVersionUpgrade = False
+        db_instance.BackupRetentionPeriod = 1
+        db_instance.DBInstanceClass = 'db.t2.micro'
+        db_instance.Engine = 'postgres'
+        db_instance.EngineVersion = '9.3.5'
+        db_instance.VPCSecurityGroups = [GetAtt(db_sg, 'GroupId')]
+        db_instance.DBSubnetGroupName = Ref(db_subnet)
+
+        known = [db_instance, db_subnet, db_sg]
+
+        config.rds(template)
+        resources = template.resources.values()
+        rds_dict = self._resources_to_dict(resources)
+        # RDS dict will contain DBIdentifier, which is random.
+        # So we check it seperately here then remove it
+        self.assertTrue("DBInstanceIdentifier" in rds_dict["RDSInstance"]["Properties"],
+                        "test_rds_with_vpc_dependencies: "
+                        "template does not contain DBInstanceIdentifier")
+        identifier = rds_dict["RDSInstance"]["Properties"]["DBInstanceIdentifier"]
+        # Identifier can be optionally be defined in the yaml template for compatibility.
+        # We're only testing the case where it's defined. If left undefined AWS will
+        # generate a random one.
+        self.assertEquals(identifier, 'test-dev')
+        rds_dict["RDSInstance"]["Properties"].pop("DBInstanceIdentifier")
+        # keep just the keys (rds) we want to compare,
+        # we are done with the vpc so pop the vpc gw attachment
+        [rds_dict.pop(res.title) for res in vpc_resources_needed_for_rds]
         known = self._resources_to_dict(known)
         compare(known, rds_dict)
 
@@ -1325,7 +1421,8 @@ class TestConfigParser(unittest.TestCase):
             LaunchConfigurationName=Ref("BaseHostLaunchConfig"),
             AvailabilityZones=GetAZs(""),
             HealthCheckGracePeriod=300,
-            HealthCheckType='EC2'
+            HealthCheckType='EC2',
+            DependsOn=['AttachGateway']
         )
 
         BaseHostSG = SecurityGroup(

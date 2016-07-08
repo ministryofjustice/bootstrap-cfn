@@ -257,12 +257,14 @@ class ConfigParser(object):
                 Application=Ref("AWS::StackId"),
                 Network="Public",
             ),
+            DependsOn=vpc.title,
         )
 
         gw_attachment = VPCGatewayAttachment(
             "AttachGateway",
             VpcId=Ref(vpc),
             InternetGatewayId=Ref(igw),
+            DependsOn=igw.title
         )
 
         route_table = RouteTable(
@@ -507,7 +509,6 @@ class ConfigParser(object):
             DBSubnetGroupDescription="VPC Subnets"
         )
         resources.append(rds_subnet_group)
-
         database_sg = SecurityGroup(
             "DatabaseSG",
             SecurityGroupIngress=[
@@ -526,6 +527,12 @@ class ConfigParser(object):
             ],
             VpcId=Ref("VPC"),
             GroupDescription="SG for EC2 Access to RDS",
+            # translates to DependsOn=["AttachGateway"],
+            # but if not, ensure the tests have been updated too
+            DependsOn=[
+                r.title
+                for r in self._find_resources(
+                    template, "AWS::EC2::VPCGatewayAttachment")],
         )
         resources.append(database_sg)
 
@@ -741,6 +748,17 @@ class ConfigParser(object):
                 ),
                 Policies=elb_policies
             )
+
+            if elb['scheme'] == 'internet-facing':
+                vpc_gw_att = [
+                    r.title
+                    for r in self._find_resources(
+                        template, "AWS::EC2::VPCGatewayAttachment")]
+                # if a VPCGatewayAttachment exists in template make the ELB depend on it
+                # because ELB is public/internet facing and needs Internet Gateway
+                if vpc_gw_att:
+                    load_balancer.DependsOn = vpc_gw_att
+
             if "health_check" in elb:
                 load_balancer.HealthCheck = HealthCheck(**elb['health_check'])
 
@@ -1113,6 +1131,13 @@ class ConfigParser(object):
             LaunchConfigurationName=Ref(launch_config),
             HealthCheckGracePeriod=health_check_grace_period,
             HealthCheckType=health_check_type,
+            # should be equivalent to DependsOn=["AttachGateway"],
+            # but if not, ensure the tests have been updated too
+            DependsOn=[
+                v.title
+                for v in self.vpc()
+                if 'AWS::EC2::VPCGatewayAttachment' == v.resource['Type']]
+
         )
         resources.append(scaling_group)
 
