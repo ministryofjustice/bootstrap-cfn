@@ -1,8 +1,15 @@
-## UNRELEASED
+## v0.11.0
 
+Features:
+* Use a configuration file for default cloudformations settings
+
+Fixes:
+* Fixes cloudformation vpc dependency deletion issues
+* Re-add elb permissions to ec2 host for aws-formula
 * Adds missing permission of ELB `Describe*` on Resource `*` to
   ec2 iam policies.
-* Fixes cloudformation vpc dependency deletion issues
+* Default the dev RDS backup retention time to 1 day
+* Only define policy actions if the components are enabled in the config
 
 ## v0.10.0
 
