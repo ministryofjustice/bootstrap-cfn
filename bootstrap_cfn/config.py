@@ -1029,7 +1029,7 @@ class ConfigParser(object):
             for i in data['block_devices']:
                 device_name = i['DeviceName']
                 volume_size = i.get('VolumeSize', 20)
-                volume_type = i.get('VolumeType', 'standard')
+                volume_type = i.get('VolumeType', 'gp2')
                 iops = i.get('Iops', None)
                 # Check we have a permitted volume type
                 if volume_type not in ['standard', 'gp2', 'io1']:
