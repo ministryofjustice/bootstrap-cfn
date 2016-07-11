@@ -1,3 +1,8 @@
+## v0.11.1
+
+Fixes:
+* Upload data file properly into package
+
 ## v0.11.0
 
 Features:
