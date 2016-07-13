@@ -39,6 +39,7 @@ dev:
     block_devices: &dev_ec2_block_devices
       - DeviceName: /dev/sda1
         VolumeSize: 20
+        VolumeType: standard
   rds: &dev_rds
     storage: 5
     storage-type: 'gp2'
