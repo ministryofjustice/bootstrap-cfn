@@ -1352,7 +1352,7 @@ class TestConfigParser(unittest.TestCase):
             BlockDeviceMappings=[
                 {
                     "DeviceName": "/dev/sda1",
-                    "Ebs": {"VolumeSize": 10, "VolumeType": "standard"}
+                    "Ebs": {"VolumeSize": 10, "VolumeType": "gp2"}
                 },
                 {
                     "DeviceName": "/dev/sdf",
