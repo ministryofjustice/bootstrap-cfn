@@ -299,7 +299,7 @@ class TestConfigParser(unittest.TestCase):
             ProjectConfig(
                 'tests/sample-project.yaml',
                 'dev',
-                'tests/sample-project-passwords.yaml').config, 'my-stack-name')
+                'tests/sample-project-passwords.yaml').config, 'my-stack-name-12345678')
 
         template = Template()
         config.rds(template)
@@ -313,7 +313,7 @@ class TestConfigParser(unittest.TestCase):
         # Identifier can be optionally be defined in the yaml template for compatibility.
         # We're only testing the case where it's defined. If left undefined AWS will
         # generate a random one.
-        self.assertEquals(identifier, 'test-dev')
+        self.assertEquals(identifier, 'test-dev-12345678')
         rds_dict["RDSInstance"]["Properties"].pop("DBInstanceIdentifier")
         known = self._resources_to_dict(known)
         compare(known, rds_dict)

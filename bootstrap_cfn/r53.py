@@ -98,6 +98,30 @@ class R53(object):
             res = changes.commit()
         return res
 
+    def delete_record(self, zone_name, zone_id, elb, stack_id, stack_tag, txt_tag_record):
+        elb_name = "{}-{}".format(elb, stack_id)
+        alias_record_object = self.get_full_record(zone_name, zone_id, elb_name, 'A')
+        stack_record_name = None
+        stack_record_object = None
+        if stack_tag == 'active':
+            # do matching before deleting active records
+            stack_record_name = "{}-{}".format(elb, stack_id)
+            stack_record_object = self.get_full_record(zone_name, zone_id, stack_record_name, 'A')
+
+        if alias_record_object:
+            alias_record_value = [alias_record_object.alias_hosted_zone_id,
+                                  alias_record_object.alias_dns_name,
+                                  alias_record_object.alias_evaluate_target_health]
+            alias_record_name = "{}.{}".format(elb_name, zone_name)
+            if stack_record_object and stack_record_object.to_print() == alias_record_object.to_print():
+                self.delete_dns_record(zone_id, alias_record_name, 'A', alias_record_value, is_alias=True)
+        # delete TXT record
+        txt_record_name = "{}.{}".format(txt_tag_record, zone_name)
+        txt_record_value = '"{}"'.format(self.get_record(
+                zone_name, zone_id, txt_tag_record, 'TXT'))
+        if txt_record_value:
+            self.delete_dns_record(zone_id, txt_record_name, 'TXT', txt_record_value)
+
     def get_record(self, zone_name, zone_id, record_name, record_type):
         """
 

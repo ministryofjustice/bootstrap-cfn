@@ -479,6 +479,12 @@ class ConfigParser(object):
         if 'db-engine' in self.data['rds'] and self.data['rds']['db-engine'].startswith("sqlserver"):
             required_fields.pop('db-name')
 
+        if 'identifier' in self.data['rds']:
+            # update identifier name
+            self.data['rds']['identifier'] = "{}-{}".format(self.data['rds']['identifier'], self.stack_id)
+            logging.info("identifier was updated to {}".format(self.data['rds']['identifier']))
+            print "identifier was updated to {}".format(self.data['rds']['identifier'])
+
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         for yaml_key, rds_prop in required_fields.iteritems():
             if yaml_key not in self.data['rds']:

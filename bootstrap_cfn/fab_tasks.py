@@ -552,29 +552,17 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
     stack_id = stack_name.split('-')[-1]
     zone_name = get_zone_name()
     zone_id = r53_conn.get_hosted_zone_id(zone_name)
+    elb = get_first_public_elb()
     if hasattr(env, "tag") and env.tag != 'active':
         # delete inactive stack
         stack_tag = env.tag
         logger.info("Deleting {} inactive stack {}...".format(stack_tag, stack_name))
         print green("\nSTACK {0} DELETING...\n").format(stack_name)
 
-        # delete Alias record
-        elb_name = "{}-{}".format(elb, stack_id)
-        alias_record_object = r53_conn.get_full_record(zone_name, zone_id, elb_name, 'A')
-        if alias_record_object:
-            alias_record_value = [alias_record_object.alias_hosted_zone_id,
-                                  alias_record_object.alias_dns_name,
-                                  alias_record_object.alias_evaluate_target_health]
-            alias_record_name = "{}.{}".format(elb_name, zone_name)
-            r53_conn.delete_dns_record(zone_id, alias_record_name, 'A', alias_record_value, is_alias=True)
-        # delete TXT record
+        # delete Alias and TXT records
         txt_tag_record = get_tag_record_name(stack_tag)
-        txt_record_name = "{}.{}".format(txt_tag_record, zone_name)
-        txt_record_value = '"{}"'.format(r53_conn.get_record(
-                zone_name, zone_id, txt_tag_record, 'TXT'))
-        if txt_record_value:
-            r53_conn.delete_dns_record(zone_id, txt_record_name, 'TXT', txt_record_value)
 
+        r53_conn.delete_record(zone_name, zone_id, elb, stack_id, stack_tag, txt_tag_record)
         # Wait for stacks to delete
         print 'Waiting for stack to delete.'
         cfn.delete(stack_name)
@@ -591,25 +579,8 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
 
         stack_tag = 'active'
         print green("\nDELETING ACTIVE DNS RECORDS...\n")
-
-        # delete 'A' record
-        main_record_name = "{}.{}".format(elb, zone_name)
-        stack_record_name = "{}-{}".format(elb, stack_id)
-        stack_record_object = r53_conn.get_full_record(zone_name, zone_id, stack_record_name, 'A')
-        main_record_object = r53_conn.get_full_record(zone_name, zone_id, elb, 'A')
-        main_record_value = [main_record_object.alias_hosted_zone_id,
-                             main_record_object.alias_dns_name,
-                             main_record_object.alias_evaluate_target_health]
-        if stack_record_object and stack_record_object.to_print() == main_record_object.to_print():
-            r53_conn.delete_dns_record(zone_id, main_record_name, 'A', main_record_value, is_alias=True)
-
-        # delete 'TXT' record
-        tag_record_name = get_tag_record_name(stack_tag)
-        record_value = '"{}"'.format(r53_conn.get_record(
-            zone_name, zone_id, tag_record_name, 'TXT'))
-        record_name = '{}.{}'.format(tag_record_name, zone_name)
-        if stack_id and stack_id == record_value[1:-1]:
-            r53_conn.delete_dns_record(zone_id, record_name, 'TXT', record_value)
+        txt_tag_record = get_tag_record_name(stack_tag)
+        r53_conn.delete_record(zone_name, zone_id, elb, stack_id, stack_tag, txt_tag_record)
 
     if 'ssl' in cfn_config.data:
         iam = get_connection(IAM)
