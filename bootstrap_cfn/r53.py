@@ -95,32 +95,38 @@ class R53(object):
         if dry_run:
             print(changes)
         else:
-            res = changes.commit()
-        return res
+            changes.commit()
+        return True
 
-    def delete_record(self, zone_name, zone_id, elb, stack_id, stack_tag, txt_tag_record):
-        elb_name = "{}-{}".format(elb, stack_id)
-        alias_record_object = self.get_full_record(zone_name, zone_id, elb_name, 'A')
-        stack_record_name = None
-        stack_record_object = None
-        if stack_tag == 'active':
-            # do matching before deleting active records
-            stack_record_name = "{}-{}".format(elb, stack_id)
-            stack_record_object = self.get_full_record(zone_name, zone_id, stack_record_name, 'A')
+    def delete_record(self, zone_name, zone_id, elb_name, stack_id, stack_tag, txt_tag_record):
+        active_elb_name = "{}-{}".format(elb_name, stack_id)
+        active_alias_record_object = self.get_full_record(zone_name, zone_id, active_elb_name, 'A')
+        # delete Alias record
+        if active_alias_record_object:
+            if stack_tag == 'active':
+                # if deleting "active"
+                # check if this alias record matches active record
+                main_alias_record_name = "{}.{}".format(elb_name, zone_name)
+                main__alias_record_object = self.get_full_record(zone_name, zone_id, elb_name, 'A')
+                main_alias_record_value = [main__alias_record_object.alias_hosted_zone_id,
+                                           main__alias_record_object.alias_dns_name,
+                                           main__alias_record_object.alias_evaluate_target_health]
+                if main__alias_record_object.to_print() == active_alias_record_object.to_print():
+                    self.delete_dns_record(zone_id, main_alias_record_name, 'A', main_alias_record_value, is_alias=True)
+            else:
+                active_alias_record_value = [active_alias_record_object.alias_hosted_zone_id,
+                                             active_alias_record_object.alias_dns_name,
+                                             active_alias_record_object.alias_evaluate_target_health]
+                active_alias_record_name = "{}.{}".format(active_elb_name, zone_name)
+                self.delete_dns_record(zone_id, active_alias_record_name, 'A', active_alias_record_value, is_alias=True)
 
-        if alias_record_object:
-            alias_record_value = [alias_record_object.alias_hosted_zone_id,
-                                  alias_record_object.alias_dns_name,
-                                  alias_record_object.alias_evaluate_target_health]
-            alias_record_name = "{}.{}".format(elb_name, zone_name)
-            if stack_record_object and stack_record_object.to_print() == alias_record_object.to_print():
-                self.delete_dns_record(zone_id, alias_record_name, 'A', alias_record_value, is_alias=True)
         # delete TXT record
         txt_record_name = "{}.{}".format(txt_tag_record, zone_name)
         txt_record_value = '"{}"'.format(self.get_record(
                 zone_name, zone_id, txt_tag_record, 'TXT'))
         if txt_record_value:
             self.delete_dns_record(zone_id, txt_record_name, 'TXT', txt_record_value)
+        return True
 
     def get_record(self, zone_name, zone_id, record_name, record_type):
         """
@@ -162,3 +168,17 @@ class R53(object):
             if rr.type == record_type and rr.name == record_fqdn:
                 return rr
         return None
+
+    def hastag(self, zone_name, zone_id, record_name):
+        """
+        Check if stack_tag is in use
+        Args:
+            zone_name:
+            zone_id:
+            record_name:
+        Returns:
+            String if stack exists
+            None if not.
+        """
+        hasrecord = self.get_record(zone_name, zone_id, record_name, 'TXT')
+        return hasrecord
