@@ -3,8 +3,7 @@
 language: python
 
 install:
-  - pip install coveralls flake8 git+git://github.com/public/flake8-import-order@2ac7052#egg=flake8-import-order
-
+  - pip install coveralls flake8 git+git://github.com/public/flake8-import-order@2a595f1#egg=flake8-import-order
 python:
   - "2.7"
 
