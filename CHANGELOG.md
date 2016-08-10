@@ -1,3 +1,8 @@
+## v0.11.2
+
+Fixes:
+* flake8 import order fix 
+
 ## v0.11.1
 
 Fixes:
