@@ -29,6 +29,15 @@ class BootstrapCfnR53TestCase(unittest.TestCase):
         x = r.update_dns_record('blah/blah', 'x.y', 'A', '1.1.1.1')
         self.assertTrue(x)
 
+    def test_delete_dns_record(self):
+        r53_mock = mock.Mock()
+        r53_connect_result = mock.Mock(name='cf_connect')
+        r53_mock.return_value = r53_connect_result
+        boto.route53.connect_to_region = r53_mock
+        r = r53.R53(self.env.aws_profile)
+        x = r.delete_dns_record('blah/blah', 'x.y', 'A', '1.1.1.1')
+        self.assertTrue(x)
+
     def test_get_hosted_zone_id(self):
         r53_mock = mock.Mock()
         r53_connect_result = mock.Mock(name='cf_connect')
@@ -48,8 +57,8 @@ class BootstrapCfnR53TestCase(unittest.TestCase):
         r53_mock = mock.Mock()
         r53_connect_result = mock.Mock(name='cf_connect')
         r53_mock.return_value = r53_connect_result
-        m = mock.Mock(resource_records=['1.1.1.1'])
-        m.name = 'blah.dsd.io.'
+        m = mock.Mock(alias_dns_name='dnsname')
+        m.name = 'recordname.dsd.io.'
         m.type = 'A'
         response = [m]
 
@@ -57,8 +66,25 @@ class BootstrapCfnR53TestCase(unittest.TestCase):
         r53_connect_result.configure_mock(**mock_config)
         boto.route53.connect_to_region = r53_mock
         r = r53.R53(self.env.aws_profile)
-        x = r.get_record('dsd.io', 'ASDAKSLDK', 'blah', 'A')
-        self.assertEquals(x, '1.1.1.1')
+        x = r.get_record('dsd.io', 'ASDAKSLDK', 'recordname', 'A')
+        self.assertEquals(x, 'dnsname')
+
+    def test_get_full_record(self):
+        record_fqdn = "recordname"
+        r53_mock = mock.Mock()
+        r53_connect_result = mock.Mock(name='cf_connect')
+        r53_mock.return_value = r53_connect_result
+        m = mock.Mock(record="unittest")
+        m.name = 'recordname.dsd.io.'
+        m.type = 'A'
+        response = [m]
+        mock_config = {'get_all_rrsets.return_value': response}
+        r53_connect_result.configure_mock(**mock_config)
+        boto.route53.connect_to_region = r53_mock
+        r = r53.R53(self.env.aws_profile)
+
+        rrsets = r.get_full_record('dsd.io', 'ASDAKSLDK', record_fqdn, 'A')
+        self.assertEqual(rrsets.record, m.record)
 
     def test_get_TXT_record(self):
         r53_mock = mock.Mock()
@@ -75,3 +101,19 @@ class BootstrapCfnR53TestCase(unittest.TestCase):
         r = r53.R53(self.env.aws_profile)
         x = r.get_record('dsd.io', 'ASDAKSLDK', 'blah', 'TXT')
         self.assertEquals(x, 'lollol')
+
+    def test_hastag(self):
+        r53_mock = mock.Mock()
+        r53_connect_result = mock.Mock(name='cf_connect')
+        r53_mock.return_value = r53_connect_result
+
+        m = mock.Mock(resource_records=['"lollol"'])
+        m.name = 'recordname.dsd.io.'
+        m.type = 'TXT'
+        response = [m]
+        mock_config = {'get_all_rrsets.return_value': response}
+        r53_connect_result.configure_mock(**mock_config)
+        boto.route53.connect_to_region = r53_mock
+        r = r53.R53(self.env.aws_profile)
+        x = r.get_record("dsd.io", "ASDAKSLDK", "recordname", 'TXT')
+        self.assertTrue(x)

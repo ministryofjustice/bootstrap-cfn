@@ -77,3 +77,39 @@ class AutoscalingInstanceCountError(BootstrapCfnError):
             "Could not find {} instances in autoscaling group {}. Actual state is {} instances, {}"
             .format(expected_instance_count, autoscaling_group, len(instances), instances)
         )
+
+
+class TagRecordExistConflictError(BootstrapCfnError):
+    def __init__(self, stack_tag):
+        msg = ("An {} record already exists. ".format(stack_tag))
+        super(TagRecordExistConflictError, self).__init__(msg)
+
+
+class ActiveTagExistConflictError(BootstrapCfnError):
+    def __init__(self, stack_id):
+        msg = ("An active record already exists in {}. ".format(stack_id))
+        super(ActiveTagExistConflictError, self).__init__(msg)
+
+
+class TagRecordNotFoundError(BootstrapCfnError):
+    def __init__(self, tag):
+        msg = ("Could not find a dns record for tag '{}'. ".format(tag))
+        super(TagRecordNotFoundError, self).__init__(msg)
+
+
+class PublicELBNotFoundError(BootstrapCfnError):
+    def __init__(self):
+        msg = "Could not find an internet facing ELB according to cloudformation configuration. "
+        super(PublicELBNotFoundError, self).__init__(msg)
+
+
+class StackRecordNotFoundError(BootstrapCfnError):
+    def __init__(self, stack_record_name):
+        msg = ("Could not find a dns record for stack '{}'. ".format(stack_record_name))
+        super(StackRecordNotFoundError, self).__init__(msg)
+
+
+class UpdateDNSRecordError(BootstrapCfnError):
+    def __init__(self):
+        msg = "Error updating dns record. "
+        super(UpdateDNSRecordError, self).__init__(msg)
