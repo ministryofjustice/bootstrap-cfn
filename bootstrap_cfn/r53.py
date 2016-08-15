@@ -99,6 +99,17 @@ class R53(object):
         return True
 
     def delete_record(self, zone_name, zone_id, elb_name, stack_id, stack_tag, txt_tag_record):
+        '''
+        Delete "active" or tagged Alias and TXT records if they exist
+        Args:
+            elb_name: Alias record name, [elbname]-[stackid].dsd.io or [elbname].dsd.io
+            stack_id:
+            stack_tag:
+            txt_tag_record: "TXT" record name
+
+        Returns:
+
+        '''
         active_elb_name = "{}-{}".format(elb_name, stack_id)
         active_alias_record_object = self.get_full_record(zone_name, zone_id, active_elb_name, 'A')
         # delete Alias record

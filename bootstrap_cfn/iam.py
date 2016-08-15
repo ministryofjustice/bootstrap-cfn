@@ -116,12 +116,19 @@ class IAM:
             return remote_cert_data
         # Handle any problems connecting to the remote AWS
         except AWSQueryConnection.ResponseError as error:
-                    logging.info("IAM::get_remote_certificate: "
-                                 "Could not find certificate '%s': "
-                                 "Error %s - %s" % (cert_id,
-                                                    error.status,
-                                                    error.reason))
-                    return None
+            logging.info("IAM::get_remote_certificate: "
+                         "Could not find certificate '%s': "
+                         "Error %s - %s" % (cert_id,
+                                            error.status,
+                                            error.reason))
+            return None
+        except Exception as e:
+            logging.info("IAM::get_remote_certificate: "
+                         "Could not find certificate '%s': "
+                         "Error %s - %s" % (cert_id,
+                                            e.status,
+                                            e.reason))
+            return
 
     def compare_remote_certificate_data(self, cert_name, stack_name, ssl_data):
         """
