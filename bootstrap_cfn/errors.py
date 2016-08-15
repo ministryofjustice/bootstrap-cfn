@@ -81,13 +81,14 @@ class AutoscalingInstanceCountError(BootstrapCfnError):
 
 class TagRecordExistConflictError(BootstrapCfnError):
     def __init__(self, stack_tag):
-        msg = ("An {} record already exists. ".format(stack_tag))
+        msg = ("An {0} record already exists. Please specify another tag. "
+               "Or can run 'fab tag:{0} cfn_delete' to delete the stack".format(stack_tag))
         super(TagRecordExistConflictError, self).__init__(msg)
 
 
 class ActiveTagExistConflictError(BootstrapCfnError):
-    def __init__(self, stack_id):
-        msg = ("An active record already exists in {}. ".format(stack_id))
+    def __init__(self):
+        msg = "'active' tag is reserved. Please specify anther one."
         super(ActiveTagExistConflictError, self).__init__(msg)
 
 
