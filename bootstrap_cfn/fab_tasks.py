@@ -2,9 +2,11 @@
 
 import logging
 import os
+import re
 import sys
 import uuid
 
+import boto.exception
 import boto3
 
 from fabric.api import env, task
@@ -401,14 +403,17 @@ def set_stack_name():
     stack_suffix = uuid.uuid4().__str__()[-8:]
     try:
         if env.tag == 'active':
-            raise ActiveTagExistConflictError(stack_suffix)
+            # print red("'Active' tag is reserved, please change a tag. ")
+            raise ActiveTagExistConflictError()
         elif r53_conn.hastag(zone_name, zone_id, get_tag_record_name(env.tag)):
+            # print red("{} exists, please change a tag. ".format(env.tag))
             raise TagRecordExistConflictError(env.tag)
         else:
             stack_tag = get_env_tag()
     except AttributeError:
         stack_tag = stack_suffix
         env.tag = stack_tag
+    print green("Stack tag is set to {0}".format(stack_tag))
     record = "{}.{}".format(get_tag_record_name(stack_tag), zone_name)
     logger.info("fab_tasks::set_stack_name: "
                 "Creating stack suffix '%s' "
@@ -559,9 +564,14 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
         else:
             print red("Stack deletion was unsuccessful")
             return False
-        if 'ssl' in cfn_config.data:
+        # cleanup ssl if exists
+        # currently we read ssl from configuration file instead of from AWS
+        # this can cause some mismatch when local config file has been changed.s
+        try:
             iam = get_connection(IAM)
             iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
+        except AttributeError, boto.exception:
+            print green("ssl did not exist")
     else:
         # delete active dns records
 
@@ -617,10 +627,10 @@ def cfn_create(test=False):
             print red("Deleting SSL certificates from stack")
             iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
         import traceback
+        cfn_delete(True)
         abort(red("Failed to create: {error}".format(error=traceback.format_exc())))
 
     print green("\nSTACK {0} CREATING...\n").format(stack_name)
-
     if not env.blocking:
         print 'Running in non blocking mode. Exiting.'
         sys.exit(0)
@@ -876,3 +886,16 @@ def get_first_public_elb():
         logger.info("fab_tasks::set_active_stack: Found multiple ELBs,"
                     "using the first one '%s' as public ELB", elbs[0])
     return elbs[0]
+
+
+@task
+def get_stack_list():
+    r53_conn = get_connection(R53)
+    rrsets = r53_conn.get_all_resource_records(get_zone_id())
+    regex = "stack\.\w+\.{}.+".format(env.application)
+    print regex
+    for rr in rrsets:
+        if re.match(regex, rr.name):
+            stack_id = rr.resource_records[0][1:-1]
+            stack_name = "{}-{}-{}".format(env.application, env.environment, stack_id)
+            print green("DNS record name: {}  stack name: {}".format(rr.name.ljust(40), stack_name.ljust(40)))

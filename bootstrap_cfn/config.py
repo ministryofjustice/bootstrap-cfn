@@ -4,6 +4,8 @@ import os
 import sys
 import textwrap
 
+from fabric.colors import green
+
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
 from troposphere.autoscaling import AutoScalingGroup, BlockDeviceMapping, \
     EBSBlockDevice, LaunchConfiguration, Tag
@@ -554,8 +556,8 @@ class ConfigParser(object):
         if 'identifier' in self.data['rds']:
             # update identifier name
             self.data['rds']['identifier'] = "{}-{}".format(self.data['rds']['identifier'], self.stack_id)
-            logging.info("identifier was updated to {}".format(self.data['rds']['identifier']))
-            print "identifier was updated to {}".format(self.data['rds']['identifier'])
+            # logging.info("identifier was updated to {}".format(self.data['rds']['identifier']))
+            print green("identifier was updated to {}".format(self.data['rds']['identifier']))
 
         # TEST FOR REQUIRED FIELDS AND EXIT IF MISSING ANY
         for yaml_key, rds_prop in required_fields.iteritems():

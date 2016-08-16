@@ -22,7 +22,16 @@ def set_up_basic_config():
                              'name': 'unittest',
                              'scheme': 'internet-facing'}],
                     'rds': {},
-                    's3': {}}
+                    's3': {},
+                    'ssl': {'dsd.io': {'cert': ('-----BEGIN CERTIFICATE-----'
+                                                'CHAIN2CHAIN2CHAIN2CHAIN2CHA'
+                                                '-----END CERTIFICATE-----'),
+                                       'key': ('-----BEGIN CERTIFICATE-----'
+                                               'CHAIN2CHAIN2CHAIN2CHAIN2CHA'
+                                               '-----END CERTIFICATE-----')
+                                       }
+                            }
+                    }
     return yaml.dump(basic_config)
 
 
