@@ -193,3 +193,13 @@ class R53(object):
         """
         hasrecord = self.get_record(zone_name, zone_id, record_name, 'TXT')
         return hasrecord
+
+    def get_all_resource_records(self, zone_id):
+        """
+        Args:
+            zone_id:
+        Returns:
+            String
+        """
+        rrsets = self.conn_r53.get_all_rrsets(zone_id)
+        return rrsets

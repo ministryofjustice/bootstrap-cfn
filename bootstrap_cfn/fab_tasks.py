@@ -890,6 +890,10 @@ def get_first_public_elb():
 
 @task
 def get_stack_list():
+    '''
+    Returns all stacks in all environments
+
+    '''
     r53_conn = get_connection(R53)
     rrsets = r53_conn.get_all_resource_records(get_zone_id())
     regex = "stack\.\w+\.{}.+".format(env.application)
