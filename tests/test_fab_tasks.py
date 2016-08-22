@@ -390,6 +390,7 @@ class TestFabTasks(unittest.TestCase):
         self.assertTrue(stack_name)
         self.assertEqual(stack_name, "unittest-dev-12345678")
 
+    @patch('bootstrap_cfn.fab_tasks.get_env_tag', return_value="newdev")
     @patch('bootstrap_cfn.fab_tasks.get_connection')
     @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
     @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
@@ -399,7 +400,8 @@ class TestFabTasks(unittest.TestCase):
                             get_zone_id_function,
                             get_legacy_name_function,
                             get_zone_name_function,
-                            get_connection_function):
+                            get_connection_function,
+                            get_env_tag_function):
         '''
         Test set_stack_name
         Args:
@@ -412,8 +414,6 @@ class TestFabTasks(unittest.TestCase):
 
         '''
         get_connection_function.side_effect = self.connection_side_effect
-        stack_tag_mock = Mock(return_value="test")
-        fab_tasks.env.tag = stack_tag_mock
         stack_name = fab_tasks.set_stack_name()
         self.assertTrue(stack_name)
 
@@ -452,3 +452,27 @@ class TestFabTasks(unittest.TestCase):
 
         zone_id = fab_tasks.get_zone_id()
         self.assertEqual(zone_id, "Z1GDM6HEODZI69")
+
+    @patch('bootstrap_cfn.fab_tasks.get_env_application', return_value="unittest-dev")
+    @patch('bootstrap_cfn.fab_tasks.get_connection')
+    @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
+    @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
+    @patch('bootstrap_cfn.fab_tasks.get_zone_id', return_value="ASDAKSLDK")
+    def test_get_stack_list(self, get_zone_id_function,
+                            get_legacy_name_function,
+                            get_zone_name_function,
+                            get_connection_function,
+                            get_env_application_function):
+        '''
+        Test set_stack_name
+        Args:
+            get_zone_id_function: get_zone_id()
+            get_legacy_name_function: get_legacy_name(): [application-environment]
+            get_zone_name_function: get_zone_name()
+            get_connection_function: get_connection(klass)
+        Returns:
+
+        '''
+        get_connection_function.side_effect = self.connection_side_effect
+        stack_count = fab_tasks.get_stack_list()
+        self.assertEqual(stack_count, 2)

@@ -402,18 +402,16 @@ def set_stack_name():
     zone_id = get_zone_id()
     stack_suffix = uuid.uuid4().__str__()[-8:]
     try:
-        if env.tag == 'active':
+        stack_tag = get_env_tag()
+        if stack_tag == 'active':
             # print red("'Active' tag is reserved, please change a tag. ")
             raise ActiveTagExistConflictError()
-        elif r53_conn.hastag(zone_name, zone_id, get_tag_record_name(env.tag)):
+        elif r53_conn.hastag(zone_name, zone_id, get_tag_record_name(stack_tag)):
             # print red("{} exists, please change a tag. ".format(env.tag))
-            raise TagRecordExistConflictError(env.tag)
-        else:
-            stack_tag = get_env_tag()
+            raise TagRecordExistConflictError(stack_tag)
     except AttributeError:
         stack_tag = stack_suffix
         env.tag = stack_tag
-    print green("Stack tag is set to {0}".format(stack_tag))
     record = "{}.{}".format(get_tag_record_name(stack_tag), zone_name)
     logger.info("fab_tasks::set_stack_name: "
                 "Creating stack suffix '%s' "
@@ -425,6 +423,7 @@ def set_stack_name():
         env.stack_name = "{0}-{1}".format(get_legacy_name(), stack_suffix)
     except Exception:
         raise UpdateDNSRecordError
+    print green("Stack tag is set to {0}".format(stack_tag))
     return env.stack_name
 
 
@@ -585,6 +584,10 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
 
 def get_env_tag():
     return env.tag
+
+
+def get_env_application():
+    return env.application
 
 
 def isactive():
@@ -896,10 +899,11 @@ def get_stack_list():
     '''
     r53_conn = get_connection(R53)
     rrsets = r53_conn.get_all_resource_records(get_zone_id())
-    regex = "stack\.\w+\.{}.+".format(env.application)
-    print regex
+    regex = "stack\.\w+\.{}.+".format(get_env_application())
+    stack_count = 0
     for rr in rrsets:
         if re.match(regex, rr.name):
             stack_id = rr.resource_records[0][1:-1]
-            stack_name = "{}-{}-{}".format(env.application, env.environment, stack_id)
-            print green("DNS record name: {}  stack name: {}".format(rr.name.ljust(40), stack_name.ljust(40)))
+            stack_count += 1
+            print green("DNS record name: {}  stack id: {}".format(rr.name.ljust(40), stack_id.ljust(40)))
+    return stack_count
