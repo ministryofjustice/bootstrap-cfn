@@ -54,15 +54,16 @@ If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabr
 - **environment:dev** - The key name to read in the file specified to the ``config`` task
 - **config:/path/to/file.yaml** - The location to the project YAML file
 - **tag:test** - stack tag to differentiate between stacks
+- **keyname:keyname** - the name of the keypair you uploaded in AWS which should store your SSH public key.
 
 Multiple Stacks
 ===============
 
 If you want to bring up a new stack as active stack, you will need to run the following fab tasks which we will explain later:
-- **`fab-env cfn_create`:** create a new stack with a tag
+- **`fab-env keyname:keyops tag:test cfn_create`:** create a new stack with a tag and keyname specified.
 - **`fab-env salt.wait_for_minions`:** check if creation is done
-- **`fab-env -u ubuntu update`:** install salt on the stack, add admins in keys.sls
-- **`fab-env -u [your-ssh-name] update`:** remove `ubuntu`
+- **`fab-env -i ~/.ssh/id_your_ssh_private_key -u ubuntu update`:** install salt on the stack, add admins from keys.sls
+- **`fab-env -u [your-ssh-name] update`:** remove `ubuntu` user for security reason
 
 Here `fab-env` refers to `fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml passwords:/path/to/courfinder-dev-secrets.yaml`.
 

@@ -74,6 +74,7 @@ class ProjectConfig:
                 # Overwrite user config with password config values
                 self.config[config_key] = utils.dict_merge(self.config[config_key],
                                                            passwords_config.get(config_key, {}))
+
         except KeyError:
             raise errors.BootstrapCfnError("Environment " + environment + " not found")
 
@@ -109,13 +110,14 @@ class ConfigParser(object):
 
     config = {}
 
-    def __init__(self, data, stack_name, environment=None, application=None):
+    def __init__(self, data, stack_name, environment=None, application=None, keyname=None):
         self.stack_name = stack_name
         self.data = data
         self.stack_id = self.stack_name.split('-')[-1]
         # Some things possibly used in user data templates
         self.environment = environment
         self.application = application
+        self.keyname = keyname
 
     def process(self):
         template = self.base_template()
@@ -1085,7 +1087,7 @@ class ConfigParser(object):
 
         launch_config = LaunchConfiguration(
             "BaseHostLaunchConfig",
-            KeyName=data['parameters']['KeyName'],
+            KeyName=self.get_keyname(),
             SecurityGroups=[Ref(g) for g in sgs],
             InstanceType=data['parameters']['InstanceType'],
             AssociatePublicIpAddress=True,
@@ -1159,6 +1161,9 @@ class ConfigParser(object):
     @classmethod
     def _get_elb_canonical_name(cls, elb_yaml_name):
         return 'ELB-{}'.format(elb_yaml_name.replace('.', ''))
+
+    def get_keyname(self):
+        return self.keyname
 
     def _attach_elbs(self, template):
         if 'elb' not in self.data:
