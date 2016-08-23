@@ -464,7 +464,7 @@ class ConfigParser(object):
         # Add the bucket name to the list of cloudformation
         # outputs
         template.add_output(Output(
-            "{}Policy".format(bucket_name),
+            "{}BucketName".format(bucket_name),
             Description="S3 bucket name",
             Value=Ref(bucket)
         ))

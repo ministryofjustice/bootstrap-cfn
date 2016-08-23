@@ -432,11 +432,11 @@ These entries can also specify their own policies or use the default, vpc limite
 
    s3:
       buckets:
-         - name: mybucket
+         - name: mybucketid
            policy: some_policy
-         - name: myotherbucket
+         - name: myotherbucketid
 
-The outputs of these buckets will be the bucket name postfixed by 'Name', ie, mybucketName
+The outputs of these buckets will be the bucket name postfixed by 'BucketName', ie, mybucketidBucketName
 
 Includes
 ++++++++
