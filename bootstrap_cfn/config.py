@@ -9,7 +9,7 @@ from fabric.colors import green
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
 from troposphere.autoscaling import AutoScalingGroup, BlockDeviceMapping, \
     EBSBlockDevice, LaunchConfiguration, Tag
-from troposphere.ec2 import InternetGateway, Route, RouteTable, SecurityGroup, \
+from troposphere.ec2 import EIP, InternetGateway, Route, RouteTable, SecurityGroup, \
     SecurityGroupIngress, Subnet, SubnetRouteTableAssociation, VPC, \
     VPCGatewayAttachment
 from troposphere.elasticache import ReplicationGroup, SubnetGroup
@@ -133,6 +133,9 @@ class ConfigParser(object):
 
         if 'elb' in self.data:
             self.elb(template)
+
+        if 'eip' in self.data.get('ec2', {}):
+            self.eip(template)
 
         if 'rds' in self.data:
             self.rds(template)
@@ -474,7 +477,31 @@ class ConfigParser(object):
         map(template.add_resource, [bucket, bucket_policy])
 
     def ssl(self):
-        return self.data['ssl']
+        return self.data.get('ssl', {})
+
+    def eip(self, template):
+        count = self.data.get('ec2', {}).get('eip', {}).get('pool', 0)
+        if count > 0:
+            # Validate all the settings we have loaded in
+            logging.info('bootstrap-cfn::eip: Creating %s elastic ips...' % count)
+            for i in range(0, count):
+                eip_name = "EIP%s" % i
+                eip = template.add_resource(EIP(
+                    eip_name,
+                    Domain="vpc",
+                ))
+                eip_description = "Elastic IP Pool Address %s" % i
+                eip_address = Ref(eip)
+                template.add_output(
+                    Output(
+                        eip_name,
+                        Description=eip_description,
+                        Value=Join(" ", [eip_address])
+                    )
+                )
+        else:
+            # Validate all the settings we have loaded in
+            logging.warning('bootstrap-cfn::eip: No recognised key values found...')
 
     def rds(self, template):
         """
