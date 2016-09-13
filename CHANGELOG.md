@@ -1,3 +1,15 @@
+## v1.0.0
+
+Initial release of version 1. This breaks backward compatibility due to the
+addition of the multiple stacks feature.
+
+# Features
+* Add parallel stack support
+* Add get_stack_list
+
+# Fixes
+* Rename S3 bucket output to be consistent
+
 ## v0.11.2
 
 Fixes:
