@@ -809,7 +809,8 @@ class TestConfigParser(unittest.TestCase):
         compare(elb_dict['ELBtestdevexternal']['Properties']['SecurityGroups'],
                 [{u'Ref': u'SGName'}])
 
-    def test_cf_includes(self):
+    @patch('bootstrap_cfn.config.ConfigParser.get_keyname', return_value='default')
+    def test_cf_includes(self, get_keyname_mock):
         project_config = ProjectConfig('tests/sample-project.yaml',
                                        'dev',
                                        'tests/sample-project-passwords.yaml')
@@ -853,7 +854,8 @@ class TestConfigParser(unittest.TestCase):
         outputs = cfg['Outputs']
         compare(known_outputs, outputs)
 
-    def test_process(self):
+    @patch('bootstrap_cfn.config.ConfigParser.get_keyname', return_value='default')
+    def test_process(self, get_keyname_mock):
         """
         This isn't the best test, but we at least check that we have the right
         Resource names returned
@@ -910,7 +912,8 @@ class TestConfigParser(unittest.TestCase):
         }
         compare(mappings, expected)
 
-    def test_process_with_vpc_config(self):
+    @patch('bootstrap_cfn.config.ConfigParser.get_keyname', return_value='default')
+    def test_process_with_vpc_config(self, get_keyname_mock):
         """
         This isn't the best test, but we at least check that we have the right
         Resource names returned
@@ -973,7 +976,8 @@ class TestConfigParser(unittest.TestCase):
         }
         compare(mappings, expected)
 
-    def test_process_no_elbs_no_rds(self):
+    @patch('bootstrap_cfn.config.ConfigParser.get_keyname', return_value='default')
+    def test_process_no_elbs_no_rds(self, get_keyname_mock):
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         # Assuming there's no ELB defined
         project_config.config.pop('elb')
@@ -981,7 +985,8 @@ class TestConfigParser(unittest.TestCase):
         config = ConfigParser(project_config.config, 'my-stack-name')
         config.process()
 
-    def test_ami_overrides_os_default(self):
+    @patch('bootstrap_cfn.config.ConfigParser.get_keyname', return_value='default')
+    def test_ami_overrides_os_default(self, get_keyname_mock):
         self.maxDiff = None
         project_config = ProjectConfig(
                 'tests/sample-project.yaml',
@@ -1402,7 +1407,8 @@ class TestConfigParser(unittest.TestCase):
         compare(self._resources_to_dict(known),
                 self._resources_to_dict(elb_cfg))
 
-    def test_ec2(self):
+    @patch('bootstrap_cfn.config.ConfigParser.get_keyname', return_value='default')
+    def test_ec2(self, get_keyname_mock):
 
         self.maxDiff = None
 
@@ -1495,12 +1501,12 @@ class TestConfigParser(unittest.TestCase):
 
         compare(self._resources_to_dict(known), ec2_json)
 
+    @patch('bootstrap_cfn.config.ConfigParser.get_keyname', return_value='default')
     # We just want to test that when we have userdata we return the right LaunchConfig.
-    def test_launchconfig_userdata(self):
+    def test_launchconfig_userdata(self, get_keyname_mock):
         config = ConfigParser(
             ProjectConfig('tests/sample-project.yaml', 'dev').config,
             'my-stack-name')
-
         BaseHostLaunchConfig = LaunchConfiguration(
             "BaseHostLaunchConfig",
             ImageId=FindInMap("AWSRegion2AMI", Ref("AWS::Region"), "AMI"),
@@ -1625,7 +1631,8 @@ class TestConfigParser(unittest.TestCase):
             config.get_hostname_boothook(cfg)
             self.fail()
 
-    def test_ec2_with_no_block_device_specified(self):
+    @patch('bootstrap_cfn.config.ConfigParser.get_keyname', return_value='default')
+    def test_ec2_with_no_block_device_specified(self, get_keyname_mock):
         project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
         project_config.config['ec2'].pop('block_devices')
         config = ConfigParser(project_config.config, 'my-stack-name')

@@ -6,7 +6,6 @@ prod:
       max: 5
       min: 1
     parameters: &prod_ec2_parameters
-      KeyName: default
       InstanceType: t2.micro
     block_devices: &prod_ec2_block_devices
       - DeviceName: /dev/sda1
@@ -34,7 +33,6 @@ dev:
       max: 3
       min: 1
     parameters: &dev_ec2_parameters
-      KeyName: default
       InstanceType: t2.micro
     block_devices: &dev_ec2_block_devices
       - DeviceName: /dev/sda1

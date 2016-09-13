@@ -304,6 +304,7 @@ class TestFabTasks(unittest.TestCase):
         print "{}.{} logs".format(stack, stack_name)
         return True
 
+    @patch('bootstrap_cfn.fab_tasks._validate_fabric_env')
     @patch('bootstrap_cfn.utils.get_events', return_value=[])
     @patch('bootstrap_cfn.config.ConfigParser.process', return_value="test")
     @patch('bootstrap_cfn.fab_tasks.get_cloudformation_tags', return_value="test")
@@ -323,7 +324,8 @@ class TestFabTasks(unittest.TestCase):
                                     get_connection_function,
                                     get_cloudformation_tags_function,
                                     process_function,
-                                    get_events_function):
+                                    get_events_function,
+                                    _validate_fabric_env_function):
         '''
         create a stack without uploading ssl
         Note: when testing creating stack, get_stack_name.return_value
@@ -344,10 +346,14 @@ class TestFabTasks(unittest.TestCase):
         Returns:
 
         '''
+        # this does not mock fabric env value actually.
+        # I just mock the whole function to do nothing for test simplicity.
+        _validate_fabric_env_function.side_effect = {"env.keyname.return_value": "default"}
+
         get_connection_function.side_effect = self.connection_side_effect
         basic_config_mock = yaml.load(set_up_basic_config())
         get_config_function.return_value = config.ConfigParser(
-            basic_config_mock, "unittest_stack_name", "dev", "test")
+            basic_config_mock, "unittest_stack_name", "dev", "test", "default")
         ret = fab_tasks.cfn_create(False)
         self.assertTrue(ret)
 

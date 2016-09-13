@@ -35,6 +35,7 @@ env.setdefault('config')
 env.setdefault('stack_passwords')
 env.setdefault('blocking', True)
 env.setdefault('aws_region', 'eu-west-1')
+env.setdefault('keyname', None)
 
 # GLOBAL VARIABLES
 TIMEOUT = 3600
@@ -183,6 +184,18 @@ def user(username):
         variable to.
     """
     env.user = username
+
+
+@task
+def keyname(keyname):
+    """
+    Sets the keyname to the keypair name on AWS
+
+    Sets the keyname to specific keypair name you created instead of "default"
+    Args:
+        keyname: the name of keypair on AWS
+    """
+    env.keyname = str(keyname).lower()
 
 
 @task
@@ -495,9 +508,27 @@ def get_basic_config():
     return project_config.config
 
 
-def get_config():
+def get_config(called_by_cfn_create=False):
+
     Parser = env.get('cloudformation_parser', ConfigParser)
-    cfn_config = Parser(get_basic_config(), get_stack_name(), environment=env.environment, application=env.application)
+    basic_config = get_basic_config()
+    # keyname is mandatory in cfn_create, optional in others.
+    # keyname can be defined in fab or config while fab parameters has higher priority.
+    # otherwise not.
+    env_keyname = None
+    if called_by_cfn_create:
+        env_keyname = env.keyname
+        if env.keyname is None:
+            # if keyname is not defined in fab, check config file instead
+            print "[WARNING] keyname is not specified in fab command, checking config file..."
+            try:
+                env_keyname = basic_config['ec2']['parameters']['KeyName']
+            except KeyError:
+                sys.exit("[ERROR] KeyName is not defined in config file. "
+                         "Please specify via fab e.g 'keyname:opskey' or config file")
+        print green("Creating stack with keyname: {0}").format(env_keyname)
+    cfn_config = Parser(get_basic_config(), get_stack_name(), environment=env.environment,
+                        application=env.application, keyname=env_keyname)
     return cfn_config
 
 
@@ -607,8 +638,9 @@ def cfn_create(test=False):
     specification will be generated and used to create a
     stack on AWS.
     """
+    _validate_fabric_env()
     stack_name = get_stack_name(new=True)
-    cfn_config = get_config()
+    cfn_config = get_config(called_by_cfn_create=True)
 
     cfn = get_connection(Cloudformation)
     if test:
