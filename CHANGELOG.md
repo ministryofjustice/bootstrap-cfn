@@ -1,3 +1,8 @@
+## v1.1.0
+
+Features:
+* Accept KeyName in fab parameters or config file
+
 ## v1.0.0
 
 Initial release of version 1. This breaks backward compatibility due to the
