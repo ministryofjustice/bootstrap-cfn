@@ -60,15 +60,17 @@ Multiple Stacks
 ===============
 
 If you want to bring up a new stack as active stack, you will need to run the following fab tasks which we will explain later:
-- **`fab-env keyname:keyops tag:test cfn_create`:** create a new stack with a tag and keyname specified.
-- **`fab-env salt.wait_for_minions`:** check if creation is done
-- **`fab-env -i ~/.ssh/id_your_ssh_private_key -u ubuntu update`:** install salt on the stack, add admins from keys.sls
-- **`fab-env -u [your-ssh-name] update`:** remove `ubuntu` user for security reason
+
+- **fab-env keyname:keyops tag:test cfn_create:** create a new stack with a tag and keyname specified.
+- **fab-env salt.wait_for_minions:** check if creation is done
+- **fab-env -i ~/.ssh/id_your_ssh_private_key -u ubuntu update:** install salt on the stack, add admins from keys.sls
+- **fab-env -u [your-ssh-name] update:** remove `ubuntu` user for security reason
 
 Here `fab-env` refers to `fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml passwords:/path/to/courfinder-dev-secrets.yaml`.
 
 So far A new stack should be created. You may want to set it to active stack of that environment:
-- **`fab-env set_active_stack:[stack_tag]`:** set active dns records in R53 
+
+**fab-env set_active_stack:[stack_tag]:** set active dns records in R53 
 
 
 NB: If you want to run multiple stacks with the same name and environment place the following in the yaml configuration::
