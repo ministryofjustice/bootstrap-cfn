@@ -1,3 +1,8 @@
+## v1.2.0
+
+Fixes:
+* change Elasticache instance size default to m1.medium
+
 ## v1.1.0
 
 Features:
