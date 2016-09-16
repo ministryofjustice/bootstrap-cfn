@@ -21,7 +21,7 @@ prod:
     storage-encrypted: True
   elasticache: &prod_elasticache
     clusters: 3
-    node_type: 'cache.m1.small'
+    node_type: 'cache.m1.medium'
     port: 6379
     engine: 'redis'
 
