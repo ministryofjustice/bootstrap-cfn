@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import dns.resolver
 import logging
 import os
 import re
@@ -20,7 +21,8 @@ from bootstrap_cfn.elb import ELB
 from bootstrap_cfn.errors import (ActiveTagExistConflictError, BootstrapCfnError,
                                   CfnConfigError, CloudResourceNotFoundError, DNSRecordNotFoundError,
                                   PublicELBNotFoundError, StackRecordNotFoundError, TagRecordExistConflictError,
-                                  TagRecordNotFoundError, UpdateDNSRecordError, ZoneIDNotFoundError)
+                                  TagRecordNotFoundError, UpdateDeployarnRecordError, UpdateDNSRecordError,
+                                  ZoneIDNotFoundError)
 from bootstrap_cfn.iam import IAM
 from bootstrap_cfn.r53 import R53
 from bootstrap_cfn.utils import tail
@@ -862,12 +864,53 @@ def set_active_stack(stack_tag, force=False):
         try:
             r53_conn.update_dns_record(zone_id, main_record_name, 'A', record_value, is_alias=True)
             logger.info("fab_tasks::set_active_stack: Successfully updated dns alias record")
-            print green("Active stack is switched to {}".format(tag_record))
         except Exception:
             raise UpdateDNSRecordError
-        return True
     except Exception:
         raise StackRecordNotFoundError(record_name)
+    try:
+        set_active_deployarn(stack_tag)
+        print green("Active stack is switched to {}".format(tag_record))
+        return True
+    except:
+        raise UpdateDeployarnRecordError
+
+
+def set_active_deployarn(stack_tag):
+    """
+    - Get the value of delpoyarn.stack_tag.x.x
+    - Set it to the value of deployarn.active.x.x
+    Args:
+        stack_tag: the stack that is set to be active
+
+    Returns:
+        (String) AWS arn value
+    """
+
+    cfn_config = get_basic_config()
+    zone_name = get_zone_name()
+    active_arn_record = 'deployarn.{0}.{1}.{2}.{3}'.format("active",
+                                                   env.environment,
+                                                   env.application,
+                                                   zone_name)
+    tag_arn_record = 'deployarn.{0}.{1}.{2}.{3}.'.format(stack_tag,
+                                                   env.environment,
+                                                   env.application,
+                                                   zone_name)
+    r53 = get_connection(R53)
+    try:
+        tag_arn_value = r53.get_deployarn_record(get_zone_id(), tag_arn_record, 'TXT')
+        if not tag_arn_value:
+            raise StackRecordNotFoundError(tag_arn_value)
+        print "Active deployarn was set to: {0}".format(tag_arn_value)
+        zone_id = r53.get_hosted_zone_id(zone_name)
+        try:
+            r53.update_dns_record(zone_id, active_arn_record, 'TXT', '"{0}"'.format(tag_arn_value))
+        except:
+            raise UpdateDeployarnRecordError
+    except:
+        raise StackRecordNotFoundError(tag_arn_record)
+    return tag_arn_value
 
 
 @task
