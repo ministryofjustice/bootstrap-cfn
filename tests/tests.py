@@ -495,7 +495,7 @@ class TestConfigParser(unittest.TestCase):
             ReplicationGroupDescription='Elasticache Replication Group',
             Engine='redis',
             NumCacheClusters=3,
-            CacheNodeType='cache.m1.small',
+            CacheNodeType='cache.m1.medium',
             SecurityGroupIds=[GetAtt(es_sg, "GroupId")],
             CacheSubnetGroupName=Ref(es_subnet_group),
             SnapshotArns=["arn:aws:s3:::somebucket/redis.rdb"],

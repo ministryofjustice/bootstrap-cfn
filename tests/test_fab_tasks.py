@@ -98,7 +98,12 @@ class TestFabTasks(unittest.TestCase):
         m4.type = 'TXT'
         m4.alias_hosted_zone_id = "ASDAKSLSA"
         m4.alias_evaluate_target_health = False
-        response = [m1, m2, m3, m4]
+        m5 = Mock(resource_records=['"12345678"'])
+        m5.name = 'deployarn.test.unittest-dev.dsd.io.'
+        m5.type = 'TXT'
+        m5.alias_hosted_zone_id = "ASDAKSLSA"
+        m5.alias_evaluate_target_health = False
+        response = [m1, m2, m3, m4, m5]
         mock_config = {'update_dns_record.return_value': True,
                        'get_all_rrsets.return_value': response,
                        'delete_dns_record.return_value': True}
@@ -190,6 +195,7 @@ class TestFabTasks(unittest.TestCase):
         self.assertTrue(res)
         self.assertEqual(res, "12345678")
 
+    @patch('bootstrap_cfn.fab_tasks.arn_record_name')
     @patch('bootstrap_cfn.fab_tasks.get_connection')
     @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
     @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
@@ -199,7 +205,8 @@ class TestFabTasks(unittest.TestCase):
                               get_zone_id_function,
                               get_legacy_name_function,
                               get_zone_name_function,
-                              get_connection_function):
+                              get_connection_function,
+                              arn_record_name_mock):
         '''
         set stack tagged with "test" as active stack,
         using m4 record defined in def r53_mock()
@@ -209,14 +216,18 @@ class TestFabTasks(unittest.TestCase):
             get_legacy_name_function:
             get_zone_name_function:
             get_connection_function:
-
+            arn_record_name: set up deployarn record name, e.g. deployarn.tag.app-env.dsd.io
         Returns:
 
         '''
+        arn_record_name_mock.side_effect = self.arn_record_name_side_effect
         get_connection_function.side_effect = self.connection_side_effect
         # fab_tasks.get_connection = Mock(return_value=r)
         ret = fab_tasks.set_active_stack("test", force=True)
         self.assertTrue(ret)
+
+    def arn_record_name_side_effect(self, stack_tag, zone_name):
+        return 'deployarn.{}.unittest-dev.dsd.io.'.format(stack_tag)
 
     @patch('bootstrap_cfn.fab_tasks.isactive', return_value=True)
     @patch('bootstrap_cfn.fab_tasks.get_connection')

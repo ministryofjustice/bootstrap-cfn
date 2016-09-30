@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import dns.resolver
 import logging
 import os
 import re
@@ -21,7 +20,7 @@ from bootstrap_cfn.elb import ELB
 from bootstrap_cfn.errors import (ActiveTagExistConflictError, BootstrapCfnError,
                                   CfnConfigError, CloudResourceNotFoundError, DNSRecordNotFoundError,
                                   PublicELBNotFoundError, StackRecordNotFoundError, TagRecordExistConflictError,
-                                  TagRecordNotFoundError, UpdateDeployarnRecordError, UpdateDNSRecordError,
+                                  TagRecordNotFoundError, UpdateDNSRecordError, UpdateDeployarnRecordError,
                                   ZoneIDNotFoundError)
 from bootstrap_cfn.iam import IAM
 from bootstrap_cfn.r53 import R53
@@ -887,23 +886,16 @@ def set_active_deployarn(stack_tag):
         (String) AWS arn value
     """
 
-    cfn_config = get_basic_config()
     zone_name = get_zone_name()
-    active_arn_record = 'deployarn.{0}.{1}.{2}.{3}'.format("active",
-                                                   env.environment,
-                                                   env.application,
-                                                   zone_name)
-    tag_arn_record = 'deployarn.{0}.{1}.{2}.{3}.'.format(stack_tag,
-                                                   env.environment,
-                                                   env.application,
-                                                   zone_name)
+    tag_arn_record = arn_record_name(stack_tag, zone_name)
+    active_arn_record = arn_record_name('active', zone_name)
     r53 = get_connection(R53)
     try:
         tag_arn_value = r53.get_deployarn_record(get_zone_id(), tag_arn_record, 'TXT')
         if not tag_arn_value:
             raise StackRecordNotFoundError(tag_arn_value)
         print "Active deployarn was set to: {0}".format(tag_arn_value)
-        zone_id = r53.get_hosted_zone_id(zone_name)
+        zone_id = get_zone_id()
         try:
             r53.update_dns_record(zone_id, active_arn_record, 'TXT', '"{0}"'.format(tag_arn_value))
         except:
@@ -911,6 +903,14 @@ def set_active_deployarn(stack_tag):
     except:
         raise StackRecordNotFoundError(tag_arn_record)
     return tag_arn_value
+
+
+def arn_record_name(stack_tag, zone_name):
+    tag_arn_record = 'deployarn.{0}.{1}.{2}.{3}.'.format(stack_tag,
+                                                         env.environment,
+                                                         env.application,
+                                                         zone_name)
+    return tag_arn_record
 
 
 @task
