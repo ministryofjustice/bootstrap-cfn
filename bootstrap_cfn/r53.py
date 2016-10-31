@@ -162,6 +162,21 @@ class R53(object):
                 return rr.resource_records[0]
         return None
 
+    def get_deployarn_record(self, zone_id, record_name, record_type):
+        """
+        Returns the value of specified deployarn record
+        Args:
+            record_name: deployarn.tag.env.dsd.io
+
+        Returns:
+            String: AWS arn id
+        """
+        rrsets = self.conn_r53.get_all_rrsets(zone_id, type=record_type, name=record_name)
+        for rr in rrsets:
+            if rr.type == record_type and rr.name == record_name:
+                return rr.resource_records[0][1:-1]
+        return False
+
     def get_full_record(self, zone_name, zone_id, record_name, record_type):
         """
         Args:

@@ -114,3 +114,9 @@ class UpdateDNSRecordError(BootstrapCfnError):
     def __init__(self):
         msg = "Error updating dns record. "
         super(UpdateDNSRecordError, self).__init__(msg)
+
+
+class UpdateDeployarnRecordError(BootstrapCfnError):
+    def __init__(self):
+        msg = "Error updating deployarn record. "
+        super(UpdateDeployarnRecordError, self).__init__(msg)

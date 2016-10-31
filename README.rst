@@ -62,7 +62,7 @@ Multiple Stacks
 If you want to bring up a new stack as active stack, you will need to run the following fab tasks which we will explain later:
 
 - **fab-env keyname:keyops tag:test cfn_create:** create a new stack with a tag and keyname specified.
-- **fab-env salt.wait_for_minions:** check if creation is done
+- **fab-env -u ubuntu salt.wait_for_minions:** check if creation is done
 - **fab-env -i ~/.ssh/id_your_ssh_private_key -u ubuntu update:** install salt on the stack, add admins from keys.sls
 - **fab-env -u [your-ssh-name] update:** remove `ubuntu` user for security reason
 
@@ -101,12 +101,15 @@ NB fab task `get_stack_list` returns all stacks of that application in case if y
 
 set_active_stack(tag_name)
 ---
+An app's DNS entry is what your active stack at
 
-After having created a new stack, you can switch to it simply by changing DNS records using ``set_active_stack(tag_name)``:
+After having created a new stack, you can set it to be the active stack simply by changing DNS records using ``set_active_stack(tag_name)``:
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml set_active_stack:[tag_name]
 
 where [tag_name] would be the stack you would like to switch to.
+NB this process will also automatically set deployarn record accordingly.
+
 
 cfn_delete
 ---
