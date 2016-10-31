@@ -13,6 +13,8 @@ from fabric.api import env, task
 from fabric.colors import green, red
 from fabric.utils import abort
 
+import pkg_resources
+
 from bootstrap_cfn.autoscale import Autoscale
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.config import ConfigParser, ProjectConfig
@@ -735,7 +737,8 @@ def get_cloudformation_tags():
     """
     return {
         "Env": env.environment,
-        "Application": env.application
+        "Application": env.application,
+        "Bootstrap-cfn-Version":  pkg_resources.require("bootstrap-cfn")[0].version
     }
 
 
