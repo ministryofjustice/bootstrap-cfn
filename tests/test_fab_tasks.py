@@ -1,12 +1,14 @@
+import re
 import unittest
 
 import boto
 
 import yaml
 
-from mock import patch, Mock  # noqa
 
 from bootstrap_cfn import cloudformation, config, errors, fab_tasks, iam, r53
+from mock import patch, Mock  # noqa
+
 
 fake_profile = {'lol': {'aws_access_key_id': 'secretz', 'aws_secret_access_key': 'verysecretz'}}
 
@@ -144,6 +146,27 @@ class TestFabTasks(unittest.TestCase):
         all_elbs = fab_tasks.get_all_elbs()
         self.assertEqual(all_elbs, ["unittest"])
 
+    @patch('bootstrap_cfn.fab_tasks.get_config')
+    def test_get_all_elbs_with_filter(self, get_config_function):
+        '''
+        Check if get_all_elbs() returns correct Internet facing ELB,
+        given a filter that would should match only a specific name.
+        Args:
+            get_config_function: mock of get_config() function
+
+        '''
+        basic_config_mock = yaml.load(set_up_basic_config())
+        basic_config_mock['elb'].append({'hosted_zone': 'unittest.dsd.io.',
+                                         'name': 'unittest2',
+                                         'scheme': 'internet-facing'})
+
+        get_config_function.return_value = config.ConfigParser(
+            basic_config_mock, "unittest_stack_name", "dev", "test")
+
+        regex = re.compile('unittest2')
+        filtered_elbs = fab_tasks.get_all_elbs(regex.match)
+        self.assertEqual(filtered_elbs, ["unittest2"])
+
     @patch('bootstrap_cfn.fab_tasks.get_all_elbs', return_value=["unittest_elb"])
     def test_get_first_public_elb(self, get_all_elbs_function):
         '''
@@ -170,8 +193,8 @@ class TestFabTasks(unittest.TestCase):
     @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
     @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
     @patch('bootstrap_cfn.fab_tasks.get_zone_id', return_value="ASDAKSLDK")
-    @patch('bootstrap_cfn.fab_tasks.get_first_public_elb', return_value="unittest_elb")
-    def test_get_active_stack(self, get_first_public_elb_function,
+    @patch('bootstrap_cfn.fab_tasks.get_public_elbs', return_value=["unittest_elb"])
+    def test_get_active_stack(self, get_public_elbs_function,
                               get_zone_id_function,
                               get_legacy_name_function,
                               get_zone_name_function,
@@ -179,7 +202,7 @@ class TestFabTasks(unittest.TestCase):
         '''
         Return stack_id of m2 record defined in def r53_mock()
         Args:
-            get_first_public_elb_function:
+            get_public_elbs_function:
             get_zone_id_function:
             get_legacy_name_function:
             get_zone_name_function:
@@ -200,8 +223,10 @@ class TestFabTasks(unittest.TestCase):
     @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
     @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
     @patch('bootstrap_cfn.fab_tasks.get_zone_id', return_value="ASDAKSLDK")
+    @patch('bootstrap_cfn.fab_tasks.get_public_elbs', return_value=["unittest_elb"])
     @patch('bootstrap_cfn.fab_tasks.get_first_public_elb', return_value="unittest_elb")
-    def test_set_active_stack(self, get_first_public_elb_function,
+    def test_set_active_stack(self, get_public_elbs_function,
+                              get_first_public_elb_function,
                               get_zone_id_function,
                               get_legacy_name_function,
                               get_zone_name_function,
@@ -211,6 +236,7 @@ class TestFabTasks(unittest.TestCase):
         set stack tagged with "test" as active stack,
         using m4 record defined in def r53_mock()
         Args:
+            get_public_elbs_function:
             get_first_public_elb_function:
             get_zone_id_function:
             get_legacy_name_function:

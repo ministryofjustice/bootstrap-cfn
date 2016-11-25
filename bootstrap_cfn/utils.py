@@ -151,3 +151,9 @@ def sleep_countdown(sleep_time):
         sys.stdout.flush()
         time.sleep(1)
         sleep_time -= 1
+
+
+def strip_prefix(string, prefix):
+    if string.startswith(prefix):
+        return string[len(prefix):]
+    return string
