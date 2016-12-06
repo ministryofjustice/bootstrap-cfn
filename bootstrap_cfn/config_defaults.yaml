@@ -15,7 +15,7 @@ prod:
     storage-type: 'gp2'
     backup-retention-period: 30
     db-engine: 'postgres'
-    db-engine-version: '9.3.5'
+    db-engine-version: '9.5.4'
     instance-class: 'db.t2.large'
     multi-az: True
     storage-encrypted: True
@@ -42,7 +42,7 @@ dev:
     storage-type: 'gp2'
     backup-retention-period: 1
     db-engine: 'postgres'
-    db-engine-version: '9.3.5'
+    db-engine-version: '9.5.4'
     instance-class: 'db.t2.small'
     multi-az: False
     storage-encrypted: False

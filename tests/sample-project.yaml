@@ -72,7 +72,7 @@ dev:
     instance-class: db.t2.micro
     multi-az: false
     db-engine: postgres
-    db-engine-version: 9.3.5
+    db-engine-version: 9.5.4
   elasticache:
     clusters: 3
     node_type: cache.m1.medium
