@@ -1,4 +1,5 @@
 # Production is secure by default and may have high resource specifications
+# flake8: noqa
 prod:
   ec2: &prod_ec2
     auto_scaling: &prod_ec2_auto_scaling
