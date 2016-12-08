@@ -94,7 +94,8 @@ This is to create a stack based on your yaml configuration. After running the ta
 +------------------------------+------------+------------------------------------------------------------------------------------------------+
 
 Note that:
-- `test`in **TXT** record name is the stack tag you defined. An auto-generated stack id will be assigned to tag name if not specified. 
+
+- `test` in **TXT** record name is the stack tag you defined. An auto-generated stack id will be assigned to tag name if not specified.
 - `active` tag is **preserved** for setting the main entry point, so you should not use it as custom tag. 
 - If the tag you specified already exists (may due to improper clean up in last creation), you could manually run `fab tag:[tag-name] cfn_delete` to remove them.
 
@@ -335,7 +336,7 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
   There doesn't appear to be a definitive list of the possible config options but the examples are quite exhaustive:
 
   - `http://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/files/head:/doc/examples/`
-  - `http://cloudinit.readthedocs.org/en/latest/topics/examples.html`_ (similar list but all on one page so easier to read)
+  - `http://cloudinit.readthedocs.org/en/latest/topics/examples.html` (similar list but all on one page so easier to read)
 
 :``hostname_pattern``:
   A python-style string format to set the hostname of the instance upon creation.
