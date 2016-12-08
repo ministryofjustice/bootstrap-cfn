@@ -17,7 +17,8 @@ The objective of this repo is to enable MoJ teams to create project infrastructu
 
 Installation
 ============
-::
+
+.. code:: bash
 
     git clone git@github.com:ministryofjustice/bootstrap-cfn.git
     cd bootstrap-cfn
@@ -27,24 +28,31 @@ Installation
 Developing and running tests
 ============================
 
-The test suite can be run via setup.py as follows::
+The test suite can be run via setup.py as follows
+
+.. code:: bash
 
     python -m unittest discover
 
-or::
+or
+
+.. code:: bash
 
     python setup.py test
-
 
 Example Usage
 =============
 
-Bootstrap-cfn uses `fabric <http://www.fabfile.org/>`_, so if your ``$CWD`` is the root directory of bootstrap-cfn then you can run::
+Bootstrap-cfn uses `fabric <http://www.fabfile.org/>`_, so if your ``$CWD`` is the root directory of bootstrap-cfn then you can run
+
+.. code:: bash
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
 
 
-If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabric file::
+If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabric file
+
+.. code:: bash
 
     fab -f /path/to/bootstrap-cfn/fabfile.py application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml tag:test cfn_create
 
@@ -81,9 +89,14 @@ NB: If you want to run multiple stacks with the same name and environment place 
 cfn_create
 ----------
 
+This is to create a stack based on your yaml configuration.
+
+.. code:: bash
+
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml tag:active cfn_create
 
-This is to create a stack based on your yaml configuration. After running the task, a stack name like `app-dev-e21e5110` should be created, along with two DNS records in Route 53 look like:
+
+After running the task, a stack name like `app-dev-e21e5110` should be created, along with two DNS records in Route 53 look like:
 
 +------------------------------+------------+------------------------------------------------------------------------------------------------+
 | Name                         | Type       | Value                                                                                          |
@@ -108,7 +121,9 @@ set_active_stack(tag_name)
 
 An app's DNS entry is what your active stack at
 
-After having created a new stack, you can set it to be the active stack simply by changing DNS records using ``set_active_stack(tag_name)``:
+After having created a new stack, you can set it to be the active stack simply by changing DNS records using ``set_active_stack(tag_name)``
+
+.. code:: bash
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml set_active_stack:[tag_name]
 
@@ -119,7 +134,9 @@ NB this process will also automatically set deployarn record accordingly.
 cfn_delete
 ----------
 
-You can also delete any stack you want no more by specifying the tag::
+You can also delete any stack you want no more by specifying the tag
+
+.. code:: bash
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml tag:[tag_name] cfn_delete
 
@@ -128,15 +145,19 @@ When deleting an active stack, only active DNS records will be removed. Otherwis
 
 get_stack_list
 ++++++++++++++
-    
-    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml get_stack_list
 
 This returns a list of all available stacks for specified application.
+
+.. code:: bash
+
+    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml get_stack_list
 
 swap_tags
 +++++++++
 
-Then you can refer to this stack by its tag in the future. In this way it is easier to bring up two stacks from the same config. If you want to swap the names of the stacks you can do the following::
+Then you can refer to this stack by its tag in the future. In this way it is easier to bring up two stacks from the same config. If you want to swap the names of the stacks you can do the following
+
+.. code:: bash
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml swap_tags:inactive, active
 
