@@ -85,10 +85,13 @@ cfn_create
 
 This is to create a stack based on your yaml configuration. After running the task, a stack name like `app-dev-e21e5110` should be created, along with two DNS records in Route 53 look like:
 
-Name | Type | Value
---- | --- | ---
-stack.test.blah-dev.dsd.io. | **TXT** | "e21e5110"|
-elbname-e21e5110.dsd.io. | **A** | ALIAS app-dev-elbname-1ocl2znar6wtc-1854012795.eu-west-1.elb.amazonaws.com. (z32o12xqlntsw2)
++------------------------------+------------+------------------------------------------------------------------------------------------------+
+| Name                         | Type       | Value                                                                                          |
++==============================+============+================================================================================================+
+| stack.test.blah-dev.dsd.io.  | **TXT**    | "e21e5110"                                                                                     |
++------------------------------+------------+------------------------------------------------------------------------------------------------+
+| elbname-e21e5110.dsd.io.     | **A**      | ALIAS app-dev-elbname-1ocl2znar6wtc-1854012795.eu-west-1.elb.amazonaws.com. (z32o12xqlntsw2)   |
++------------------------------+------------+------------------------------------------------------------------------------------------------+
 
 Note that:
 - `test`in **TXT** record name is the stack tag you defined. An auto-generated stack id will be assigned to tag name if not specified. 
