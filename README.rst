@@ -81,7 +81,9 @@ So far A new stack should be created. You may want to set it to active stack of 
 **fab-env set_active_stack:[stack_tag]:** set active dns records in R53 
 
 
-NB: If you want to run multiple stacks with the same name and environment place the following in the yaml configuration::
+NB: If you want to run multiple stacks with the same name and environment place the following in the yaml configuration
+
+.. code:: yaml
 
     master_zone:
       my-zone.dsd.io
@@ -215,7 +217,9 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
   ``health_check_type``
     Use EC2 or ELB healthcheck types. Default EC2
 
-  Example::
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -230,7 +234,9 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
 :``tags``:
   A dictionary of tag name to value to apply to all instances of the ASG. Note that the environment you select via ``fab aws`` will be applied as a tag with a name of ``Env``.
 
-  Example::
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -248,7 +254,9 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
   ``InstanceType``
     The size of the EC2 instances to create
 
-  Example::
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -260,7 +268,10 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
 :``ami``:
   Selects which AWS AMI to use. This can be a AWS-provided AMI, a community one, or one which exists under the account in which you're building the stack. The ``ami-`` prefix is required. If not specified then a suitable default will be chosen for the ``os`` in use. If this value is present then it is recommended to specify the ``os`` too, so that other areas of the cloud formation template are correctly generated.
 
-  Example::
+
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -270,7 +281,10 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
 :``os``:
   Which operating system to use.  This selects a default AMI and also builds relevant user_data for use by instances when spun up by the ASG. Only 2 values are recognised: ``windows2012`` and ``ubuntu-1404``. The default is ``ubuntu-1404``.  If you wish to specify an AMI manually then use ``ami`` in addition.
 
-  Example::
+
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -288,7 +302,10 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
   ``Iops (Required for io1 type)``
     The Iops value to assign to the io1 volume type.
 
-  Example::
+
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -322,7 +339,10 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
 
   One of ``CidrIp`` and ``SourceSecurityGroupId`` must be specified per rule (but not both).
 
-  Example::
+
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -362,17 +382,21 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
 :``hostname_pattern``:
   A python-style string format to set the hostname of the instance upon creation.
 
-  The default is ``{instance_id}.{environment}.{application}``. To disable this entirely set this field explicitly to null/empty::
+  The default is ``{instance_id}.{environment}.{application}``. To disable this entirely set this field explicitly to null/empty
+
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
         hostname_pattern:
 
-  For ``sudo`` to not misbehave initially (because it cannot look up its own hostname) you will likely want to set ``manage_etc_hosts`` to true in the cloud_config section so that it will regenerate ``/etc/hosts`` with the new hostname resolving to 127.0.0.1.
+For ``sudo`` to not misbehave initially (because it cannot look up its own hostname) you will likely want to set ``manage_etc_hosts`` to true in the cloud_config section so that it will regenerate ``/etc/hosts`` with the new hostname resolving to 127.0.0.1.
 
-  Setting the hostname is achived by adding a boothook into the userdata that will interpolate the instance_id correctly on the machine very soon after boottime.
+Setting the hostname is achived by adding a boothook into the userdata that will interpolate the instance_id correctly on the machine very soon after boottime.
 
-  The currently support interpolations are:
+The currently support interpolations are:
 
   ``instance_id``
     The amazon instance ID
@@ -385,7 +409,9 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
   ``tags``
     A value from a tag for this autoscailing group. For example use ``tags[Role]`` to access the value of the ``Role`` tag.
 
-  For example given this incomplete config::
+  For example given this incomplete config
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -396,7 +422,7 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
         cloud_config:
           manage_etc_hosts: true
 
-  an instance created with ``fab application:myproject … cfn_create`` would get a hostname something like ``i-f623cfb9.docker.dev.my-project``.
+an instance created with ``fab application:myproject … cfn_create`` would get a hostname something like ``i-f623cfb9.docker.dev.my-project``.
 
 ELBs
 ----
@@ -404,7 +430,9 @@ By default the ELBs will have a security group opening them to the world on 80 a
 
 If you set the protocol on an ELB to HTTPS you must include a key called ``certificate_name`` in the ELB block (as example above) and matching cert data in a key with the same name as the cert under ``ssl`` (see example above). The ``cert`` and ``key`` are required and the ``chain`` is optional.
 
-It is possilbe to define a custom health check for an ELB like follows::
+It is possilbe to define a custom health check for an ELB like follows
+
+.. code:: yaml
 
     health_check:
       HealthyThreshold: 5
@@ -482,16 +510,16 @@ Or we can specify the name, and optionally a custom policy file if we want to to
 For example, the sample custom policy defined in this `json file <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/tests/sample-custom-s3-policy.json>`_ can be configured as follows:
 
 
-:: 
+.. code:: yaml
 
-   s3: 
+   s3:
         static-bucket-name: moj-test-dev-static
         policy: tests/sample-custom-s3-policy.json
     
 We can also supply a list of buckets to create a range of s3 buckets, these require a name. 
 These entries can also specify their own policies or use the default, vpc limited one.
 
-::
+.. code:: yaml
 
    s3:
       buckets:
@@ -503,7 +531,9 @@ The outputs of these buckets will be the bucket name postfixed by 'BucketName', 
 
 Includes
 --------
-If you wish to include some static cloudformation json and have it merged with the template generated by bootstrap-cfn. You can do the following in your template yaml file::
+If you wish to include some static cloudformation json and have it merged with the template generated by bootstrap-cfn. You can do the following in your template yaml file
+
+.. code:: yaml
 
     includes:
       - /path/to/cloudformation.json
@@ -517,8 +547,10 @@ If you want to include or modify cloudformation resources but need to include so
 
 Enabling RDS encryption
 -----------------------
-You can enable encryption for your DB by adding the following::
+You can enable encryption for your DB by adding the following
  
+.. code:: yaml
+
   rds:
      storage-encrypted: true
      instance-class: db.m3.medium
