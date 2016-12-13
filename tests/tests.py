@@ -339,7 +339,7 @@ class TestConfigParser(unittest.TestCase):
         db_instance.BackupRetentionPeriod = 1
         db_instance.DBInstanceClass = 'db.t2.micro'
         db_instance.Engine = 'postgres'
-        db_instance.EngineVersion = '9.3.5'
+        db_instance.EngineVersion = '9.5.4'
         db_instance.VPCSecurityGroups = [GetAtt(db_sg, 'GroupId')]
         db_instance.DBSubnetGroupName = Ref(db_subnet)
 
@@ -429,7 +429,7 @@ class TestConfigParser(unittest.TestCase):
         db_instance.BackupRetentionPeriod = 1
         db_instance.DBInstanceClass = 'db.t2.micro'
         db_instance.Engine = 'postgres'
-        db_instance.EngineVersion = '9.3.5'
+        db_instance.EngineVersion = '9.5.4'
         db_instance.VPCSecurityGroups = [GetAtt(db_sg, 'GroupId')]
         db_instance.DBSubnetGroupName = Ref(db_subnet)
 

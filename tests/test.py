@@ -65,7 +65,7 @@ class CfnTestCase(unittest.TestCase):
                                    'scheme': 'internet-facing'}],
                           'rds': {'backup-retention-period': 1,
                                   'db-engine': 'postgres',
-                                  'db-engine-version': '9.3.5',
+                                  'db-engine-version': '9.5.4',
                                   'db-master-password': 'testpassword',
                                   'db-master-username': 'testuser',
                                   'db-name': 'test',
