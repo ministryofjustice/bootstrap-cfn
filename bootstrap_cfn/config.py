@@ -149,7 +149,7 @@ class ConfigParser(object):
                 inc = json.load(open(inc_path))
                 template = utils.dict_merge(template, inc)
         return json.dumps(
-            template, sort_keys=True, indent=4, separators=(',', ': '))
+            template, sort_keys=True, indent=None, separators=(',', ': '))
 
     def base_template(self):
         from bootstrap_cfn import vpc
