@@ -990,22 +990,18 @@ def get_public_elbs(f=None):
     """
     Returns a list of internet-facing ELBs from the CloudFormation
     configuration containing items for which the filter function f
-    returns True, or everything. Raises an error if the list is empty.
+    returns True, or everything. or None if empty.
     """
     elbs = get_all_elbs(f)
-    if len(elbs) < 1:
-        raise PublicELBNotFoundError
     return elbs
 
 
 def get_first_public_elb():
     """
-    Returns the first public ELB if exists, or raise an error.
+    Returns the first public ELB if exists or None.
     """
     elbs = get_all_elbs()
-    if len(elbs) < 1:
-        raise PublicELBNotFoundError
-    return elbs[0]
+    return next(iter(elbs), None)
 
 
 @task

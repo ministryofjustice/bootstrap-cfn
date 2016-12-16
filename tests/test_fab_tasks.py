@@ -178,17 +178,6 @@ class TestFabTasks(unittest.TestCase):
         first_elb = fab_tasks.get_first_public_elb()
         self.assertEqual(first_elb, "unittest_elb")
 
-    @patch('bootstrap_cfn.fab_tasks.get_all_elbs', return_value=[])
-    def test_no_public_elb(self, get_all_elbs_function):
-        '''
-        Check if exception is raised when no elbs found
-        Args:
-            get_all_elbs_function: mock of get_all_elbs(), a list of elbs
-
-        '''
-        with self.assertRaises(errors.PublicELBNotFoundError):
-            fab_tasks.get_first_public_elb()
-
     @patch('bootstrap_cfn.fab_tasks.get_connection')
     @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
     @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
