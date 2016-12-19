@@ -58,7 +58,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 @task
-def aws(profile_name):
+def aws(profile_name, region=None):
     """
     Set the AWS account to use
 
@@ -68,11 +68,34 @@ def aws(profile_name):
     Args:
         profile_name(string): The string to set the environment
         variable to
+        region(string): Override the region for the profile
     """
+    default_region = env.aws_region
     env.aws = str(profile_name).lower()
-    # Setup boto so we actually use this environment
-    boto3.setup_default_session(profile_name=env.aws,
-                                region_name=env.aws_region)
+    # If we are overriding the aws region, set it here,
+    # otherwise, we will rely on the aws credentials setup
+    if region is not None:
+      env.aws_region = str(region).lower()
+      logger.info("fab_tasks::aws: Setting profile {}, "
+                  "region {}, and creating session..."
+                  .format(env.aws, env.aws_region))
+      boto3.setup_default_session(profile_name=env.aws,
+                                  region_name=env.aws_region)
+    else:
+      boto3.setup_default_session(profile_name=env.aws)
+      logger.info("fab_tasks::aws: No region specified, "
+                  "using profile information only...")
+    # If we have no default region in our credentials session,
+    # set one.
+    if boto3.DEFAULT_SESSION.region_name is None:
+        logger.info("fab_tasks::aws: No region found in credentials, "
+                    "setting region to default, {}..."
+                  .format(default_region))
+        boto3.setup_default_session(profile_name=env.aws,
+                                    region_name=default_region)
+        env.aws_region = default_region
+    else:
+        env.aws_region = boto3.DEFAULT_SESSION.region_name
 
 
 @task
