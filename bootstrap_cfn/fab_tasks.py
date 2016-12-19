@@ -628,6 +628,8 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
             iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
         except AttributeError, boto.exception:
             print green("SSL certificate was already deleted.")
+        except KeyError:
+            print green("SSL does not exist in cloudformation configuration file")
 
     return True
 
@@ -681,8 +683,10 @@ def cfn_create(test=False):
             print red("Deleting SSL certificates from stack")
             iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
         import traceback
+        red("Failed to create: {error}".format(error=traceback.format_exc()))
+        red("Deleting stack and aborting...)")
         cfn_delete(True)
-        abort(red("Failed to create: {error}".format(error=traceback.format_exc())))
+        abort(red("Aborted..."))
 
     print green("\nSTACK {0} CREATING...\n").format(stack_name)
     if not env.blocking:
