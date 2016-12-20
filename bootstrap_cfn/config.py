@@ -4,6 +4,7 @@ import os
 import sys
 import textwrap
 
+from fabric.api import env
 from fabric.colors import green
 
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
@@ -1197,25 +1198,65 @@ class ConfigParser(object):
             OSTypeNotFoundError: Raised when the OS in the config file is not
                 recognised
         """
+        region=env.aws_region
         os_default = 'ubuntu-1404'
-        available_types = {
-            'ubuntu-1404': {
-                'name': 'ubuntu-1404',
-                'ami': 'ami-f95ef58a',
-                'region': 'eu-west-1',
+        if region == 'eu-west-2':
+          available_types = {
+              'ubuntu-1604': {
+                'name': 'ubuntu-1604',
+                'ami': 'ami-57eae033',
+                'region': region,
                 'distribution': 'ubuntu',
                 'type': 'linux',
-                'release': '20160509.1'
-            },
-            'windows2012': {
+                'release': '20161214'
+              },
+              'ubuntu-1404': {
+                'name': 'ubuntu-1404',
+                'ami': 'ami-45eae021',
+                'region': region,
+                'distribution': 'ubuntu',
+                'type': 'linux',
+                'release': '20161213'
+              },
+              'windows2012': {
                 'name': 'windows2012',
-                'ami': 'ami-8519a9f6',
-                'region': 'eu-west-1',
+                'ami': 'ami-bb353fdf',
+                'region': region,
                 'distribution': 'windows',
                 'type': 'windows',
-                'release': '2015.12.31'
-            }
-        }
+                'release': '2016.11.23'
+              }
+          }
+        elif env.aws_region == 'eu-west-1':
+          available_types = {
+              'ubuntu-1604': {
+                'name': 'ubuntu-1604',
+                'ami': 'ami-6f587e1c',
+                'region': region,
+                'distribution': 'ubuntu',
+                'type': 'linux',
+                'release': '20161214'
+              },
+              'ubuntu-1404': {
+                  'name': 'ubuntu-1404',
+                  'ami': 'ami-f95ef58a',
+                  'region': region,
+                  'distribution': 'ubuntu',
+                  'type': 'linux',
+                  'release': '20160509.1'
+              },
+              'windows2012': {
+                  'name': 'windows2012',
+                  'ami': 'ami-8519a9f6',
+                  'region': region,
+                  'distribution': 'windows',
+                  'type': 'windows',
+                  'release': '2015.12.31'
+              }
+          }
+        else:
+          raise errors.CfnConfigError('Region {} is not supported'.format(region))
+
         os_choice = self.data['ec2'].get('os', os_default)
         if not available_types.get(os_choice, False):
             raise errors.OSTypeNotFoundError(self.data['ec2']['os'], available_types.keys())
