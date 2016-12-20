@@ -7,6 +7,8 @@ import textwrap
 from fabric.api import env
 from fabric.colors import green
 
+import netaddr
+
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
 from troposphere.autoscaling import AutoScalingGroup, BlockDeviceMapping, \
     EBSBlockDevice, LaunchConfiguration, Tag
@@ -24,7 +26,7 @@ from troposphere.s3 import Bucket, BucketPolicy
 
 import yaml
 
-from bootstrap_cfn import errors, mime_packer, utils
+from bootstrap_cfn import errors, mime_packer, utils, vpc
 
 
 class ProjectConfig:
@@ -162,59 +164,41 @@ class ConfigParser(object):
             os_data.get('region'): {"AMI": os_data.get('ami')},
         })
 
-        if 'vpc' in self.data:
-            logging.info('bootstrap-cfn::base_template: Using configuration VPC address settings')
+        # If we have a cidr defined, use that, else dynamically retrieve it
+        vpc_cidr = None
+        subnets_defined = False
+        if 'vpc' in self.data and len(self.data.get('vpc', {})) > 0:
+            logging.info("config::base_template: Found VPC config section")
             vpc_data = self.data.get('vpc', {})
-            vpc_cidr = vpc_data.get('CIDR', '10.0.0.0/16')
-            subneta_cidr = vpc_data.get('SubnetA', '10.0.0.0/20')
-            subnetb_cidr = vpc_data.get('SubnetB', '10.0.16.0/20')
-            subnetc_cidr = vpc_data.get('SubnetC', '10.0.32.0/20')
-            t.add_mapping("SubnetConfig", {
-                "VPC": {
-                    "CIDR": vpc_cidr,
-                    "SubnetA": subneta_cidr,
-                    "SubnetB": subnetb_cidr,
-                    "SubnetC": subnetc_cidr
-                }
-            })
-        else:
-            default_vpc_cidr_prefix = 24
-            default_vpc_subnet_prefix = 28
-            default_vpc_subnet_count = 3
+            vpc_cidr = vpc_data.get('CIDR')
 
-            # Try to get random CIDR
-            available_cidr_block, subnet_cidr_blocks = (
-                vpc.get_available_cidr_block(
-                    default_vpc_cidr_prefix,
-                    subnet_prefix=default_vpc_subnet_prefix)
-            )
-            if available_cidr_block and len(subnet_cidr_blocks) > (default_vpc_subnet_count - 1):
-                logging.info('bootstrap-cfn::base_template: Using dynamic VPC address settings')
-                vpc_cidr = available_cidr_block
-                subneta_cidr = subnet_cidr_blocks[0]
-                subnetb_cidr = subnet_cidr_blocks[1]
-                subnetc_cidr = subnet_cidr_blocks[2]
-            else:
-                # Fallback to default
-                logging.info('bootstrap-cfn::base_template: Using static fallback VPC address settings')
-                vpc_cidr = "10.0.0.0/24"
-                subneta_cidr = "10.0.0.0/20"
-                subnetb_cidr = "10.0.16.0/20"
-                subnetc_cidr = "10.0.32.0/20"
+            # Check for manually defined subnets
+            subnet_names = self._get_subnet_names()
+            vpc_subnet_config = {}
+            vpc_subnet_config["VPC"] = {}
+            vpc_subnet_config['VPC']['CIDR'] = vpc_cidr
 
-            t.add_mapping("SubnetConfig", {
-                "VPC": {
-                    "CIDR": vpc_cidr,
-                    "SubnetA": subneta_cidr,
-                    "SubnetB": subnetb_cidr,
-                    "SubnetC": subnetc_cidr
-                }
-            })
+            count = 0
+            for subnet_name in subnet_names:
+                subnet_entry = vpc_data.get(subnet_name, None)
+                if subnet_entry is not None:
+                    logging.info("config::base_template: Found VPC subnet {}"
+                                 .format(subnet_entry))
+                    vpc_subnet_config['VPC'][subnet_name] = subnet_entry
+                    subnets_defined = True
+                count += 1
+
+        if not subnets_defined:
+            logging.info("config::base_template: No VPC config or subnets found, "
+                         "using dynamic setup")
+            vpc_subnet_config = self._get_vpc_subnet_config(vpc_cidr)
+
+        t.add_mapping("SubnetConfig", vpc_subnet_config)
 
         return t
 
     def vpc(self):
-
+        resources = []
         vpc = VPC(
             "VPC",
             InstanceTenancy="default",
@@ -222,40 +206,7 @@ class ConfigParser(object):
             CidrBlock=FindInMap("SubnetConfig", "VPC", "CIDR"),
             EnableDnsHostnames="true",
         )
-
-        subnet_a = Subnet(
-            "SubnetA",
-            VpcId=Ref(vpc),
-            AvailabilityZone="eu-west-1a",
-            CidrBlock=FindInMap("SubnetConfig", "VPC", "SubnetA"),
-            Tags=Tags(
-                Application=Ref("AWS::StackId"),
-                Network="Public",
-            ),
-        )
-
-        subnet_b = Subnet(
-            "SubnetB",
-            VpcId=Ref(vpc),
-            AvailabilityZone="eu-west-1b",
-            CidrBlock=FindInMap("SubnetConfig", "VPC", "SubnetB"),
-            Tags=Tags(
-                Application=Ref("AWS::StackId"),
-                Network="Public",
-            ),
-        )
-
-        subnet_c = Subnet(
-            "SubnetC",
-            VpcId=Ref(vpc),
-            AvailabilityZone="eu-west-1c",
-            CidrBlock=FindInMap("SubnetConfig", "VPC", "SubnetC"),
-            Tags=Tags(
-                Application=Ref("AWS::StackId"),
-                Network="Public",
-            ),
-        )
-
+        resources.append(vpc)
         igw = InternetGateway(
             "InternetGateway",
             Tags=Tags(
@@ -264,6 +215,7 @@ class ConfigParser(object):
             ),
             DependsOn=vpc.title,
         )
+        resources.append(igw)
 
         gw_attachment = VPCGatewayAttachment(
             "AttachGateway",
@@ -271,6 +223,7 @@ class ConfigParser(object):
             InternetGatewayId=Ref(igw),
             DependsOn=igw.title
         )
+        resources.append(gw_attachment)
 
         route_table = RouteTable(
             "PublicRouteTable",
@@ -280,6 +233,7 @@ class ConfigParser(object):
                 Network="Public",
             ),
         )
+        resources.append(route_table)
 
         public_route = Route(
             "PublicRoute",
@@ -288,29 +242,30 @@ class ConfigParser(object):
             RouteTableId=Ref(route_table),
             DependsOn=gw_attachment.title
         )
+        resources.append(public_route)
 
-        subnet_a_route_assoc = SubnetRouteTableAssociation(
-            "SubnetRouteTableAssociationA",
-            SubnetId=Ref(subnet_a),
-            RouteTableId=Ref(route_table),
-        )
+        subnet_names = self._get_subnet_names(env.aws_region)
+        for subnet_name in subnet_names:
+            subnet = Subnet(
+              subnet_name,
+              VpcId=Ref(vpc),
+              AvailabilityZone=subnet_names.get(subnet_name),
+              CidrBlock=FindInMap("SubnetConfig", "VPC", subnet_name),
+              Tags=Tags(
+                  Application=Ref("AWS::StackId"),
+                  Network="Public",
+              ),
+            )
+            resources.append(subnet)
 
-        subnet_b_route_assoc = SubnetRouteTableAssociation(
-            "SubnetRouteTableAssociationB",
-            SubnetId=Ref(subnet_b),
-            RouteTableId=Ref(route_table),
-        )
-
-        subnet_c_route_assoc = SubnetRouteTableAssociation(
-            "SubnetRouteTableAssociationC",
-            SubnetId=Ref(subnet_c),
-            RouteTableId=Ref(route_table),
-        )
-
-        resources = [vpc, subnet_a, subnet_b, subnet_c, igw, gw_attachment,
-                     public_route, route_table, subnet_a_route_assoc,
-                     subnet_b_route_assoc, subnet_c_route_assoc]
-
+            route_association_name = ("{}RouteTableAssociation"
+                                      .format(subnet_name))
+            subnet_route_assoc = SubnetRouteTableAssociation(
+              route_association_name,
+              SubnetId=Ref(subnet),
+              RouteTableId=Ref(route_table),
+            )
+            resources.append(subnet_route_assoc)
         # Hack until we return troposphere objects directly
         # return json.loads(json.dumps(dict((r.title, r) for r in resources), cls=awsencode))
         return resources
@@ -510,7 +465,7 @@ class ConfigParser(object):
         resources = []
         rds_subnet_group = DBSubnetGroup(
             "RDSSubnetGroup",
-            SubnetIds=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
+            SubnetIds=self._get_subnet_refs(env.aws_region),
             DBSubnetGroupDescription="VPC Subnets"
         )
         resources.append(rds_subnet_group)
@@ -635,7 +590,7 @@ class ConfigParser(object):
         es_subnet_group = SubnetGroup(
             'ElasticacheSubnetGroup',
             Description="Elasticache Subnet Group",
-            SubnetIds=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")]
+            SubnetIds=self._get_subnet_refs(env.aws_region)
         )
         resources.append(es_subnet_group)
 
@@ -750,7 +705,7 @@ class ConfigParser(object):
 
             load_balancer = LoadBalancer(
                 "ELB" + safe_name,
-                Subnets=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
+                Subnets=self._get_subnet_refs(env.aws_region),
                 Listeners=elb['listeners'],
                 Scheme=elb['scheme'],
                 ConnectionDrainingPolicy=ConnectionDrainingPolicy(
@@ -1133,7 +1088,7 @@ class ConfigParser(object):
         health_check_grace_period = auto_scaling_config.get('health_check_grace_period', default_health_check_grace_period)
         scaling_group = AutoScalingGroup(
             "ScalingGroup",
-            VPCZoneIdentifier=[Ref("SubnetA"), Ref("SubnetB"), Ref("SubnetC")],
+            VPCZoneIdentifier=self._get_subnet_refs(env.aws_region),
             MinSize=asg_min_size,
             MaxSize=asg_max_size,
             DesiredCapacity=asg_desired_size,
@@ -1280,3 +1235,93 @@ class ConfigParser(object):
         value = Join("", [{"Ref": "AWS::StackName"}, "-", type])
         name_tag = Tag("Name", value, True)
         return name_tag
+
+    def _get_subnet_names(self, region='eu-west-1'):
+        """
+        Return the AWS default names for subnets
+
+        Args:
+            region(string): The region to get subnet names for
+        """
+        zones = self._get_zone_map()[region]
+        subnet_names = {}
+        for zone in zones:
+            zone_postfix = zone.lower()
+            subnet_key = ("Subnet{}".format(zone.upper()))
+            subnet_names[subnet_key] = ("{}{}"
+                                        .format(env.aws_region,
+                                                zone_postfix))
+        return subnet_names
+
+    def _get_subnet_refs(self, region='eu-west-1'):
+        """
+        Get subnet ref lists for inserting into cloudformation
+        templates.
+
+        Args:
+            region(string): The aws region
+        """
+        zones = self._get_zone_map()[region]
+        subnet_ids = []
+        for zone in zones:
+            subnet_id = ("Subnet{}".format(zone.upper()))
+            subnet_ids.append(Ref(subnet_id))
+        return subnet_ids
+
+    def _get_zone_map(self):
+        """
+        Get the zones associated with a region. This can also
+        be live generated by connecting to AWS.
+
+        Returns:
+          zone_map(dict): A dictionary of regions mapped to a
+            list of availability zones.
+        """
+        zone_map = {
+            "eu-west-1": ['a', 'b', 'c'],
+            "eu-west-2": ['a', 'b'],
+        }
+        return zone_map
+
+    def _get_vpc_subnet_config(self,
+                               cidr=None,
+                               cidr_prefix=16,
+                               subnet_prefix=28,
+                               ):
+        """
+        Get the default vpc subnet config for a cidr block.
+
+        Args:
+          vpc_cidr(string): The CIDR block to use for subnet generation.
+
+        Returns:
+          (dict): A subnet configuration dictionary for cloudformation.
+        """
+        default_cidr = '10.0.0.0/16'
+        vpc_subnet_config = {}
+        if cidr is not None:
+            available_addresses = netaddr.IPSet([default_cidr])
+        else:
+            available_addresses = None
+        # Try to get random CIDR
+        available_cidr_block, subnet_cidr_blocks = (
+            vpc.get_available_cidr_block(
+                cidr_prefix=cidr_prefix,
+                subnet_prefix=subnet_prefix,
+                available_addresses=available_addresses
+                )
+        )
+        subnet_names = self._get_subnet_names(region=env.aws_region)
+        if available_cidr_block and len(subnet_cidr_blocks) > (len(subnet_names) - 1):
+            vpc_subnet_config = {}
+            vpc_subnet_config["VPC"] = {}
+            vpc_subnet_config['VPC']['CIDR'] = available_cidr_block
+
+            count = 0
+            for subnet_name in subnet_names:
+                vpc_subnet_config['VPC'][subnet_name] = subnet_cidr_blocks[count]
+                count += 1
+        else:
+            raise errors.CloudResourceNotFoundError("No free addresses found for cidr range {}"
+                                                    .format(cidr))
+        return vpc_subnet_config

@@ -573,7 +573,9 @@ def get_available_addresses():
     return available_ipv4_address_space
 
 
-def get_available_cidr_block(cidr_prefix, subnet_prefix=28):
+def get_available_cidr_block(cidr_prefix,
+                             subnet_prefix=28,
+                             available_addresses=None):
     """
     Get the first unused available VPC CIDR block plus the
     available subnets
@@ -581,12 +583,21 @@ def get_available_cidr_block(cidr_prefix, subnet_prefix=28):
     Args:
         cidr_prefix(int): The cidr prefix to the main vpc address block
         subnet_prefix(int): The cidr prefix to the main vpc address subnet blocks
+        available_addresses(IPSet): The set of address blocks to subnet, if None,
+            these will be generated dynamically from available address ranges in
+            the VPC.
 
     Returns:
         (string): The main vpc address block, None if not found
         (list): The main vpc address block subnets, None if not found
     """
-    available_addresses = get_available_addresses()
+    if available_addresses is None:
+        logger.info("get_available_cidr_blocks: No available address list provided, "
+                    "requesting available VPC address list from AWS...")
+        available_addresses = get_available_addresses()
+    else:
+        logger.info("get_available_cidr_blocks: Using available address list provided...")
+
     if len(available_addresses) > 0:
         # Find the first group that we can subnet succesfully
         for available_address_cidr in available_addresses.iter_cidrs():

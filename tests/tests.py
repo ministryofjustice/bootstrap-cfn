@@ -878,9 +878,11 @@ class TestConfigParser(unittest.TestCase):
             "Policytestdevexternal", "Policytestdevinternal", "PublicRoute",
             "PublicRouteTable", "RDSInstance", "RDSSubnetGroup",
             "RolePolicies", "ScalingGroup", "StaticBucket",
-            "StaticBucketPolicy", "SubnetA", "SubnetB", "SubnetC",
-            "SubnetRouteTableAssociationA", "SubnetRouteTableAssociationB",
-            "SubnetRouteTableAssociationC", "VPC",
+            "StaticBucketPolicy",
+            "SubnetA", "SubnetARouteTableAssociation",
+            "SubnetB", "SubnetBRouteTableAssociation",
+            "SubnetC", "SubnetCRouteTableAssociation",
+            "VPC",
         ]
 
         resource_names = cfn_template['Resources'].keys()
@@ -942,9 +944,11 @@ class TestConfigParser(unittest.TestCase):
             "Policytestdevexternal", "Policytestdevinternal", "PublicRoute",
             "PublicRouteTable", "RDSInstance", "RDSSubnetGroup",
             "RolePolicies", "ScalingGroup", "StaticBucket",
-            "StaticBucketPolicy", "SubnetA", "SubnetB", "SubnetC",
-            "SubnetRouteTableAssociationA", "SubnetRouteTableAssociationB",
-            "SubnetRouteTableAssociationC", "VPC"
+            "StaticBucketPolicy",
+            "SubnetA", "SubnetARouteTableAssociation",
+            "SubnetB", "SubnetBRouteTableAssociation",
+            "SubnetC", "SubnetCRouteTableAssociation",
+            "VPC"
         ]
 
         resource_names = cfn_template['Resources'].keys()
