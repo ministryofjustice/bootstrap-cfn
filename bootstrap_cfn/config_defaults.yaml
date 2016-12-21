@@ -53,20 +53,18 @@ dev:
     port: 6379
     engine: 'redis'
 
-# Staging should be equivalent to prod
 staging:
   ec2:
-    <<: *prod_ec2
+    <<: *dev_ec2
   rds:
-    <<: *prod_rds
+    <<: *dev_rds
   elasticache:
-    <<: *prod_elasticache
+    <<: *dev_elasticache
 
-# The default should be the most secure
 default:
   ec2:
-    <<: *prod_ec2
+    <<: *dev_ec2
   rds:
-    <<: *prod_rds
+    <<: *dev_rds
   elasticache:
-    <<: *prod_elasticache
+    <<: *dev_elasticache
