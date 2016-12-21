@@ -17,7 +17,8 @@ The objective of this repo is to enable MoJ teams to create project infrastructu
 
 Installation
 ============
-::
+
+.. code:: bash
 
     git clone git@github.com:ministryofjustice/bootstrap-cfn.git
     cd bootstrap-cfn
@@ -27,24 +28,31 @@ Installation
 Developing and running tests
 ============================
 
-The test suite can be run via setup.py as follows::
+The test suite can be run via setup.py as follows
+
+.. code:: bash
 
     python -m unittest discover
 
-or::
+or
+
+.. code:: bash
 
     python setup.py test
-
 
 Example Usage
 =============
 
-Bootstrap-cfn uses `fabric <http://www.fabfile.org/>`_, so if your ``$CWD`` is the root directory of bootstrap-cfn then you can run::
+Bootstrap-cfn uses `fabric <http://www.fabfile.org/>`_, so if your ``$CWD`` is the root directory of bootstrap-cfn then you can run
+
+.. code:: bash
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
 
 
-If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabric file::
+If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabric file
+
+.. code:: bash
 
     fab -f /path/to/bootstrap-cfn/fabfile.py application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml tag:test cfn_create
 
@@ -73,25 +81,36 @@ So far A new stack should be created. You may want to set it to active stack of 
 **fab-env set_active_stack:[stack_tag]:** set active dns records in R53 
 
 
-NB: If you want to run multiple stacks with the same name and environment place the following in the yaml configuration::
+NB: If you want to run multiple stacks with the same name and environment place the following in the yaml configuration
+
+.. code:: yaml
 
     master_zone:
       my-zone.dsd.io
 
 cfn_create
----
+----------
+
+This is to create a stack based on your yaml configuration.
+
+.. code:: bash
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml tag:active cfn_create
 
-This is to create a stack based on your yaml configuration. After running the task, a stack name like `app-dev-e21e5110` should be created, along with two DNS records in Route 53 look like:
 
-Name | Type | Value
---- | --- | ---
-stack.test.blah-dev.dsd.io. | **TXT** | "e21e5110"|
-elbname-e21e5110.dsd.io. | **A** | ALIAS app-dev-elbname-1ocl2znar6wtc-1854012795.eu-west-1.elb.amazonaws.com. (z32o12xqlntsw2)
+After running the task, a stack name like `app-dev-e21e5110` should be created, along with two DNS records in Route 53 look like:
+
++------------------------------+------------+------------------------------------------------------------------------------------------------+
+| Name                         | Type       | Value                                                                                          |
++==============================+============+================================================================================================+
+| stack.test.blah-dev.dsd.io.  | **TXT**    | "e21e5110"                                                                                     |
++------------------------------+------------+------------------------------------------------------------------------------------------------+
+| elbname-e21e5110.dsd.io.     | **A**      | ALIAS app-dev-elbname-1ocl2znar6wtc-1854012795.eu-west-1.elb.amazonaws.com. (z32o12xqlntsw2)   |
++------------------------------+------------+------------------------------------------------------------------------------------------------+
 
 Note that:
-- `test`in **TXT** record name is the stack tag you defined. An auto-generated stack id will be assigned to tag name if not specified. 
+
+- `test` in **TXT** record name is the stack tag you defined. An auto-generated stack id will be assigned to tag name if not specified.
 - `active` tag is **preserved** for setting the main entry point, so you should not use it as custom tag. 
 - If the tag you specified already exists (may due to improper clean up in last creation), you could manually run `fab tag:[tag-name] cfn_delete` to remove them.
 
@@ -100,10 +119,13 @@ NB fab task `get_stack_list` returns all stacks of that application in case if y
 
 
 set_active_stack(tag_name)
----
+--------------------------
+
 An app's DNS entry is what your active stack at
 
-After having created a new stack, you can set it to be the active stack simply by changing DNS records using ``set_active_stack(tag_name)``:
+After having created a new stack, you can set it to be the active stack simply by changing DNS records using ``set_active_stack(tag_name)``
+
+.. code:: bash
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml set_active_stack:[tag_name]
 
@@ -112,9 +134,11 @@ NB this process will also automatically set deployarn record accordingly.
 
 
 cfn_delete
----
+----------
 
-You can also delete any stack you want no more by specifying the tag::
+You can also delete any stack you want no more by specifying the tag
+
+.. code:: bash
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml tag:[tag_name] cfn_delete
 
@@ -123,15 +147,19 @@ When deleting an active stack, only active DNS records will be removed. Otherwis
 
 get_stack_list
 ++++++++++++++
-    
-    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml get_stack_list
 
 This returns a list of all available stacks for specified application.
+
+.. code:: bash
+
+    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml get_stack_list
 
 swap_tags
 +++++++++
 
-Then you can refer to this stack by its tag in the future. In this way it is easier to bring up two stacks from the same config. If you want to swap the names of the stacks you can do the following::
+Then you can refer to this stack by its tag in the future. In this way it is easier to bring up two stacks from the same config. If you want to swap the names of the stacks you can do the following
+
+.. code:: bash
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml swap_tags:inactive, active
 
@@ -144,7 +172,7 @@ There are also some fab tasks for example ``get_active_stack`` that returns acti
 Example Configuration
 =====================
 AWS Account Configuration
-+++++++++++++++++++++++++
+-------------------------
 
 This tool needs AWS credentials to create stacks and the credentials should be placed in the ``~/.aws/credentials`` file (which is the same one used by the AWS CLI tools). You should create named profiles like this (and the section names should match up with what you specify to the fabric command with the ``aws:my_project_prod`` flag) ::
 
@@ -167,11 +195,11 @@ And when you run the tool you must set the ARN ID of the role in the separate ac
     AWS_ROLE_ARN_ID='arn:aws:iam::123456789012:role/S3Access' fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml cfn_create
 
 Project specific YAML file
-++++++++++++++++++++++++++
+--------------------------
 The `YAML file <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/docs/sample-project.yaml>`_ highlights what is possible with all the bootstrap-cfn features available to date. The minimum requirement is that it must contain an *ec2* block, you **do not** have to use RDS, S3 or ELB's.
 
 EC2 Auto-Scaling Groups
-+++++++++++++++++++++++
+-----------------------
 
 The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG) and their configuration. Note that we don't currently support auto-scaling properly, so if a scaling event happens the instances that come up will be unconfigured.
 
@@ -189,7 +217,9 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
   ``health_check_type``
     Use EC2 or ELB healthcheck types. Default EC2
 
-  Example::
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -204,7 +234,9 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
 :``tags``:
   A dictionary of tag name to value to apply to all instances of the ASG. Note that the environment you select via ``fab aws`` will be applied as a tag with a name of ``Env``.
 
-  Example::
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -222,7 +254,9 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
   ``InstanceType``
     The size of the EC2 instances to create
 
-  Example::
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -234,7 +268,10 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
 :``ami``:
   Selects which AWS AMI to use. This can be a AWS-provided AMI, a community one, or one which exists under the account in which you're building the stack. The ``ami-`` prefix is required. If not specified then a suitable default will be chosen for the ``os`` in use. If this value is present then it is recommended to specify the ``os`` too, so that other areas of the cloud formation template are correctly generated.
 
-  Example::
+
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -244,7 +281,10 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
 :``os``:
   Which operating system to use.  This selects a default AMI and also builds relevant user_data for use by instances when spun up by the ASG. Only 2 values are recognised: ``windows2012`` and ``ubuntu-1404``. The default is ``ubuntu-1404``.  If you wish to specify an AMI manually then use ``ami`` in addition.
 
-  Example::
+
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -262,7 +302,10 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
   ``Iops (Required for io1 type)``
     The Iops value to assign to the io1 volume type.
 
-  Example::
+
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -296,7 +339,10 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
 
   One of ``CidrIp`` and ``SourceSecurityGroupId`` must be specified per rule (but not both).
 
-  Example::
+
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -331,22 +377,26 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
   There doesn't appear to be a definitive list of the possible config options but the examples are quite exhaustive:
 
   - `http://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/files/head:/doc/examples/`
-  - `http://cloudinit.readthedocs.org/en/latest/topics/examples.html`_ (similar list but all on one page so easier to read)
+  - `http://cloudinit.readthedocs.org/en/latest/topics/examples.html` (similar list but all on one page so easier to read)
 
 :``hostname_pattern``:
   A python-style string format to set the hostname of the instance upon creation.
 
-  The default is ``{instance_id}.{environment}.{application}``. To disable this entirely set this field explicitly to null/empty::
+  The default is ``{instance_id}.{environment}.{application}``. To disable this entirely set this field explicitly to null/empty
+
+  Example
+
+.. code:: yaml
 
     dev:
       ec2:
         hostname_pattern:
 
-  For ``sudo`` to not misbehave initially (because it cannot look up its own hostname) you will likely want to set ``manage_etc_hosts`` to true in the cloud_config section so that it will regenerate ``/etc/hosts`` with the new hostname resolving to 127.0.0.1.
+For ``sudo`` to not misbehave initially (because it cannot look up its own hostname) you will likely want to set ``manage_etc_hosts`` to true in the cloud_config section so that it will regenerate ``/etc/hosts`` with the new hostname resolving to 127.0.0.1.
 
-  Setting the hostname is achived by adding a boothook into the userdata that will interpolate the instance_id correctly on the machine very soon after boottime.
+Setting the hostname is achived by adding a boothook into the userdata that will interpolate the instance_id correctly on the machine very soon after boottime.
 
-  The currently support interpolations are:
+The currently support interpolations are:
 
   ``instance_id``
     The amazon instance ID
@@ -359,7 +409,9 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
   ``tags``
     A value from a tag for this autoscailing group. For example use ``tags[Role]`` to access the value of the ``Role`` tag.
 
-  For example given this incomplete config::
+  For example given this incomplete config
+
+.. code:: yaml
 
     dev:
       ec2:
@@ -370,15 +422,17 @@ The ``ec2`` key configures the EC2 instances created by auto-scaling groups (ASG
         cloud_config:
           manage_etc_hosts: true
 
-  an instance created with ``fab application:myproject … cfn_create`` would get a hostname something like ``i-f623cfb9.docker.dev.my-project``.
+an instance created with ``fab application:myproject … cfn_create`` would get a hostname something like ``i-f623cfb9.docker.dev.my-project``.
 
 ELBs
-++++
+----
 By default the ELBs will have a security group opening them to the world on 80 and 443. You can replace this default SG with your own (see example ``ELBSecGroup`` above).
 
 If you set the protocol on an ELB to HTTPS you must include a key called ``certificate_name`` in the ELB block (as example above) and matching cert data in a key with the same name as the cert under ``ssl`` (see example above). The ``cert`` and ``key`` are required and the ``chain`` is optional.
 
-It is possilbe to define a custom health check for an ELB like follows::
+It is possilbe to define a custom health check for an ELB like follows
+
+.. code:: yaml
 
     health_check:
       HealthyThreshold: 5
@@ -388,7 +442,7 @@ It is possilbe to define a custom health check for an ELB like follows::
       UnhealthyThreshold: 2
 
 ELB Certificates
-~~~~~~~~~~~~~~~~
+++++++++++++++++
 
 The SSL certificate will be uploaded before the stack is created and removed after it is deleted.
 To update the SSL certificate on ELB listeners run the fab task below, this uploads and updates the
@@ -402,7 +456,7 @@ Note that some errors appear in the log due to the time taken for AWS changes to
 elements, these are handled internally and are not neccessarily a sign of failure.
 
 ELB Policies
-~~~~~~~~~~~~
+++++++++++++
 
 Policies can be defined within an ELB block, and optionally applied to a list of 
 instance ports or load balancer ports.
@@ -426,7 +480,7 @@ The below example enable proxy protocol support on instance ports 80 and 443
      #  - 443
 
 Elasticache
-+++++++++++
+-----------
 
 By specifying an elasticache section, a redis-backed elasticache replication group will be created. The group name will be available as an output.
 
@@ -442,7 +496,7 @@ By specifying an elasticache section, a redis-backed elasticache replication gro
 
 
 S3
-++
+--
 
 An s3 section can be used to create a StaticBucket, which is exposed by nginx, but default as /assets.
 The bucket location will be by default public, with an output available of 'StaticBucketName'.
@@ -456,16 +510,16 @@ Or we can specify the name, and optionally a custom policy file if we want to to
 For example, the sample custom policy defined in this `json file <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/tests/sample-custom-s3-policy.json>`_ can be configured as follows:
 
 
-:: 
+.. code:: yaml
 
-   s3: 
+   s3:
         static-bucket-name: moj-test-dev-static
         policy: tests/sample-custom-s3-policy.json
     
 We can also supply a list of buckets to create a range of s3 buckets, these require a name. 
 These entries can also specify their own policies or use the default, vpc limited one.
 
-::
+.. code:: yaml
 
    s3:
       buckets:
@@ -476,8 +530,10 @@ These entries can also specify their own policies or use the default, vpc limite
 The outputs of these buckets will be the bucket name postfixed by 'BucketName', ie, mybucketidBucketName
 
 Includes
-++++++++
-If you wish to include some static cloudformation json and have it merged with the template generated by bootstrap-cfn. You can do the following in your template yaml file::
+--------
+If you wish to include some static cloudformation json and have it merged with the template generated by bootstrap-cfn. You can do the following in your template yaml file
+
+.. code:: yaml
 
     includes:
       - /path/to/cloudformation.json
@@ -485,14 +541,16 @@ If you wish to include some static cloudformation json and have it merged with t
 The tool will then perform a deep merge of the includes with the generated template dictionary. Any keys or subkeys in the template dictionary that clash will have their values **overwritten** by the included dictionary or recursively merged if the value is itself a dictionary.
 
 ConfigParser
-++++++++++++
+------------
 If you want to include or modify cloudformation resources but need to include some logic and not a static include. You can subclass the ConfigParser and set the new class as `env.cloudformation_parser` in your fabfile.
 
 
 Enabling RDS encryption
-+++++++++++++++++++++++
-You can enable encryption for your DB by adding the following::
+-----------------------
+You can enable encryption for your DB by adding the following
  
+.. code:: yaml
+
   rds:
      storage-encrypted: true
      instance-class: db.m3.medium
@@ -509,13 +567,10 @@ Amazon provides default policies for cipher lists:
 
 More info:
 
-https://aws.amazon.com/blogs/aws/elastic-load-balancing-perfect-forward-secrecy-and-other-security-enhancements/
-
-http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/elb-security-policy-options.html
-
-http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/elb-ssl-security-policy.html
-
-http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/elb-security-policy-table.html
+* https://aws.amazon.com/blogs/aws/elastic-load-balancing-perfect-forward-secrecy-and-other-security-enhancements/
+* http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/elb-security-policy-options.html
+* http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/elb-ssl-security-policy.html
+* http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/elb-security-policy-table.html
 
 The policy currently in use by default is: ELBSecurityPolicy-2015-05.
 
