@@ -1,3 +1,26 @@
+## v1.3.0rc1
+
+Fixes:
+* Disable production settings on staging
+* Delete SSL certs only if defined in cf template
+* Remove subnet hardwiring
+* Add UK ami mappings
+* Add a region argument to the aws task
+* get elb helpers shouldn't raise if none elbs exist. (#238)
+* Disable pretty printing of cfn template.
+* Markup YAML fragments correctly
+* Mark up bash commands correctly
+* Show external references as a list
+* Token delimitation
+* Fix table
+* Show the section headings correctly
+* Exclude the yaml config files from flake8
+* Update default RDS version to 9.5.4
+* Make sure that set_active_stack activates all ELBs.
+* Add version tag
+* Added tests and updated README
+* Update deployrarn when active stacks is changed
+
 ## v1.2.0
 
 Fixes:
