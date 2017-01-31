@@ -573,6 +573,9 @@ class ConfigParser(object):
 
         # LOAD STACK TEMPLATE
         resources = []
+        
+        # Get tags
+        elasticache_tags = self._get_default_resource_tags()
 
         es_sg = SecurityGroup(
             "ElasticacheSG",
@@ -602,7 +605,8 @@ class ConfigParser(object):
             CacheNodeType=self.data['elasticache']['node_type'],
             SecurityGroupIds=[GetAtt(es_sg, "GroupId")],
             CacheSubnetGroupName=Ref(es_subnet_group),
-            SnapshotArns=snapshot_arns
+            SnapshotArns=snapshot_arns,
+            Tags=elasticache_tags
         )
         resources.append(elasticache_replication_group)
 
@@ -1059,19 +1063,7 @@ class ConfigParser(object):
 
         resources.append(launch_config)
 
-        # Allow deprecation of tags
-        ec2_tags = []
-        deprecated_tags = ["Env"]
-        # Add a name tag for easy ec2 instance identification in the AWS console
-        if data['tags'].get("Name", None) is None:
-            ec2_tags.append(self._get_default_resource_name_tag(type="ec2"))
-        # Get all tags from the config
-        for k, v in data['tags'].items():
-            if k not in deprecated_tags:
-                ec2_tags.append(Tag(k, v, True))
-            else:
-                logging.warning("config: Tag '%s' is deprecated.."
-                                % (k))
+        ec2_tags = self._get_default_resource_tags()
 
         # Setup ASG defaults
         auto_scaling_config = data.get('auto_scaling', {})
@@ -1222,6 +1214,36 @@ class ConfigParser(object):
             os_data['ami'] = ami
             logging.info('overridden os data is: ' + repr(os_data))
         return os_data
+
+    def _get_default_resource_tags(self):
+        """
+        Return a default set of resource tags
+
+        Returns:
+            resource_tags(Tags): Key value tags object
+        """
+        # Allow deprecation of tags
+        resource_tags = {}
+
+        # Stack tags
+        resource_tags['Application'] = Ref("AWS::StackId")
+        try:
+            data = self.data['ec2']
+            deprecated_tags = ["Env"]
+            # Add a name tag for easy ec2 instance identification in the AWS console
+            if data['tags'].get("Name", None) is None:
+                resource_tags.append(self._get_default_resource_name_tag(type="ec2"))
+            # Get all tags from the config
+            for k, v in data['tags'].items():
+                if k not in deprecated_tags:
+                    resource_tags.append(Tag(k, v, True))
+                else:
+                    logging.warning("config::_get_default_tags: Tag '%s' is deprecated.."
+                                    % (k))
+        except KeyError:
+            logging.warning("config::_get_default_tags: No ec2 section found..")
+
+        return Tags(resource_tags)                             
 
     def _get_default_resource_name_tag(self, type):
         """
