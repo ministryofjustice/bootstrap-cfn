@@ -1,3 +1,4 @@
+# flake8: noqa
 .. image:: https://travis-ci.org/ministryofjustice/bootstrap-cfn.svg
     :target: https://travis-ci.org/ministryofjustice/bootstrap-cfn
 
@@ -443,6 +444,22 @@ It is possilbe to define a custom health check for an ELB like follows
 
 ELB Certificates
 ++++++++++++++++
+
+ACM
+~~~
+
+This section defines certificates for the AWS Certificate Manager. For verification, these will require the setting up of SES for the ValidationDomain so that emails to admin@address.com can be recieved.
+
+.. code:: yaml
+
+    acm:
+      my-cert:
+        domain: helloworld.test.dsd.io    # (required) The domain name or wildcard the certificate should cover
+        validation_domain: dsd.io         # (optional) The domain name the verfication email should go to. The default is dsd.io
+
+
+Manual SSL
+~~~~~~~~~~
 
 The SSL certificate will be uploaded before the stack is created and removed after it is deleted.
 To update the SSL certificate on ELB listeners run the fab task below, this uploads and updates the
