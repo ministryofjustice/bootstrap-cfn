@@ -7,7 +7,7 @@ from mock import patch
 
 from testfixtures import compare
 
-from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Ref, Template, awsencode, ec2, iam, rds, s3
+from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Ref, Template, ec2, iam, rds, s3
 from troposphere.autoscaling import AutoScalingGroup, LaunchConfiguration, Tag
 from troposphere.ec2 import SecurityGroup, SecurityGroupIngress
 from troposphere.elasticache import ReplicationGroup, SubnetGroup
@@ -59,10 +59,10 @@ class TestConfigParser(unittest.TestCase):
         self.maxDiff = 9000
 
     def _resources_to_dict(self, resources):
-        return json.loads(json.dumps(
-            dict((r.title, r) for r in resources),
-            cls=awsencode)
-        )
+        resources_dict = {}
+        for resource in resources:
+            resources_dict[resource.title] = resource.to_dict()
+        return json.loads(json.dumps(resources_dict))
 
     def test_iam_default(self):
         basehost_role = iam.Role('BaseHostRole')
@@ -1164,8 +1164,6 @@ class TestConfigParser(unittest.TestCase):
         config.elb(template)
         elb_cfg = template.resources.values()
 
-        # elb_dict = json.loads(json.dumps([{r.title: r} for r in elb_cfg ],
-        #                                  cls=awsencode))
         compare(self._resources_to_dict(known),
                 self._resources_to_dict(elb_cfg))
 
