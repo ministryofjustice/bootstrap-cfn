@@ -877,6 +877,10 @@ def set_active_stack(stack_tag, force=False):
     zone_name = get_zone_name()
     zone_id = get_zone_id()
 
+    # stack_tag is used to set active deploy arn
+    if stack_tag is None:
+        print red("Stack tag cannot be 'None', please specify it")
+        sys.exit(1)
     tag_record = get_tag_record_name(stack_tag)
 
     tag_stack_id = r53_conn.get_record(zone_name, zone_id, tag_record, 'TXT')
@@ -934,7 +938,6 @@ def set_active_deployarn(stack_tag):
     Returns:
         (String) AWS arn value
     """
-
     zone_name = get_zone_name()
     tag_arn_record = arn_record_name(stack_tag, zone_name)
     active_arn_record = arn_record_name('active', zone_name)
@@ -1045,15 +1048,23 @@ def get_stack_list():
     rrsets = r53_conn.get_all_resource_records(get_zone_id())
     regex = "stack\.\w+\.{}.+".format(get_env_application())
     stack_count = 0
+    stacks_list = []
+    leftover_dns = []
     for rr in rrsets:
         if re.match(regex, rr.name):
             stack_id = rr.resource_records[0][1:-1]
             dns_record_name = rr.name
             # get stack name from dns record
             stack_name_prefix = dns_record_name.split('.')[2]
+            stack_tag = dns_record_name.split('.')[1]
             stack_name = "{0}-{1}".format(stack_name_prefix, stack_id)
             stack_count += 1
             if not cfn.stack_missing(stack_name):
-                print green("DNS record name: {} stack name: {}".format(
-                    dns_record_name.ljust(40), stack_name.ljust(40)))
+                stacks_list.append("{} | {}".format(dns_record_name.ljust(50), stack_name.ljust(50)))
+            else:
+                leftover_dns.append("{} | {}".format(dns_record_name.ljust(50), stack_tag.ljust(50)))
+    print green("{} | {}".format("DNS Record".ljust(50), "Stack Name".ljust(50)))
+    print '\n'.join(s for s in stacks_list)
+    print yellow("{} | {}".format("Leftover DNS Record".ljust(50), "Stack Tag".ljust(50)))
+    print '\n'.join(l for l in leftover_dns)
     return stack_count
