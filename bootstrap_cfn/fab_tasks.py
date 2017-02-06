@@ -1041,12 +1041,19 @@ def get_stack_list():
 
     '''
     r53_conn = get_connection(R53)
+    cfn = get_connection(Cloudformation)
     rrsets = r53_conn.get_all_resource_records(get_zone_id())
     regex = "stack\.\w+\.{}.+".format(get_env_application())
     stack_count = 0
     for rr in rrsets:
         if re.match(regex, rr.name):
             stack_id = rr.resource_records[0][1:-1]
+            dns_record_name = rr.name
+            # get stack name from dns record
+            stack_name_prefix = dns_record_name.split('.')[2]
+            stack_name = "{0}-{1}".format(stack_name_prefix, stack_id)
             stack_count += 1
-            print green("DNS record name: {}  stack id: {}".format(rr.name.ljust(40), stack_id.ljust(40)))
+            if not cfn.stack_missing(stack_name):
+                print green("DNS record name: {} stack name: {}".format(
+                    dns_record_name.ljust(40), stack_name.ljust(40)))
     return stack_count
