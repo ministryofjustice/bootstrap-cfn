@@ -1141,7 +1141,7 @@ class ConfigParser(object):
 
     @classmethod
     def _find_resources(cls, template, resource_type):
-        f = lambda x: x.resource_type == resource_type
+        def f(x): return (x.resource_type == resource_type)
         return filter(f, template.resources.values())
 
     @classmethod

@@ -61,6 +61,8 @@ with default 3 day deletion policy. We need to setup SES on the domain we want t
 receive mail on since it doesnt have cloudformation support, but luckily this is 
 straightforward.
 
+> Note, SES may bounce emails when sending to meta-email addresses such as for groups. See `the SES FAQ <http://docs.aws.amazon.com/ses/latest/DeveloperGuide/e-faq-bn.html>`_ for more details.
+
 Setup SES on the mail domain
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
