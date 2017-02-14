@@ -1098,27 +1098,73 @@ class ConfigParser(object):
                                     "{0} in config file".format(certificate_name))
 
     def _get_acm_certificate(self, certificate_name):
+        """
+        Creates a certficate using the settings found in the configuration file. If no entry is
+        found then it will return None.
+            acm:
+                <certificate_name>:
+                    domain: testing.example.com     # (required)
+                    subject_alternative_names:
+                        - another.example.com       # (optional)
+                    validation_domain: example.com  # (optional)
+                    tags:
+                        site: mysite              # (optional)
+
+        Args:
+            certificate_name(string): The name of the certificate config to search for.
+
+        Returns:
+            certificate<Certificate>: Troposphere certifcate object, or None.
+        """
         acm_data = self.data.get('acm', {}).get(certificate_name, None)
         if not acm_data:
             logging.error("config::_get_acm_certificate: Could not find ACM configuration for {}"
                           .format(certificate_name))
             return None
+        domain_name = acm_data.get('domain')
         logging.info("config::_get_acm_certificate: Creating certificate {} for domain {}"
-                     .format(certificate_name, acm_data.get('domain')))
+                     .format(certificate_name, domain_name))
+        # Generate tags
+        tags = []
+        default_resource_name_tag = self._get_default_resource_name_tag(type="acm")
+        tags.append({
+                'Key': default_resource_name_tag.data['Key'],
+                'Value': default_resource_name_tag.data['Value']})
+        # Get all tags from the config
+        for key, value in acm_data.get('tags', {}).iteritems():
+            tag_pair = {'Key': key, 'Value': value}
+            tags.append(tag_pair)
+
         certificate = Certificate(
             certificate_name,
-            DomainName=acm_data.get('domain'),
+            DomainName=domain_name,
+            SubjectAlternativeNames=acm_data.get('subject_alternative_names', []),
             DomainValidationOptions=[
                 DomainValidationOption(
-                    DomainName=acm_data.get('domain'),
-                    ValidationDomain=acm_data.get('validation_domain', 'dsd.io'),
+                    DomainName=domain_name,
+                    ValidationDomain=acm_data.get('validation_domain', domain_name),
                 ),
             ],
-            Tags=[{'Key': key, 'Value': value} for key, value in acm_data.get('tags', {}).iteritems()]
+            Tags=tags
         )
         return certificate
 
     def _get_manual_ssl_certificate(self, certificate_name):
+        """
+        Creates a certificate using the settings found in the configuration file. If no entry is
+        found then it will return None.
+            ssl:
+                <certificate_name>:
+                    key: <SSL key in PEM format>
+                    cert: <SSL certificate in PEM format>
+                    chain: <SSL chain in PEM format>
+
+        Args:
+            certificate_name(string): The name of the certificate config to search for.
+
+        Returns:
+            certificate<Certificate>: Troposphere certifcate object, or None.
+        """
         if self.ssl().get(certificate_name, {}).get('cert', None) is None:
             logging.error("config::_get_manual_ssl_certificate: No cert information found for {}"
                           .format(certificate_name))

@@ -448,15 +448,31 @@ ELB Certificates
 ACM
 ~~~
 
-This section defines certificates for the AWS Certificate Manager. For verification, these will require the setting up of SES for the ValidationDomain so that emails to admin@address.com can be recieved.
+This section defines certificates for the AWS Certificate Manager. For verification, these will require the setting up of SES for the ValidationDomain so that emails to admin@<validation_domain> can be received.
+
+.. code:: yaml
+        acm:
+          <certificate_name>:                           # (required) Alphanumeric resource name for the certificate
+            domain: <domain_name>                       # (required) The domain name or wildcard the certificate should cover
+                subject_alternative_names:              # (optional) List of alternative names the certificate should cover.
+                    - <alternative_name_1>
+                    - <alternative_name_2>
+                validation_domain: <validation_domain>  # (optional) The domain name the verfication email should go to. The default is the domain name.
+                tags:
+                    <key>: <val>                      # (optional) Dictionary of keypairs to tag the resource with.
+
+For example,
 
 .. code:: yaml
 
-    acm:
-      my-cert:
-        domain: helloworld.test.dsd.io    # (required) The domain name or wildcard the certificate should cover
-        validation_domain: dsd.io         # (optional) The domain name the verfication email should go to. The default is dsd.io
-
+        acm:
+          mycert:
+            domain: helloworld.test.dsd.io
+            subject_alternative_names:
+                - goodbye.test.dsd.io
+            validation_domain: dsd.io
+            tags:
+                site: testsite
 
 Manual SSL
 ~~~~~~~~~~

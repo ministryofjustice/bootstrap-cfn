@@ -52,7 +52,7 @@ forward the email from the bucket. This way the verification email can be sent o
 Using the SESLambdaForwarder cloudformation stack
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-There’s a cloudformation template available for doing this, 
+There's a cloudformation template available for doing this, 
 see `the SES lambda forwarder template <SESLambdaForwarder.yaml>`_
 
 When creating this stack you can set the email addresses to forward, and a set of 
