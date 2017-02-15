@@ -154,7 +154,7 @@ Resources:
                     logger.debug("No filtering addresses found, skipping message...")
                     return ("CONTINUE")    
                 logger.info("Found filtering addresses {}, "
-                            "forwarding the message...".format(filtered_addresses))
+                            "forwarding the message...".format(','.join(filtered_addresses)))
 
                 email_object = email.message_from_string(email_data)
                 email_subject = email_object.get('Subject', 'Verification message for ACM')
@@ -192,7 +192,7 @@ Resources:
                         },
                     ],
                 )
-                logger.info("Sent verification email successfully to {}".format(forwarding_addresses))
+                logger.info("Sent verification email successfully to {}".format(','.join(forwarding_addresses)))
             
                 return "CONTINUE"
 
