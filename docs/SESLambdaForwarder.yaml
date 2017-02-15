@@ -145,8 +145,8 @@ Resources:
                 # We need to use a verified email address rather than relying on the source
                 logger.info("Retrieving environment settings...")
                 email_from = os.environ['FromAddress']
-                filter_addresses = os.environ['FilterAddresses'].split(",")
-                forwarding_addresses = os.environ['ForwardingAddresses'].split(",")
+                filter_addresses = [address.strip() for address in os.environ['FilterAddresses'].split(",")]
+                forwarding_addresses = [address.strip() for address in os.environ['ForwardingAddresses'].split(",")]
                 # Filter out addresses
                 filtered_addresses = [address for address in message_destination if address in filter_addresses]
                 
