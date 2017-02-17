@@ -1,3 +1,11 @@
+## v1.4.0
+
+Features:
+* Enable AWS Certificate Manager Support
+
+Fixes:
+* Make flake8 ignore parse errors in docs directory
+
 ## v1.3.0
 
 Fixes:
