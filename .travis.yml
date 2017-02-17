@@ -16,8 +16,8 @@ script:
   - |
     set -e -o pipefail;
     if [ "$TRAVIS_PULL_REQUEST" != "false" ]
-      then git diff $TRAVIS_COMMIT_RANGE | flake8 --diff;
-      else git fetch -q origin master:origin/master && git diff origin/master... | flake8 --diff
+      then git diff $TRAVIS_COMMIT_RANGE !(docs) | flake8 --diff;
+      else git fetch -q origin master:origin/master && git diff origin/master... !(docs) | flake8 --diff
     fi
 
   # Then run the tests

@@ -12,6 +12,7 @@ import netaddr
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
 from troposphere.autoscaling import AutoScalingGroup, BlockDeviceMapping, \
     EBSBlockDevice, LaunchConfiguration, Tag
+from troposphere.certificatemanager import Certificate, DomainValidationOption
 from troposphere.ec2 import InternetGateway, Route, RouteTable, SecurityGroup, \
     SecurityGroupIngress, Subnet, SubnetRouteTableAssociation, VPC, \
     VPCGatewayAttachment
@@ -155,7 +156,6 @@ class ConfigParser(object):
             template, sort_keys=True, indent=None, separators=(',', ': '))
 
     def base_template(self):
-        from bootstrap_cfn import vpc
         t = Template()
 
         # Get the OS specific data
@@ -430,7 +430,7 @@ class ConfigParser(object):
         map(template.add_resource, [bucket, bucket_policy])
 
     def ssl(self):
-        return self.data['ssl']
+        return self.data.get('ssl', {})
 
     def rds(self, template):
         """
@@ -730,46 +730,14 @@ class ConfigParser(object):
 
             for listener in load_balancer.Listeners:
                 if listener['Protocol'] == 'HTTPS':
-                    try:
-                        cert_name = elb['certificate_name']
-                    except KeyError:
-                        raise errors.CfnConfigError(
-                            "HTTPS listener but no certificate_name specified")
-                    try:
-                        self.ssl()[cert_name]['cert']
-                        self.ssl()[cert_name]['key']
-                    except KeyError:
-                        raise errors.CfnConfigError(
-                            "Couldn't find ssl cert {0} in config file".format(cert_name))
-
-                    listener["SSLCertificateId"] = Join("", [
-                        "arn:aws:iam::",
-                        Ref("AWS::AccountId"),
-                        ":server-certificate/",
-                        "{0}-{1}".format(cert_name, self.stack_name)]
-                    )
+                    listener["SSLCertificateId"] = self._get_ssl_certificate(template, elb.get('certificate_name', None))
                     # if not present, add the default cipher policy
                     if 'PolicyNames' not in listener:
                         logging.debug(
                             "ELB Listener for port 443 has no SSL Policy. " +
                             "Using default ELBSecurityPolicy-2015-05")
                         listener['PolicyNames'] = ['PinDownSSLNegotiationPolicy201505']
-                """
-                # Get all the listeners policy names and setup the policies they refer to
-                for policy_name in listener.get('PolicyNames', []):
-                    matched_policies = [custom_policy for custom_policy in elb_policies
-                                        if custom_policy.PolicyName == policy_name]
-                    assert(len(matched_policies) == 1)
-                    matched_policy = matched_policies[0]
-                    # Get the current ports defined in the troposphere policies config and append
-                    # the listers ports
-                    updated_instance_ports = matched_policy.properties.get('InstancePorts', [])
-                    updated_instance_ports.append("{}".format(listener['InstancePort']))
-                    matched_policy.properties['InstancePorts'] = updated_instance_ports
-                    updated_instance_ports = matched_policy.properties.get('LoadBalancerPorts', [])
-                    updated_instance_ports.append("{}".format(listener['LoadBalancerPort']))
-                    matched_policy.properties['LoadBalancerPorts'] = updated_instance_ports
-                """
+
             elb_list.append(load_balancer)
 
             dns_record = RecordSetGroup(
@@ -1109,9 +1077,117 @@ class ConfigParser(object):
 
         return resources
 
+    def _get_ssl_certificate(self, template, certificate_name):
+        # Create a certificate if required, first try to get an ACM certificate,
+        # else look for a manual SSL entry.
+        if not certificate_name:
+            raise errors.CfnConfigError("Certificate name {} is invalid.".format(certificate_name))
+
+        acm_certificate = self._get_acm_certificate(certificate_name)
+        if acm_certificate:
+            logging.info("config::_get_ssl_certificate: Found ACM certificate.")
+            template.add_resource(acm_certificate)
+            return Ref(acm_certificate)
+
+        ssl_certificate = self._get_manual_ssl_certificate(certificate_name)
+        if ssl_certificate:
+            logging.info("config::_get_ssl_certificate: Found manual SSL certificate.")
+            return ssl_certificate
+
+        raise errors.CfnConfigError("Couldn't find ACM or manual SSL certificate configuration "
+                                    "{0} in config file".format(certificate_name))
+
+    def _get_acm_certificate(self, certificate_name):
+        """
+        Creates a certficate using the settings found in the configuration file. If no entry is
+        found then it will return None.
+            acm:
+                <certificate_name>:
+                    domain: testing.example.com     # (required)
+                    subject_alternative_names:
+                        - another.example.com       # (optional)
+                    validation_domain: example.com  # (optional)
+                    tags:
+                        site: mysite              # (optional)
+
+        Args:
+            certificate_name(string): The name of the certificate config to search for.
+
+        Returns:
+            certificate<Certificate>: Troposphere certifcate object, or None.
+        """
+        acm_data = self.data.get('acm', {}).get(certificate_name, None)
+        if not acm_data:
+            logging.error("config::_get_acm_certificate: Could not find ACM configuration for {}"
+                          .format(certificate_name))
+            return None
+        domain_name = acm_data.get('domain')
+        logging.info("config::_get_acm_certificate: Creating certificate {} for domain {}"
+                     .format(certificate_name, domain_name))
+        # Generate tags
+        tags = []
+        default_resource_name_tag = self._get_default_resource_name_tag(type="acm")
+        tags.append({
+                'Key': default_resource_name_tag.data['Key'],
+                'Value': default_resource_name_tag.data['Value']})
+        # Get all tags from the config
+        for key, value in acm_data.get('tags', {}).iteritems():
+            tag_pair = {'Key': key, 'Value': value}
+            tags.append(tag_pair)
+
+        certificate = Certificate(
+            certificate_name,
+            DomainName=domain_name,
+            SubjectAlternativeNames=acm_data.get('subject_alternative_names', []),
+            DomainValidationOptions=[
+                DomainValidationOption(
+                    DomainName=domain_name,
+                    ValidationDomain=acm_data.get('validation_domain', domain_name),
+                ),
+            ],
+            Tags=tags
+        )
+        return certificate
+
+    def _get_manual_ssl_certificate(self, certificate_name):
+        """
+        Creates a certificate using the settings found in the configuration file. If no entry is
+        found then it will return None.
+            ssl:
+                <certificate_name>:
+                    key: <SSL key in PEM format>
+                    cert: <SSL certificate in PEM format>
+                    chain: <SSL chain in PEM format>
+
+        Args:
+            certificate_name(string): The name of the certificate config to search for.
+
+        Returns:
+            certificate<Certificate>: Troposphere certifcate object, or None.
+        """
+        if self.ssl().get(certificate_name, {}).get('cert', None) is None:
+            logging.error("config::_get_manual_ssl_certificate: No cert information found for {}"
+                          .format(certificate_name))
+            return None
+        if self.ssl().get(certificate_name, {}).get('key', None) is None:
+            logging.error("config::_get_manual_ssl_certificate: No key information found for {}"
+                          .format(certificate_name))
+            return None
+
+        certificate = Join(
+                            "",
+                            [
+                                "arn:aws:iam::",
+                                Ref("AWS::AccountId"),
+                                ":server-certificate/",
+                                "{0}-{1}".format(certificate_name, self.stack_name)
+                            ]
+                    )
+        return certificate
+
     @classmethod
     def _find_resources(cls, template, resource_type):
-        f = lambda x: x.resource_type == resource_type
+        def f(x): return (x.resource_type == resource_type)
         return filter(f, template.resources.values())
 
     @classmethod
@@ -1153,64 +1229,64 @@ class ConfigParser(object):
             OSTypeNotFoundError: Raised when the OS in the config file is not
                 recognised
         """
-        region=env.aws_region
+        region = env.aws_region
         os_default = 'ubuntu-1404'
         if region == 'eu-west-2':
-          available_types = {
-              'ubuntu-1604': {
-                'name': 'ubuntu-1604',
-                'ami': 'ami-57eae033',
-                'region': region,
-                'distribution': 'ubuntu',
-                'type': 'linux',
-                'release': '20161214'
-              },
-              'ubuntu-1404': {
-                'name': 'ubuntu-1404',
-                'ami': 'ami-45eae021',
-                'region': region,
-                'distribution': 'ubuntu',
-                'type': 'linux',
-                'release': '20161213'
-              },
-              'windows2012': {
-                'name': 'windows2012',
-                'ami': 'ami-bb353fdf',
-                'region': region,
-                'distribution': 'windows',
-                'type': 'windows',
-                'release': '2016.11.23'
-              }
-          }
+            available_types = {
+                'ubuntu-1604': {
+                    'name': 'ubuntu-1604',
+                    'ami': 'ami-57eae033',
+                    'region': region,
+                    'distribution': 'ubuntu',
+                    'type': 'linux',
+                    'release': '20161214'
+                },
+                'ubuntu-1404': {
+                    'name': 'ubuntu-1404',
+                    'ami': 'ami-45eae021',
+                    'region': region,
+                    'distribution': 'ubuntu',
+                    'type': 'linux',
+                    'release': '20161213'
+                },
+                'windows2012': {
+                    'name': 'windows2012',
+                    'ami': 'ami-bb353fdf',
+                    'region': region,
+                    'distribution': 'windows',
+                    'type': 'windows',
+                    'release': '2016.11.23'
+                }
+            }
         elif env.aws_region == 'eu-west-1':
-          available_types = {
-              'ubuntu-1604': {
-                'name': 'ubuntu-1604',
-                'ami': 'ami-6f587e1c',
-                'region': region,
-                'distribution': 'ubuntu',
-                'type': 'linux',
-                'release': '20161214'
-              },
-              'ubuntu-1404': {
-                  'name': 'ubuntu-1404',
-                  'ami': 'ami-f95ef58a',
-                  'region': region,
-                  'distribution': 'ubuntu',
-                  'type': 'linux',
-                  'release': '20160509.1'
-              },
-              'windows2012': {
-                  'name': 'windows2012',
-                  'ami': 'ami-8519a9f6',
-                  'region': region,
-                  'distribution': 'windows',
-                  'type': 'windows',
-                  'release': '2015.12.31'
-              }
-          }
+            available_types = {
+                'ubuntu-1604': {
+                    'name': 'ubuntu-1604',
+                    'ami': 'ami-6f587e1c',
+                    'region': region,
+                    'distribution': 'ubuntu',
+                    'type': 'linux',
+                    'release': '20161214'
+                },
+                'ubuntu-1404': {
+                    'name': 'ubuntu-1404',
+                    'ami': 'ami-f95ef58a',
+                    'region': region,
+                    'distribution': 'ubuntu',
+                    'type': 'linux',
+                    'release': '20160509.1'
+                },
+                'windows2012': {
+                    'name': 'windows2012',
+                    'ami': 'ami-8519a9f6',
+                    'region': region,
+                    'distribution': 'windows',
+                    'type': 'windows',
+                    'release': '2015.12.31'
+                }
+            }
         else:
-          raise errors.CfnConfigError('Region {} is not supported'.format(region))
+            raise errors.CfnConfigError('Region {} is not supported'.format(region))
 
         os_choice = self.data['ec2'].get('os', os_default)
         if not available_types.get(os_choice, False):

@@ -1,0 +1,213 @@
+# flake8: noqa
+AWSTemplateFormatVersion: '2010-09-09'
+Description: S3 Backed Lambda Email Forwarder for SES
+Parameters:
+  FromAddress:
+    Description: The verified SES email address to send from
+    Type: String
+  FilterAddresses:
+    Description: The destination addresses to filter
+    Type: CommaDelimitedList  
+  ForwardingAddresses:
+    Description: The destination addresses to forward the email to
+    Type: CommaDelimitedList
+Resources:
+  SESACMS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+        - ExpirationInDays: 3
+          Status: Enabled
+  SESS3BucketPolicy: 
+      Type: "AWS::S3::BucketPolicy"
+      Properties: 
+        Bucket: 
+          Ref: "SESACMS3Bucket"
+        PolicyDocument: 
+          Statement:
+              Effect: Allow
+              Principal:
+                Service: ses.amazonaws.com
+              Action: s3:PutObject
+              Resource:
+              - Fn::Join:
+                - ''
+                - - 'arn:aws:s3:::'
+                  - Ref: SESACMS3Bucket
+                  - "/*"
+              Condition:
+                StringEquals:
+                  aws:Referer:
+                    Ref: AWS::AccountId
+  LambdaSESACMForwarderRole:
+    Type: AWS::IAM::Role
+    DependsOn:
+    - SESACMS3Bucket
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: ses-send-email
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            Effect: Allow
+            Action:
+            - ses:SendEmail
+            - ses:SendRawEmail
+            Resource:
+            - "*"
+      - PolicyName: lambda-cloudwatch-access
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource:
+            - "arn:aws:logs:*:*:*"
+      - PolicyName: lambda-s3-access
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - s3:GetObject
+            Resource:
+            - Fn::Join:
+              - ''
+              - - 'arn:aws:s3:::'
+                - Ref: SESACMS3Bucket
+                - "/*"
+  SESACMForwarderLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Function for forwarding mail from S3 buckets
+      Handler: index.handler
+      Timeout: 60
+      MemorySize: 128
+      Role:
+        Fn::GetAtt:
+        - LambdaSESACMForwarderRole
+        - Arn
+      Runtime: python2.7
+      Environment:
+        Variables:
+          SESACMS3BucketName:
+            Ref: SESACMS3Bucket
+          FromAddress:
+            Ref: FromAddress
+          FilterAddresses:
+            !Join [ ",", !Ref "FilterAddresses" ]
+          ForwardingAddresses:
+            !Join [ ",", !Ref "ForwardingAddresses" ]
+      Code:
+        ZipFile: |
+            # coding: utf-8
+            import boto3
+            import email
+            import json
+            import logging
+            import os
+            logger = logging.getLogger()
+            logger.setLevel(logging.DEBUG)
+            
+            def handler(event, context):
+                logger.info("Collecting event record data...")
+                record = event["Records"][0]
+                try:
+                    logger.info("Looking for SES event...")
+                    bucket_name =  os.environ['SESACMS3BucketName']
+                    message_id =  record["ses"]["mail"]["messageId"]
+                    message_source =  record["ses"]["mail"]["source"]
+                    message_destination =  record["ses"]["mail"]["destination"]
+                except KeyError:
+                    logger.critical("There was a problem retrieving data "
+                                    "from the event record, {}".format(record))
+                    return("FAIL")
+            
+                s3_client = boto3.client('s3')
+                logger.info("Fetching s3 object: {}/{}".format(bucket_name, message_id))
+                mail_object = s3_client.get_object(Bucket = bucket_name, Key = message_id)
+                logger.info("Decoding mail body...")
+                email_data = mail_object["Body"].read().decode('utf-8')
+                    
+                # Get env variables
+                # We need to use a verified email address rather than relying on the source
+                logger.info("Retrieving environment settings...")
+                email_from = os.environ['FromAddress']
+                filter_addresses = [address.strip() for address in os.environ['FilterAddresses'].split(",")]
+                forwarding_addresses = [address.strip() for address in os.environ['ForwardingAddresses'].split(",")]
+                # Filter out addresses
+                filtered_addresses = [address for address in message_destination if address in filter_addresses]
+                
+                if len(filtered_addresses) == 0:
+                    logger.debug("No filtering addresses found, skipping message...")
+                    return ("CONTINUE")    
+                logger.info("Found filtering addresses {}, "
+                            "forwarding the message...".format(','.join(filtered_addresses)))
+
+                email_object = email.message_from_string(email_data)
+                email_subject = email_object.get('Subject', 'Verification message for ACM')
+                logger.info("Parsing mail: {}".format(email_subject))
+                email_text=""
+
+                for part in email_object.walk():
+                    c_type = part.get_content_type()
+                    c_disp = part.get('Content-Disposition')
+                    if c_type == 'text/plain' and c_disp == None:
+                        email_text = email_text + '\n' + part.get_payload()
+                    else:
+                        continue
+                logger.info("Connecting to SES client")
+                ses_client = boto3.client('ses')
+                response = ses_client.send_email(
+                    Source=email_from,
+                    Destination={
+                        'ToAddresses': forwarding_addresses
+                    },
+                    Message={
+                        'Subject': {
+                            'Data': email_subject,
+                        },
+                        'Body': {
+                            'Text': {
+                                'Data': email_text,
+                            }
+                        }
+                    },
+                    Tags=[
+                        {
+                            'Name': 'string',
+                            'Value': 'string'
+                        },
+                    ],
+                )
+                logger.info("Sent verification email successfully to {}".format(','.join(forwarding_addresses)))
+            
+                return "CONTINUE"
+
+Outputs:
+  SESACMS3BucketName:
+    Description: The bucket that stores SES ACM mail
+    Value:
+        Ref: SESACMS3Bucket
+  SESACMFromAddress:
+    Description: The address that sends SES mail
+    Value:
+      Ref: FromAddress
+  SESACMFilterAddresses:
+    Description: The addresses filtered to be forwarded
+    Value: !Join [ ",", !Ref "FilterAddresses" ]
+  SESACMToAddresses:
+    Description: The addresses that will receive SES mail
+    Value: !Join [ ",", !Ref "ForwardingAddresses" ]
