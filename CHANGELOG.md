@@ -1,3 +1,8 @@
+## v1.3.0
+
+Fixes:
+* Drop awsencode use in tests
+
 ## v1.3.0rc1
 
 Fixes:
