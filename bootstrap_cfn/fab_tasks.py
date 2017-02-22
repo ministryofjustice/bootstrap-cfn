@@ -23,7 +23,7 @@ from bootstrap_cfn.config import ConfigParser, ProjectConfig
 from bootstrap_cfn.elb import ELB
 from bootstrap_cfn.errors import (ActiveTagExistConflictError, BootstrapCfnError,
                                   CfnConfigError, CloudResourceNotFoundError, DNSRecordNotFoundError,
-                                  PublicELBNotFoundError, StackRecordNotFoundError, TagRecordExistConflictError,
+                                  StackRecordNotFoundError, TagRecordExistConflictError,
                                   TagRecordNotFoundError, UpdateDNSRecordError, UpdateDeployarnRecordError,
                                   ZoneIDNotFoundError)
 from bootstrap_cfn.iam import IAM
@@ -75,27 +75,35 @@ def aws(profile_name, region=None):
     # If we are overriding the aws region, set it here,
     # otherwise, we will rely on the aws credentials setup
     if region is not None:
-      env.aws_region = str(region).lower()
-      logger.info("fab_tasks::aws: Setting profile {}, "
-                  "region {}, and creating session..."
-                  .format(env.aws, env.aws_region))
-      boto3.setup_default_session(profile_name=env.aws,
-                                  region_name=env.aws_region)
+        env.aws_region = str(region).lower()
+        logger.info("fab_tasks::aws: Setting profile {}, "
+                    "region {}, and creating session..."
+                    .format(env.aws, env.aws_region))
+        boto3.setup_default_session(profile_name=env.aws,
+                                    region_name=env.aws_region)
     else:
-      boto3.setup_default_session(profile_name=env.aws)
-      logger.info("fab_tasks::aws: No region specified, "
-                  "using profile information only...")
+        boto3.setup_default_session(profile_name=env.aws)
+        logger.info("fab_tasks::aws: No region specified, "
+                    "using profile information only...")
     # If we have no default region in our credentials session,
     # set one.
-    if boto3.DEFAULT_SESSION.region_name is None:
+    try:
+        if boto3.DEFAULT_SESSION.region_name is not None:
+            env.aws_region = boto3.DEFAULT_SESSION.region_name
+        else:
+            logger.info("fab_tasks::aws: No region found in credentials, "
+                        "setting region to default, {}..."
+                        .format(default_region))
+            boto3.setup_default_session(profile_name=env.aws,
+                                        region_name=default_region)
+            env.aws_region = default_region
+    except AttributeError:
         logger.info("fab_tasks::aws: No region found in credentials, "
                     "setting region to default, {}..."
-                  .format(default_region))
+                    .format(default_region))
         boto3.setup_default_session(profile_name=env.aws,
                                     region_name=default_region)
         env.aws_region = default_region
-    else:
-        env.aws_region = boto3.DEFAULT_SESSION.region_name
 
 
 @task
@@ -1015,7 +1023,7 @@ def get_all_elbs(f=None):
     returns True, or everything.
     """
     cfn_config = get_config()
-    elbs = [x.get('name') for x in cfn_config.data.get('elb', {}) if x.get('scheme') in ['internet-facing','internal']]
+    elbs = [x.get('name') for x in cfn_config.data.get('elb', {}) if x.get('scheme') in ['internet-facing', 'internal']]
     return filter(f, elbs) if f else elbs
 
 
