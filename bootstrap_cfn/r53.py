@@ -98,7 +98,17 @@ class R53(object):
             changes.commit()
         return True
 
-    def delete_record(self, zone_name, zone_id, elb_name, stack_id, stack_tag, txt_tag_record):
+    def delete_txt_record(self, zone_name, zone_id, txt_tag_record):
+
+        # delete TXT record
+        txt_record_name = "{}.{}".format(txt_tag_record, zone_name)
+        txt_record_value = '"{}"'.format(self.get_record(
+                zone_name, zone_id, txt_tag_record, 'TXT'))
+        if txt_record_value:
+            self.delete_dns_record(zone_id, txt_record_name, 'TXT', txt_record_value)
+        return True
+
+    def delete_alias_record(self, zone_name, zone_id, elb_name, stack_id, stack_tag):
         '''
         Delete "active" or tagged Alias and TXT records if they exist
         Args:
@@ -131,13 +141,6 @@ class R53(object):
                 active_alias_record_name = "{}.{}".format(active_elb_name, zone_name)
                 self.delete_dns_record(zone_id, active_alias_record_name, 'A', active_alias_record_value, is_alias=True)
 
-        # delete TXT record
-        txt_record_name = "{}.{}".format(txt_tag_record, zone_name)
-        txt_record_value = '"{}"'.format(self.get_record(
-                zone_name, zone_id, txt_tag_record, 'TXT'))
-        if txt_record_value:
-            self.delete_dns_record(zone_id, txt_record_name, 'TXT', txt_record_value)
-        return True
 
     def get_record(self, zone_name, zone_id, record_name, record_type):
         """
