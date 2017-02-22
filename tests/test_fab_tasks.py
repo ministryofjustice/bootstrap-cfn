@@ -6,7 +6,7 @@ import boto
 import yaml
 
 
-from bootstrap_cfn import cloudformation, config, errors, fab_tasks, iam, r53
+from bootstrap_cfn import cloudformation, config, fab_tasks, iam, r53
 from mock import patch, Mock  # noqa
 
 
@@ -167,7 +167,7 @@ class TestFabTasks(unittest.TestCase):
         filtered_elbs = fab_tasks.get_all_elbs(regex.match)
         self.assertEqual(filtered_elbs, ["unittest2"])
 
-    @patch('bootstrap_cfn.fab_tasks.get_all_elbs', return_value=["unittest_elb"])
+    @patch('bootstrap_cfn.fab_tasks.get_public_elbs', return_value=["unittest_elb"])
     def test_get_first_public_elb(self, get_all_elbs_function):
         '''
         Check if get_first_public_elb() returns the first internet facing elb
@@ -182,7 +182,7 @@ class TestFabTasks(unittest.TestCase):
     @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
     @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
     @patch('bootstrap_cfn.fab_tasks.get_zone_id', return_value="ASDAKSLDK")
-    @patch('bootstrap_cfn.fab_tasks.get_public_elbs', return_value=["unittest_elb"])
+    @patch('bootstrap_cfn.fab_tasks.get_all_elbs', return_value=["unittest_elb"])
     def test_get_active_stack(self, get_public_elbs_function,
                               get_zone_id_function,
                               get_legacy_name_function,
@@ -212,7 +212,7 @@ class TestFabTasks(unittest.TestCase):
     @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
     @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
     @patch('bootstrap_cfn.fab_tasks.get_zone_id', return_value="ASDAKSLDK")
-    @patch('bootstrap_cfn.fab_tasks.get_public_elbs', return_value=["unittest_elb"])
+    @patch('bootstrap_cfn.fab_tasks.get_all_elbs', return_value=["unittest_elb"])
     @patch('bootstrap_cfn.fab_tasks.get_first_public_elb', return_value="unittest_elb")
     def test_set_active_stack(self, get_public_elbs_function,
                               get_first_public_elb_function,
