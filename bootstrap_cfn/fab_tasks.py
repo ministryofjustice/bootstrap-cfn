@@ -610,13 +610,18 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
     zone_id = get_zone_id()
     zone_name = get_zone_name()
 
-    txt_tag_record = get_tag_record_name(stack_tag)
+    try:
+        txt_tag_record = get_tag_record_name(stack_tag)
+        print green("\nDELETING TXT RECORDS {}-{}...\n".format(txt_tag_record, zone_name))
+        r53_conn.delete_txt_record(zone_name, zone_id, txt_tag_record)
+    except boto.route53.exception.DNSServerError:
+            pass
 
-    print green("\nDELETING DNS RECORDS...\n")
     for elb in get_all_elbs():
         logger.info("Deleting '{}-{}' from '{}' ({})...".format(elb, stack_id, zone_name, zone_id))
         try:
-            r53_conn.delete_record(zone_name, zone_id, elb, stack_id, stack_tag, txt_tag_record)
+            print green("\nDELETING Alias RECORDS {}-{}-{}...\n".format(elb, stack_id, zone_name))
+            r53_conn.delete_alias_record(zone_name, zone_id, elb, stack_id, stack_tag)
         except boto.route53.exception.DNSServerError:
             pass
 
