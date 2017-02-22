@@ -23,7 +23,7 @@ from bootstrap_cfn.config import ConfigParser, ProjectConfig
 from bootstrap_cfn.elb import ELB
 from bootstrap_cfn.errors import (ActiveTagExistConflictError, BootstrapCfnError,
                                   CfnConfigError, CloudResourceNotFoundError, DNSRecordNotFoundError,
-                                  PublicELBNotFoundError, StackRecordNotFoundError, TagRecordExistConflictError,
+                                  StackRecordNotFoundError, TagRecordExistConflictError,
                                   TagRecordNotFoundError, UpdateDNSRecordError, UpdateDeployarnRecordError,
                                   ZoneIDNotFoundError)
 from bootstrap_cfn.iam import IAM
@@ -75,27 +75,35 @@ def aws(profile_name, region=None):
     # If we are overriding the aws region, set it here,
     # otherwise, we will rely on the aws credentials setup
     if region is not None:
-      env.aws_region = str(region).lower()
-      logger.info("fab_tasks::aws: Setting profile {}, "
-                  "region {}, and creating session..."
-                  .format(env.aws, env.aws_region))
-      boto3.setup_default_session(profile_name=env.aws,
-                                  region_name=env.aws_region)
+        env.aws_region = str(region).lower()
+        logger.info("fab_tasks::aws: Setting profile {}, "
+                    "region {}, and creating session..."
+                    .format(env.aws, env.aws_region))
+        boto3.setup_default_session(profile_name=env.aws,
+                                    region_name=env.aws_region)
     else:
-      boto3.setup_default_session(profile_name=env.aws)
-      logger.info("fab_tasks::aws: No region specified, "
-                  "using profile information only...")
+        boto3.setup_default_session(profile_name=env.aws)
+        logger.info("fab_tasks::aws: No region specified, "
+                    "using profile information only...")
     # If we have no default region in our credentials session,
     # set one.
-    if boto3.DEFAULT_SESSION.region_name is None:
+    try:
+        if boto3.DEFAULT_SESSION.region_name is not None:
+            env.aws_region = boto3.DEFAULT_SESSION.region_name
+        else:
+            logger.info("fab_tasks::aws: No region found in credentials, "
+                        "setting region to default, {}..."
+                        .format(default_region))
+            boto3.setup_default_session(profile_name=env.aws,
+                                        region_name=default_region)
+            env.aws_region = default_region
+    except AttributeError:
         logger.info("fab_tasks::aws: No region found in credentials, "
                     "setting region to default, {}..."
-                  .format(default_region))
+                    .format(default_region))
         boto3.setup_default_session(profile_name=env.aws,
                                     region_name=default_region)
         env.aws_region = default_region
-    else:
-        env.aws_region = boto3.DEFAULT_SESSION.region_name
 
 
 @task
@@ -605,7 +613,7 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
     txt_tag_record = get_tag_record_name(stack_tag)
 
     print green("\nDELETING DNS RECORDS...\n")
-    for elb in get_public_elbs():
+    for elb in get_all_elbs():
         logger.info("Deleting '{}-{}' from '{}' ({})...".format(elb, stack_id, zone_name, zone_id))
         try:
             r53_conn.delete_record(zone_name, zone_id, elb, stack_id, stack_tag, txt_tag_record)
@@ -889,6 +897,7 @@ def set_active_stack(stack_tag, force=False):
             sys.exit(1)
 
     try:
+        set_active_deployarn(stack_tag)
         r53_conn.update_dns_record(zone_id, "{}.{}".format(active_record, get_zone_name()), 'TXT',
                                    '"{}"'.format(tag_stack_id))
         logger.info("fab_tasks::set_active_stack: Successfully updated DNS "
@@ -896,7 +905,7 @@ def set_active_stack(stack_tag, force=False):
     except Exception:
         raise UpdateDNSRecordError
 
-    elbs = get_public_elbs()
+    elbs = get_all_elbs()
     logger.info('fab_tasks::set_active_stack: Found ELBs matching the stack: %s',
                 ', '.join(elbs))
     for elb in elbs:
@@ -917,7 +926,6 @@ def set_active_stack(stack_tag, force=False):
         except Exception:
             raise StackRecordNotFoundError(record_name)
     try:
-        set_active_deployarn(stack_tag)
         print green("Active stack switched to '{}' ({}).".format(tag_record, tag_stack_id))
         return True
     except:
@@ -941,12 +949,13 @@ def set_active_deployarn(stack_tag):
     r53 = get_connection(R53)
     try:
         tag_arn_value = r53.get_deployarn_record(get_zone_id(), tag_arn_record, 'TXT')
-        if not tag_arn_value:
-            raise StackRecordNotFoundError(tag_arn_value)
-        print "Active deployarn was set to: {0}".format(tag_arn_value)
+        if tag_arn_value is None:
+            raise StackRecordNotFoundError('{}. Make sure you run "set_deploy_arn" on {}'
+                                           ' before set_active_stack'.format(tag_arn_value), stack_tag)
         zone_id = get_zone_id()
         try:
             r53.update_dns_record(zone_id, active_arn_record, 'TXT', '"{0}"'.format(tag_arn_value))
+            print "Active deployarn was set to: {0}".format(tag_arn_value)
         except:
             raise UpdateDeployarnRecordError
     except:
@@ -980,7 +989,7 @@ def get_active_stack():
         active_stack_id = r53_conn.get_record(zone_name, zone_id, active_record, 'TXT')
 
         records = []
-        for elb in get_public_elbs():
+        for elb in get_all_elbs():
             dns_record_name = '{}-{}'.format(elb, active_stack_id)
 
             main_record_value = r53_conn.get_record(zone_name, zone_id, elb, 'A')
@@ -1007,6 +1016,17 @@ def get_active_stack():
 
 def get_all_elbs(f=None):
     """
+    Returns a list of internet-facing and internal ELBs from the CloudFormation
+    configuration containing items for which the filter function f
+    returns True, or everything.
+    """
+    cfn_config = get_config()
+    elbs = [x.get('name') for x in cfn_config.data.get('elb', {}) if x.get('scheme') in ['internet-facing', 'internal']]
+    return filter(f, elbs) if f else elbs
+
+
+def get_public_elbs(f=None):
+    """
     Returns a list of internet-facing ELBs from the CloudFormation
     configuration containing items for which the filter function f
     returns True, or everything.
@@ -1016,21 +1036,11 @@ def get_all_elbs(f=None):
     return filter(f, elbs) if f else elbs
 
 
-def get_public_elbs(f=None):
-    """
-    Returns a list of internet-facing ELBs from the CloudFormation
-    configuration containing items for which the filter function f
-    returns True, or everything. or None if empty.
-    """
-    elbs = get_all_elbs(f)
-    return elbs
-
-
 def get_first_public_elb():
     """
     Returns the first public ELB if exists or None.
     """
-    elbs = get_all_elbs()
+    elbs = get_public_elbs()
     return next(iter(elbs), None)
 
 
