@@ -141,7 +141,6 @@ class R53(object):
                 active_alias_record_name = "{}.{}".format(active_elb_name, zone_name)
                 self.delete_dns_record(zone_id, active_alias_record_name, 'A', active_alias_record_value, is_alias=True)
 
-
     def get_record(self, zone_name, zone_id, record_name, record_type):
         """
 
