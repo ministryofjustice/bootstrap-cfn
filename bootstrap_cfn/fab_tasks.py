@@ -697,7 +697,17 @@ def cfn_create(test=False):
     """
     _validate_fabric_env()
     stack_name = get_stack_name(new=True)
+    stack_id = stack_name.split('-')[-1]
     cfn_config = get_config(called_by_cfn_create=True)
+    try:
+        stack_tag = get_env_tag()
+    except AttributeError:
+        stack_tag = 'active'
+        env.tag = stack_tag
+    r53_conn = get_connection(R53)
+    zone_name = get_zone_name()
+    zone_id = get_zone_id()
+    txt_tag_record = get_tag_record_name(stack_tag)
 
     cfn = get_connection(Cloudformation)
     if test:
@@ -738,7 +748,14 @@ def cfn_create(test=False):
         # So delete the SSL cert that we uploaded
         if 'ssl' in cfn_config.data:
             iam.delete_ssl_certificate(cfn_config.ssl(), stack_name)
-        abort('Failed to create stack: {0}'.format(stack))
+        # delete the DNS tag
+        logger.info("Deleting DNS tag for '{stack} from '{zone}'...".format(stack=stack_id, zone=zone_name))
+        try:
+            print green("Removing tag stack from DNS...")
+            r53_conn.delete_txt_record(zone_name, zone_id, txt_tag_record)
+        except boto.route53.exception.DNSServerError:
+            print red("Failed to remove DNS tag")
+        abort(red('Failed to create stack: {0}. You may want to delete it manually.'.format(stack)))
     return True
 
 
