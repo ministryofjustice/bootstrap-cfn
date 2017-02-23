@@ -1,0 +1,45 @@
+# noqa
+dev:
+  ec2:
+    tags:
+      Apps: test
+    security_groups:
+      AnotherSG:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupName:
+            Ref: BaseHostSG
+      BaseHostSG:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+  elb:
+    - name: helloworld
+      hosted_zone: test.dsd.io.
+      scheme: internet-facing
+      certificate_name: mycert
+      listeners:
+        - LoadBalancerPort: 80
+          InstancePort: 80
+          Protocol: TCP
+        - LoadBalancerPort: 443
+          InstancePort: 443
+          Protocol: TCP
+  acm:
+    mycert:
+      domain: helloworld.test.dsd.io
+      subject_alternative_names:
+          - goodbye.test.dsd.io
+          - hello_again.test.dsd.io
+      validation_domain: dsd.io
+      tags:
+        test_key1: test_value_1
+        test_key2: test_value_2
+    mycert-dev.something.io:
+      domain: helloworld.test.dsd.io
