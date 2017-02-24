@@ -37,15 +37,25 @@ class TestConfigParser(unittest.TestCase):
         ]
         subject_alternative_names = ['goodbye.test.dsd.io', 'hello_again.test.dsd.io']
 
-        domain_validation_options = DomainValidationOption(
-            DomainName=domain_name,
-            ValidationDomain=validation_domain
-        )
+        domain_validation_options = [
+            DomainValidationOption(
+                DomainName=domain_name,
+                ValidationDomain=validation_domain
+            ),
+            DomainValidationOption(
+                DomainName=subject_alternative_names[0],
+                ValidationDomain=validation_domain
+            ),
+            DomainValidationOption(
+                DomainName=subject_alternative_names[1],
+                ValidationDomain=validation_domain
+            )
+        ]
         ACMCertificate = Certificate(
                 certificate_name,
                 DomainName=domain_name,
                 SubjectAlternativeNames=subject_alternative_names,
-                DomainValidationOptions=[domain_validation_options],
+                DomainValidationOptions=domain_validation_options,
                 Tags=tags
             )
         certificate_cfg = [config_parser._get_acm_certificate(certificate_name)]
