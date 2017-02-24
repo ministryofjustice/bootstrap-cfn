@@ -1083,11 +1083,20 @@ class ConfigParser(object):
         if not certificate_name:
             raise errors.CfnConfigError("Certificate name {} is invalid.".format(certificate_name))
 
-        acm_certificate = self._get_acm_certificate(certificate_name)
-        if acm_certificate:
+        acm_mode = self.data.get('acm', None)
+
+        if acm_mode:
             logging.info("config::_get_ssl_certificate: Found ACM certificate.")
-            template.add_resource(acm_certificate)
-            return Ref(acm_certificate)
+            #
+            # Try and reuse a certificate if it already exists in the tempalte
+            #
+            existing = template.resources.get(certificate_name)
+            if not existing:
+                acm_certificate = self._get_acm_certificate(certificate_name)
+                template.add_resource(acm_certificate)
+                return Ref(acm_certificate)
+            else:
+                return Ref(existing)
 
         ssl_certificate = self._get_manual_ssl_certificate(certificate_name)
         if ssl_certificate:
@@ -1134,20 +1143,30 @@ class ConfigParser(object):
         for key, value in acm_data.get('tags', {}).iteritems():
             tag_pair = {'Key': key, 'Value': value}
             tags.append(tag_pair)
+
         # Parse the certificate key to get a cloudformation compatible canonical name
         canonical_certificate_name = self._get_alphanumeric_name(certificate_name)
+
+
+        #
+        # One domain validation option for main domain and add one entry for
+        # each domain in SAN
+        #
+        validation_domain = acm_data.get('validation_domain', domain_name)
+        dnv = [DomainValidationOption(
+                    DomainName=domain_name,
+                    ValidationDomain=validation_domain)]
+        dnv += [DomainValidationOption(
+            DomainName=d,
+            ValidationDomain=validation_domain)
+         for d in acm_data.get('subject_alternative_names', [])]
+
         certificate = Certificate(
             canonical_certificate_name,
             DomainName=domain_name,
             SubjectAlternativeNames=acm_data.get('subject_alternative_names', []),
-            DomainValidationOptions=[
-                DomainValidationOption(
-                    DomainName=domain_name,
-                    ValidationDomain=acm_data.get('validation_domain', domain_name),
-                ),
-            ],
-            Tags=tags
-        )
+            DomainValidationOptions=dnv,
+            Tags=tags)
         return certificate
 
     def _get_manual_ssl_certificate(self, certificate_name):
