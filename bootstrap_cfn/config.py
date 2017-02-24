@@ -1134,9 +1134,10 @@ class ConfigParser(object):
         for key, value in acm_data.get('tags', {}).iteritems():
             tag_pair = {'Key': key, 'Value': value}
             tags.append(tag_pair)
-
+        # Parse the certificate key to get a cloudformation compatible canonical name
+        canonical_certificate_name = self._get_alphanumeric_name(certificate_name)
         certificate = Certificate(
-            certificate_name,
+            canonical_certificate_name,
             DomainName=domain_name,
             SubjectAlternativeNames=acm_data.get('subject_alternative_names', []),
             DomainValidationOptions=[
@@ -1193,6 +1194,11 @@ class ConfigParser(object):
     @classmethod
     def _get_elb_canonical_name(cls, elb_yaml_name):
         return 'ELB-{}'.format(elb_yaml_name.replace('.', ''))
+
+    @classmethod
+    def _get_alphanumeric_name(cls, name):
+        parsed_name = "".join([c if c.isalnum() else "" for c in name])
+        return parsed_name
 
     def get_keyname(self):
         return self.keyname
