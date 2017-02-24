@@ -1083,11 +1083,20 @@ class ConfigParser(object):
         if not certificate_name:
             raise errors.CfnConfigError("Certificate name {} is invalid.".format(certificate_name))
 
-        acm_certificate = self._get_acm_certificate(certificate_name)
-        if acm_certificate:
+        acm_mode = self.data.get('acm', None)
+
+        if acm_mode:
             logging.info("config::_get_ssl_certificate: Found ACM certificate.")
-            template.add_resource(acm_certificate)
-            return Ref(acm_certificate)
+            #
+            # Try and reuse a certificate if it already exists in the tempalte
+            #
+            existing = template.resources.get(certificate_name)
+            if not existing:
+                acm_certificate = self._get_acm_certificate(certificate_name)
+                template.add_resource(acm_certificate)
+                return Ref(acm_certificate)
+            else:
+                return Ref(existing)
 
         ssl_certificate = self._get_manual_ssl_certificate(certificate_name)
         if ssl_certificate:
