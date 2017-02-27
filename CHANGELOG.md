@@ -1,3 +1,14 @@
+## v1.4.1
+
+Fixes:
+* Fix ACM alternative name tests
+* Correct domain validation option for each host in subject alternative name
+* Fix ACM certificate functionality.
+* Parse ACM key into alphanumeric
+* Add try catch on txt record deletion
+* Fix unit tests on get_all_elbs
+* Fix set_active_stack bug on internal LB
+
 ## v1.4.0
 
 Features:
