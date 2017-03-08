@@ -293,6 +293,52 @@ class TestConfigParser(unittest.TestCase):
         actual_outputs = self._resources_to_dict(template.outputs.values())
         compare(expected_outputs, actual_outputs)
 
+    def test_s3_wrong_lifecycles(self):
+        '''
+        Tests an s3 scenario where the lifecycles is not a dict
+        '''
+        conf_under_test = {
+            'buckets': [
+                {
+                    'name': 'testbucket1',
+                    'lifecycles': {
+                        '/directory2': [],
+                    }
+                }
+            ]
+        }
+
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        project_config.config['s3'] = conf_under_test
+        config = ConfigParser(project_config.config, 'my-stack-name')
+
+        with self.assertRaises(errors.CfnConfigError):
+            template = Template()
+            config.s3(template)
+
+    def test_s3_noexpirationdays(self):
+        '''
+        Tests an s3 scenario where the lifecycles is not a dict
+        '''
+        conf_under_test = {
+            'buckets': [
+                {
+                    'name': 'testbucket1',
+                    'lifecycles': {
+                        '/directory1': {'noexpirationdays': 154},
+                    }
+                }
+            ]
+        }
+
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        project_config.config['s3'] = conf_under_test
+        config = ConfigParser(project_config.config, 'my-stack-name')
+
+        with self.assertRaises(errors.CfnConfigError):
+            template = Template()
+            config.s3(template)
+
     def test_s3_total(self):
         '''
         Tests an s3 scenario with a static-bucket-name, and three buckets:

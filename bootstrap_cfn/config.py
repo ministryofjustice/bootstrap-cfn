@@ -441,29 +441,43 @@ class ConfigParser(object):
 
     def create_s3_lifecyclerules(self, rules):
         if not rules:
-            return
-
-        r = []
+            raise errors.CfnConfigError("No expiration rules defines for lifecycles attribute")
 
         try:
             root = rules.pop('/')
         except KeyError:
             root = None
 
+        r = []
         if root:
+            expiration = self._validate_s3_lifecycles(root)
             logging.debug("Root directory lifecycle rule detected. Ignoring other rules if defined.")
             r.append(LifecycleRule(Id="lifecyclerule_root",
                                    Status="Enabled",
-                                   ExpirationInDays=root['expirationdays']))
+                                   ExpirationInDays=expiration))
         else:
             for directory in rules:
+                expiration = self._validate_s3_lifecycles(rules[directory])
                 r.append(LifecycleRule(Id="lifecyclerule_{0}".format(self._get_alphanumeric_name(directory)),
                                        Prefix=directory,
                                        Status="Enabled",
-                                       ExpirationInDays=rules[directory]['expirationdays']))
+                                       ExpirationInDays=expiration))
 
         lifecycle_cfg = LifecycleConfiguration(Rules=r)
         return lifecycle_cfg
+
+    def _validate_s3_lifecycles(self, rule):
+        if type(rule) is not dict:
+            raise errors.CfnConfigError("Prefixes defined under lifecycles attribute must be dictionaries")
+
+        try:
+            expiration = int(rule.get('expirationdays'))
+        except KeyError:
+            raise errors.CfnConfigError("No expiration length defined in s3 lifecycle")
+        except:
+            raise errors.CfnConfigError("Expiration length is ill defined in s3 lifecycle: other error")
+
+        return expiration
 
     def ssl(self):
         return self.data.get('ssl', {})
