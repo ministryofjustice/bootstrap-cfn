@@ -112,6 +112,8 @@ def tail(stack, stack_name):
             break
         elif stack.stack_done(stack_name):
             break
+        elif stack.stack_delete_done(stack_name):
+            break
         events = get_events(stack, stack_name)
         for e in events:
             if e.event_id not in seen:
