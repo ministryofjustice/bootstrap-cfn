@@ -293,6 +293,171 @@ class TestConfigParser(unittest.TestCase):
         actual_outputs = self._resources_to_dict(template.outputs.values())
         compare(expected_outputs, actual_outputs)
 
+    def test_s3_wrong_lifecycles(self):
+        '''
+        Tests an s3 scenario where the lifecycles is not a dict
+        '''
+        conf_under_test = {
+            'buckets': [
+                {
+                    'name': 'testbucket1',
+                    'lifecycles': {
+                        '/directory2': [],
+                    }
+                }
+            ]
+        }
+
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        project_config.config['s3'] = conf_under_test
+        config = ConfigParser(project_config.config, 'my-stack-name')
+
+        with self.assertRaises(errors.CfnConfigError):
+            template = Template()
+            config.s3(template)
+
+    def test_s3_noexpirationdays(self):
+        '''
+        Tests an s3 scenario where the lifecycles is not a dict
+        '''
+        conf_under_test = {
+            'buckets': [
+                {
+                    'name': 'testbucket1',
+                    'lifecycles': {
+                        '/directory1': {'noexpirationdays': 154},
+                    }
+                }
+            ]
+        }
+
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        project_config.config['s3'] = conf_under_test
+        config = ConfigParser(project_config.config, 'my-stack-name')
+
+        with self.assertRaises(errors.CfnConfigError):
+            template = Template()
+            config.s3(template)
+
+    def test_s3_total(self):
+        '''
+        Tests an s3 scenario with a static-bucket-name, and three buckets:
+        - testbucket1 with a multiple overlapping lifecycle entries
+        - testbucket2 with a single bucket lifecycle entry on a directory prefix
+        - testbucket3 with an entire bucket lifecycle entry
+        '''
+        conf_under_test = {
+            'static-bucket-name': 'moj-test-dev-static',
+            'buckets': [
+                {
+                    'name': 'testbucket1',
+                    'lifecycles': {
+                        '/directory1': {'expirationdays': 60},
+                        '/directory2': {'expirationdays': 80},
+                        '/directory3': {'expirationdays': 90},
+                        '/': {'expirationdays': 1}
+                    }
+                },
+                {
+                    'name': 'testbucket2',
+                    'lifecycles': {
+                        '/directory1': {'expirationdays': 5}
+                    }
+                },
+                {
+                    'name': 'testbucket3',
+                    'lifecycles': {
+                        '/': {'expirationdays': 2}
+                    }
+                }
+            ]
+        }
+
+        # Resources to compare
+        bucket = s3.Bucket('StaticBucket')
+        bucket.AccessControl = 'BucketOwnerFullControl'
+        bucket.BucketName = 'moj-test-dev-static'
+        bucket_ref = Ref(bucket)
+
+        static_bp = s3.BucketPolicy('StaticBucketPolicy')
+        resource_value = Join("", ["arn:aws:s3:::", {"Ref": "StaticBucket"}, "/*"])
+
+        static_bp.PolicyDocument = {
+            'Statement': [
+                {
+                    'Action': [
+                        's3:GetObject'],
+                    'Resource': resource_value,
+                    'Effect': 'Allow',
+                    'Principal': '*'
+                }
+            ]
+        }
+        static_bp.Bucket = bucket_ref
+
+        def _policy(x):
+            return {
+                'Action': ['s3:DeleteObject', 's3:GetObject', 's3:PutObject'],
+                "Resource": Join("", ["arn:aws:s3:::", Ref(x), "/*"]),
+                'Effect': 'Allow',
+                'Principal': '*',
+                "Condition": {
+                    "StringEquals": {
+                        "aws:sourceVpc": {"Ref": "VPC"}
+                    }
+                }
+            }
+
+        bucket1 = s3.Bucket("testbucket1",
+                            AccessControl='BucketOwnerFullControl',
+                            LifecycleConfiguration=s3.LifecycleConfiguration(
+                                Rules=[s3.LifecycleRule(Id="lifecyclerule_root",
+                                                        Status="Enabled",
+                                                        ExpirationInDays=1)]))
+        bucket_policy1 = s3.BucketPolicy(
+            "{}Policy".format("testbucket1"),
+            Bucket=Ref(bucket1),
+            PolicyDocument={"Statement": [_policy(bucket1)]}
+        )
+
+        bucket2 = s3.Bucket("testbucket2",
+                            AccessControl='BucketOwnerFullControl',
+                            LifecycleConfiguration=s3.LifecycleConfiguration(
+                                Rules=[s3.LifecycleRule(Id="lifecyclerule_directory1",
+                                                        Prefix="/directory1",
+                                                        Status="Enabled",
+                                                        ExpirationInDays=5)]))
+        bucket_policy2 = s3.BucketPolicy(
+            "{}Policy".format("testbucket2"),
+            Bucket=Ref(bucket2),
+            PolicyDocument={"Statement": [_policy(bucket2)]}
+        )
+
+        bucket3 = s3.Bucket("testbucket3",
+                            AccessControl='BucketOwnerFullControl',
+                            LifecycleConfiguration=s3.LifecycleConfiguration(
+                                Rules=[s3.LifecycleRule(Id="lifecyclerule_root",
+                                                        Status="Enabled",
+                                                        ExpirationInDays=2)]))
+        bucket_policy3 = s3.BucketPolicy(
+            "{}Policy".format("testbucket3"),
+            Bucket=Ref(bucket3),
+            PolicyDocument={"Statement": [_policy(bucket3)]}
+        )
+
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        project_config.config['s3'] = conf_under_test
+        config = ConfigParser(project_config.config, 'my-stack-name')
+
+        # Create S3 resources in template
+        template = Template()
+        config.s3(template)
+        resources = template.resources.values()
+
+        compare(self._resources_to_dict(resources),
+                self._resources_to_dict([static_bp, bucket, bucket1, bucket_policy1,
+                                         bucket2, bucket_policy2, bucket3, bucket_policy3]))
+
     def test_rds(self):
 
         template = Template()

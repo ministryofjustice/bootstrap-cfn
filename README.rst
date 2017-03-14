@@ -558,9 +558,19 @@ These entries can also specify their own policies or use the default, vpc limite
       buckets:
          - name: mybucketid
            policy: some_policy
+           lifecycles:
+             /prefix1:
+               expirationdays: 60
+             /prefix2:
+               expirationdays: 30
          - name: myotherbucketid
+           lifecycles:
+             /:
+             expirationdays: 5
 
-The outputs of these buckets will be the bucket name postfixed by 'BucketName', ie, mybucketidBucketName
+The outputs of these buckets will be the bucket name postfixed by 'BucketName', ie, mybucketidBucketName. Additionally, and as shown above, one can define a list of Lifecycle rules on a per prefix basis. If a root rule is defined, the rest of the rules are ignored.
+
+Currently, only non-versioned buckets are supported. 
 
 Includes
 --------
