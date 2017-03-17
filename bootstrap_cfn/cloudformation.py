@@ -35,6 +35,13 @@ class Cloudformation:
             return True
         return False
 
+    def stack_delete_done(self, stack_id):
+        stack_events = self.conn_cfn.describe_stack_events(stack_id)
+        if stack_events[0].resource_type == 'AWS::CloudFormation::Stack'\
+                and stack_events[0].resource_status in ['DELETE_COMPLETE', 'DELETE_FAILED']:
+            return True
+        return False
+
     def wait_for_stack_done(self, stack_id, timeout=3600, interval=30):
         return utils.timeout(timeout, interval)(self.stack_done)(stack_id)
 

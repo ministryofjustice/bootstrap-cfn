@@ -235,6 +235,60 @@ class CfnTestCase(unittest.TestCase):
         self.assertFalse(cloudformation.Cloudformation(
             self.env.aws_profile).stack_done(self.stack_name))
 
+    def test_stack_delete_done(self):
+        stack_evt_mock = mock.Mock()
+        rt = mock.PropertyMock(return_value='AWS::CloudFormation::Stack')
+        rs = mock.PropertyMock(return_value='DELETE_COMPLETE')
+        type(stack_evt_mock).resource_type = rt
+        type(stack_evt_mock).resource_status = rs
+        mock_config = {'describe_stack_events.return_value': [stack_evt_mock]}
+
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        cf_connect_result.configure_mock(**mock_config)
+
+        boto.cloudformation.connect_to_region = cf_mock
+
+        self.assertTrue(cloudformation.Cloudformation(
+            self.env.aws_profile).stack_delete_done(self.stack_name))
+
+    def test_stack_delete_failed_but_done(self):
+        stack_evt_mock = mock.Mock()
+        rt = mock.PropertyMock(return_value='AWS::CloudFormation::Stack')
+        rs = mock.PropertyMock(return_value='DELETE_FAILED')
+        type(stack_evt_mock).resource_type = rt
+        type(stack_evt_mock).resource_status = rs
+        mock_config = {'describe_stack_events.return_value': [stack_evt_mock]}
+
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        cf_connect_result.configure_mock(**mock_config)
+
+        boto.cloudformation.connect_to_region = cf_mock
+
+        self.assertTrue(cloudformation.Cloudformation(
+            self.env.aws_profile).stack_delete_done(self.stack_name))
+
+    def test_stack_not_delete_done(self):
+        stack_evt_mock = mock.Mock()
+        rt = mock.PropertyMock(return_value='AWS::CloudFormation::Stack')
+        rs = mock.PropertyMock(return_value='DELETE_ME')
+        type(stack_evt_mock).resource_type = rt
+        type(stack_evt_mock).resource_status = rs
+        mock_config = {'describe_stack_events.return_value': [stack_evt_mock]}
+
+        cf_mock = mock.Mock()
+        cf_connect_result = mock.Mock(name='cf_connect')
+        cf_mock.return_value = cf_connect_result
+        cf_connect_result.configure_mock(**mock_config)
+
+        boto.cloudformation.connect_to_region = cf_mock
+
+        self.assertFalse(cloudformation.Cloudformation(
+            self.env.aws_profile).stack_delete_done(self.stack_name))
+
     def test_ssl_upload(self):
         iam_mock = mock.Mock()
         iam_connect_result = mock.Mock(name='iam_connect')
