@@ -24,9 +24,13 @@ class Cloudformation:
         return stack
 
     def update(self, stack_name, template_body):
-        stack = self.conn_cfn.update_stack(stack_name=stack_name,
-                                           template_body=template_body,
-                                           capabilities=['CAPABILITY_IAM'])
+        try:
+            stack = self.conn_cfn.update_stack(stack_name=stack_name,
+                                               template_body=template_body,
+                                               capabilities=['CAPABILITY_IAM'])
+        except boto.exception.BotoServerError:
+            return None
+
         return stack
 
     def delete(self, stack_name):
