@@ -124,6 +124,21 @@ class ConfigParser(object):
         self.application = application
         self.keyname = keyname
 
+    def process_update(self, templatebody):
+        bj = json.loads(templatebody)
+
+        template = Template()
+        ec2 = self.ec2()
+        map(template.add_resource, ec2)
+
+        template = json.loads(template.to_json())
+
+        for i in template['Resources']:
+            bj['Resources'][i] = template['Resources'][i]
+
+        result = json.dumps(bj, sort_keys=True, indent=None, separators=(',', ': '))
+        return result
+
     def process(self):
         template = self.base_template()
 

@@ -1,4 +1,3 @@
-
 import boto.cloudformation
 
 import boto3
@@ -22,6 +21,12 @@ class Cloudformation:
                                            template_body=template_body,
                                            capabilities=['CAPABILITY_IAM'],
                                            tags=tags)
+        return stack
+
+    def update(self, stack_name, template_body):
+        stack = self.conn_cfn.update_stack(stack_name=stack_name,
+                                           template_body=template_body,
+                                           capabilities=['CAPABILITY_IAM'])
         return stack
 
     def delete(self, stack_name):

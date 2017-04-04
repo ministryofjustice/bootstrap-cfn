@@ -545,7 +545,6 @@ def get_basic_config():
 
 
 def get_config(called_by_cfn_create=False):
-
     Parser = env.get('cloudformation_parser', ConfigParser)
     basic_config = get_basic_config()
     # keyname is mandatory in cfn_create, optional in others.
@@ -685,6 +684,22 @@ def isactive():
     except AttributeError:
         return False
 
+
+@task
+def cfn_update(test=False):
+    """
+    Update the AWS cloudformation stack.
+    """
+    _validate_fabric_env()
+    stack_name = get_stack_name(new=False)
+    cfn_config = get_config(called_by_cfn_create=True)
+
+    cfn = get_connection(Cloudformation)
+    # Get online template
+    response = cfn.conn_cfn.get_template(stack_name)
+    body = response['GetTemplateResponse']['GetTemplateResult']['TemplateBody']
+    cfn.update(stack_name, cfn_config.process_update(body))
+    tail(cfn, stack_name)
 
 @task
 def cfn_create(test=False):
