@@ -46,7 +46,7 @@ def get_type(content, deftype):
 
 
 def pack(parts, opts={}):
-    outer = MIMEMultipart()
+    outer = MIMEMultipart(boundary='boostrapcfnboundary141')
 
     for arg in parts:
         if isinstance(arg, basestring):
