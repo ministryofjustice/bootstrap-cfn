@@ -698,7 +698,18 @@ def cfn_update(test=False):
     # Get online template
     response = cfn.conn_cfn.get_template(stack_name)
     body = response['GetTemplateResponse']['GetTemplateResult']['TemplateBody']
-    cfn.update(stack_name, cfn_config.process_update(body))
+    new_body = cfn_config.process_update(body)
+
+    x = raw_input("Are you sure you want to update the stack {}!? (y/n)\n".format(stack_name))
+    if x not in ['y', 'Y', 'Yes', 'yes']:
+        sys.exit(1)
+
+    rc = cfn.update(stack_name, cfn_config.process_update(body))
+    if not rc:
+        logger.critical("cfn_update: please check the logs for BotoServerError criticals")
+        logger.critical("cfn_update: this usually happens when cfn_update is ran but no changes are needed")
+        return
+
     tail(cfn, stack_name)
 
 @task

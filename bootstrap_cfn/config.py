@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import os
@@ -28,7 +29,7 @@ from troposphere.s3 import Bucket, BucketPolicy, LifecycleConfiguration, \
 
 import yaml
 
-from bootstrap_cfn import errors, mime_packer, utils, vpc
+from bootstrap_cfn import errors, mime_packer, utils, vpc, diff
 
 
 class ProjectConfig:
@@ -125,18 +126,21 @@ class ConfigParser(object):
         self.keyname = keyname
 
     def process_update(self, templatebody):
-        bj = json.loads(templatebody)
+        pristine = json.loads(templatebody)
 
         template = Template()
         ec2 = self.ec2()
         map(template.add_resource, ec2)
 
+        self.elb(template)
         template = json.loads(template.to_json())
 
+        temp = copy.deepcopy(pristine)
         for i in template['Resources']:
-            bj['Resources'][i] = template['Resources'][i]
+            temp['Resources'][i] = template['Resources'][i]
 
-        result = json.dumps(bj, sort_keys=True, indent=None, separators=(',', ': '))
+        result = json.dumps(temp, sort_keys=True, indent=None, separators=(',', ': '))
+        diff.diff(pristine, temp)
         return result
 
     def process(self):
@@ -1119,6 +1123,7 @@ class ConfigParser(object):
         else:
             default_health_check_grace_period = 300
         health_check_grace_period = auto_scaling_config.get('health_check_grace_period', default_health_check_grace_period)
+
         scaling_group = AutoScalingGroup(
             "ScalingGroup",
             VPCZoneIdentifier=self._get_subnet_refs(env.aws_region),
