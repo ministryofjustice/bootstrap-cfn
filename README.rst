@@ -146,6 +146,23 @@ You can also delete any stack you want no more by specifying the tag
 NB ``tag_name`` can be any created tag. `active` is the default. 
 When deleting an active stack, only active DNS records will be removed. Otherwise the whole stack along with dns records are being removed.
 
+cfn_update
+----------
+
+Partial support for cloudformation updates is also supported on the EC2 and ELB sections of the configuration file.
+
+.. code:: bash
+
+    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml tag:[tag_name] cfn_update
+
+NB Running this command will show you some structured output of what
+changes and how. Also a unified diff is printed on output between the
+old and the new Launch Configuration sections. Although we have gone
+to great lengths with this command, it can result in destructive
+operations, particularly if one reduced the desired/max/min capacities
+of the Auto Scaling Group.
+
+
 get_stack_list
 ++++++++++++++
 
