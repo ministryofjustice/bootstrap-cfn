@@ -1,5 +1,5 @@
 import logging
-
+import difflib
 
 def diff(src, tgt, prefix=None, changes=None):
     t_src = type(src)
@@ -31,9 +31,17 @@ def diff(src, tgt, prefix=None, changes=None):
 def diffstr(src, tgt, prefix, changes):
     if src != tgt:
         if 'Properties.UserData.Fn::Base64' not in prefix:
-            logging.info("{0}: old value {1} changed to {2}".format(prefix, src, tgt))
+            logging.info("{0}: {1} to {2}".format(prefix, src, tgt))
         else:
-            logging.info("{0}: LaunchConfiguration changed. Please be careful".format(prefix))
+            all_lines = ''
+            logging.info("{0}: Launch configuration diff starts".format(prefix))
+            for i in difflib.unified_diff(src.splitlines(1),
+                                          tgt.splitlines(1),
+                                          fromfile='old launch configuration',
+                                          tofile='new launch configuration'):
+                all_lines = all_lines + i
+            logging.info("\n{}".format(all_lines))
+            logging.info("{0}: LaunchConfiguration diff ends. File is changing. Please be careful".format(prefix))
         changes = {"key": prefix, "old": src, "new": tgt}
     else:
         changes = None
