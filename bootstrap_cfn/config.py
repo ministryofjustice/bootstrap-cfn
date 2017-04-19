@@ -1160,7 +1160,8 @@ class ConfigParser(object):
             #
             # Try and reuse a certificate if it already exists in the tempalte
             #
-            existing = template.resources.get(certificate_name)
+            canonical_certificate_name = self._get_alphanumeric_name(certificate_name)
+            existing = template.resources.get(canonical_certificate_name)
             if not existing:
                 acm_certificate = self._get_acm_certificate(certificate_name)
                 template.add_resource(acm_certificate)
