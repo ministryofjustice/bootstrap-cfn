@@ -711,6 +711,7 @@ def cfn_update(test=False):
         return
 
     tail(cfn, stack_name)
+    return True
 
 @task
 def cfn_create(test=False):
