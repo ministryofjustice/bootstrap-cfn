@@ -40,7 +40,7 @@ class Cloudformation:
     def stack_done(self, stack_id):
         stack_events = self.conn_cfn.describe_stack_events(stack_id)
         if stack_events[0].resource_type == 'AWS::CloudFormation::Stack'\
-                and stack_events[0].resource_status in ['CREATE_COMPLETE', 'CREATE_FAILED', 'ROLLBACK_COMPLETE']:
+                and stack_events[0].resource_status in ['CREATE_COMPLETE', 'CREATE_FAILED', 'ROLLBACK_COMPLETE', 'UPDATE_COMPLETE']:
             return True
         return False
 
