@@ -1,12 +1,18 @@
 import logging
 import difflib
 
+from fabric.colors import green, red
+
+
 def diff(src, tgt, prefix=None, changes=None):
     t_src = type(src)
     t_dst = type(tgt)
 
     if prefix is None:
-        prefix = "root"
+        logging.info("---------------- CFN DIFF FOLLOWS ----------------")
+        new_prefix = "root"
+    else:
+        new_prefix = prefix
 
     if changes is None:
         changes = []
@@ -16,14 +22,17 @@ def diff(src, tgt, prefix=None, changes=None):
         return False
 
     if t_src is dict and t_dst is dict:
-        rc = diffdict(src, tgt, prefix, changes=changes)
+        rc = diffdict(src, tgt, new_prefix, changes=changes)
         if rc:
             changes.append(rc)
 
-    if t_src in [str, unicode] and t_dst in [str, unicode]:
-        rc = diffstr(src, tgt, prefix, changes=changes)
+    if t_src in [str, unicode, int] and t_dst in [str, unicode, int]:
+        rc = diffstr(src, tgt, new_prefix, changes=changes)
         if rc:
             changes.append(rc)
+
+    if prefix is None:
+        logging.info("---------------- CFN DIFF ENDS ----------------")
 
     return changes
 
@@ -31,7 +40,7 @@ def diff(src, tgt, prefix=None, changes=None):
 def diffstr(src, tgt, prefix, changes):
     if src != tgt:
         if 'Properties.UserData.Fn::Base64' not in prefix:
-            logging.info("{0}: {1} to {2}".format(prefix, src, tgt))
+            logging.info("{0}: CHANGED from {1} to {2}".format(prefix, red(src), green(tgt)))
         else:
             all_lines = ''
             logging.info("{0}: Launch configuration diff starts".format(prefix))
@@ -46,38 +55,6 @@ def diffstr(src, tgt, prefix, changes):
     else:
         changes = None
     return changes
-
-
-def difflist(src, tgt, prefix, changes):
-    s_src = src.sort()
-    s_tgt = tgt.sort()
-
-    # same lists
-    if s_src == s_tgt:
-        return None
-
-    only_src = s_src - s_tgt
-    if only_src != set():
-        logging.info("{0}: items removed from target: {1}".format(prefix, only_src))
-
-    #
-    # items only in dst
-    #
-    only_tgt = s_tgt - s_src
-    if only_tgt != set():
-        logging.info("{0}: items to target: {1}".format(prefix, only_tgt))
-
-    if only_tgt != set() or only_src != set():
-        changes.append({"key": prefix, "removed": only_src, "added": only_tgt})
-    #
-    # Recurse on common items
-    #
-    common = s_src.intersection(s_tgt)
-    if common == set():
-        return changes
-
-    for i in common:
-        diff(i, i,  prefix="{0}.{1}".format(prefix, i), changes=changes)
 
 
 def diffdict(src, tgt, prefix=None, changes=[]):
@@ -99,14 +76,14 @@ def diffdict(src, tgt, prefix=None, changes=[]):
     #
     only_src = s_src - s_tgt
     if only_src != set():
-        logging.info("{0}: keys removed from target: {1}".format(prefix, only_src))
+        logging.info("{0}: REMOVED keys from target: {1}".format(prefix, red(only_src)))
 
     #
     # keys only in dst
     #
     only_tgt = s_tgt - s_src
     if only_tgt != set():
-        logging.info("{0}: keys added to target: {1}".format(prefix, only_tgt))
+        logging.info("{0}: ADDED keys to target: {1}".format(prefix, green(only_tgt)))
 
     if only_tgt != set() or only_src != set():
         changes.append({"key": prefix, "removed": only_src, "added": only_tgt})
