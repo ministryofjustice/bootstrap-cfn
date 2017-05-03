@@ -9,7 +9,7 @@ import uuid
 import boto.exception
 
 import boto3
-
+import pdb
 
 from fabric.api import env, task
 from fabric.colors import green, red, yellow
@@ -373,7 +373,6 @@ def get_cached_zone_id(r53_conn, zone_dict, zone_name):
         zone_dict[zone_name] = lookup_zone
     return zone_dict[zone_name]
 
-
 def mold_to_safe_elb_name(elb_name):
     '''
     Molds the elb_name to match cloudformation naming of ELBs
@@ -495,6 +494,30 @@ def get_zone_id():
     logger.info("fab_tasks::get_zone_id: Found zone id '%s' "
                 "for zone name '%s'...", zone_id, zone_name)
     return zone_id
+
+@task
+def get_hosted_name():
+    cfn_config = get_config()
+
+    r53_conn = get_connection(R53)
+    import pdb;
+    for elb in cfn_config.data['elb']:
+        pdb.set_trace()
+        record = "{name}.{hosted_zone}".format(**elb)
+        zone_id = r53_conn.get_hosted_zone_id(elb['hosted_zone'])
+        return elb['hosted_zone']
+
+@task
+def get_hosted_id():
+    cfn_config = get_config()
+
+    r53_conn = get_connection(R53)
+    import pdb;
+    for elb in cfn_config.data['elb']:
+        pdb.set_trace()
+        record = "{name}.{hosted_zone}".format(**elb)
+        zone_id = r53_conn.get_hosted_zone_id(elb['hosted_zone'])
+        return zone_id
 
 
 def get_legacy_name():
@@ -917,9 +940,13 @@ def set_active_stack(stack_tag, force=False):
     elbs = get_all_elbs()
     logger.info('fab_tasks::set_active_stack: Found ELBs matching the stack: %s',
                 ', '.join(elbs))
+
+    pdb.set_trace()
     for elb in elbs:
         main_record_name = "{}.{}".format(elb, zone_name)
         record_name = "{}-{}".format(elb, tag_stack_id)
+        zone_name = get_hosted_name()[:-1]
+        zone_id = get_hosted_id()
         try:
             record_object = r53_conn.get_full_record(zone_name, zone_id, record_name, 'A')
             record_value = [record_object.alias_hosted_zone_id,
