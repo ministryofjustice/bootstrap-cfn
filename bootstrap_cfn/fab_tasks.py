@@ -251,10 +251,8 @@ def swap_tags(tag1, tag2):
     record2 = "stack.{0}.{1}".format(tag2, legacy_name)
     stack_suffix1 = r53_conn.get_record(zone_name, zone_id, record1, 'TXT')
     stack_suffix2 = r53_conn.get_record(zone_name, zone_id, record2, 'TXT')
-    fqdn1 = "{0}.{1}".format(record1, zone_name)
-    fqdn2 = "{0}.{1}".format(record2, zone_name)
-    r53_conn.update_dns_record(zone_id, fqdn1, 'TXT', '"{0}"'.format(stack_suffix2))
-    r53_conn.update_dns_record(zone_id, fqdn2, 'TXT', '"{0}"'.format(stack_suffix1))
+    r53_conn.update_dns_record(zone_name, zone_id, record1, 'TXT', '"{0}"'.format(stack_suffix2))
+    r53_conn.update_dns_record(zone_id, record2, 'TXT', '"{0}"'.format(stack_suffix1))
 
 
 def apply_maintenance_criteria(elb):
@@ -280,11 +278,10 @@ def enter_maintenance(maintenance_ip, dry_run=False):
     for elb in cfn_config.data['elb']:
         if not apply_maintenance_criteria(elb):
             continue
-
-        record = "{name}.{hosted_zone}".format(**elb)
         zone_id = get_cached_zone_id(r53_conn, cached_zone_ids, elb['hosted_zone'])
-        print green("Attempting to update: \"{0}\":\"{1}\"".format(record, maintenance_ip))
-        r53_conn.update_dns_record(zone_id, record, 'A', maintenance_ip, dry_run=dry_run)
+        zone_name = get_zone_name()
+        print green("Attempting to update: \"{0}\":\"{1}\"".format(elb, maintenance_ip))
+        r53_conn.update_dns_record(zone_name, zone_id, elb, 'A', maintenance_ip, dry_run=dry_run)
 
 
 @task
@@ -328,7 +325,6 @@ def exit_maintenance(dry_run=False):
     for elb in cfn_config.data['elb']:
         if not apply_maintenance_criteria(elb):
             continue
-        record = "{name}.{hosted_zone}".format(**elb)
         # obtain physical name from dict lookup, by converting elb name into safe name
         # into logical name
         phys_name = stack_elbs[mold_to_safe_elb_name(elb['name'])]
@@ -352,8 +348,8 @@ def exit_maintenance(dry_run=False):
             # alias_evaluate_target_health (True/False)
             False
         ]
-        print green("Attempting to update: \"{0}\":{1}".format(record, record_value))
-        r53_conn.update_dns_record(zone_id, record, 'A', record_value, is_alias=True, dry_run=dry_run)
+        print green("Attempting to update: \"{0}\":{1}".format(elb, record_value))
+        r53_conn.update_dns_record(zone_name, zone_id, elb, 'A', record_value, is_alias=True, dry_run=dry_run)
 
 
 def get_cached_zone_id(r53_conn, zone_dict, zone_name):
@@ -413,7 +409,7 @@ def get_stack_name(new=False):
         zone_id = get_zone_id()
         logger.info("fab_tasks::get_stack_name: Found master zone '%s' in config...", zone_name)
         # get record name in the format of: stack.[stack_tag].[app]-[env]
-        record_name = get_tag_record_name(stack_tag)
+        record_name = get_txt_record_name(stack_tag)
         dns_name = "{}.{}".format(record_name, zone_name)
         r53_conn = get_connection(R53)
         try:
@@ -455,20 +451,20 @@ def set_stack_name():
         if stack_tag == 'active':
             # print red("'Active' tag is reserved, please change a tag. ")
             raise ActiveTagExistConflictError()
-        elif r53_conn.hastag(zone_name, zone_id, get_tag_record_name(stack_tag)):
+        elif r53_conn.hastag(zone_name, zone_id, get_txt_record_name(stack_tag)):
             # print red("{} exists, please change a tag. ".format(env.tag))
             raise TagRecordExistConflictError(stack_tag)
     except AttributeError:
         stack_tag = stack_suffix
         env.tag = stack_tag
-    record = "{}.{}".format(get_tag_record_name(stack_tag), zone_name)
+    record = get_txt_record_name(stack_tag)
     logger.info("fab_tasks::set_stack_name: "
                 "Creating stack suffix '%s' "
                 "for record '%s' "
                 "in zone id '%s'...", stack_suffix, record, zone_id)
     # Let DNS update DNSServerError propogate
     try:
-        r53_conn.update_dns_record(zone_id, record, 'TXT', '"{0}"'.format(stack_suffix))
+        r53_conn.update_dns_record(zone_name, zone_id, record, 'TXT', '"{0}"'.format(stack_suffix))
         env.stack_name = "{0}-{1}".format(get_legacy_name(), stack_suffix)
     except Exception:
         raise UpdateDNSRecordError
@@ -502,7 +498,7 @@ def get_legacy_name():
     return legacy_name
 
 
-def get_tag_record_name(stack_tag):
+def get_txt_record_name(stack_tag):
     """
     Returns record name in the format of: stack.[tag].[app]-[env]
     Args:
@@ -544,8 +540,18 @@ def get_basic_config():
     return project_config.config
 
 
-def get_config(called_by_cfn_create=False):
+def get_config(called_by_cfn_create=False, stack_name=None):
+    '''
 
+    Args:
+        called_by_cfn_create:
+        stack_name: for some conditions when we know the stack name,
+    we don't have to get it by requesting DNS records
+
+    Returns:
+
+    '''
+    stack_name = stack_name or get_stack_name()
     Parser = env.get('cloudformation_parser', ConfigParser)
     basic_config = get_basic_config()
     # keyname is mandatory in cfn_create, optional in others.
@@ -563,7 +569,7 @@ def get_config(called_by_cfn_create=False):
                 sys.exit("[ERROR] KeyName is not defined in config file. "
                          "Please specify via fab e.g 'keyname:opskey' or config file")
         print green("Creating stack with keyname: {0}").format(env_keyname)
-    cfn_config = Parser(get_basic_config(), get_stack_name(), environment=env.environment,
+    cfn_config = Parser(get_basic_config(), stack_name, environment=env.environment,
                         application=env.application, keyname=env_keyname)
     return cfn_config
 
@@ -611,7 +617,7 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
     zone_name = get_zone_name()
 
     try:
-        txt_tag_record = get_tag_record_name(stack_tag)
+        txt_tag_record = get_txt_record_name(stack_tag)
         print green("\nDELETING TXT RECORDS {}-{}...\n".format(txt_tag_record, zone_name))
         r53_conn.delete_txt_record(zone_name, zone_id, txt_tag_record)
     except boto.route53.exception.DNSServerError:
@@ -632,11 +638,10 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
         try:
             txt_arn_record = 'deployarn.{0}.{1}.{2}'.format(stack_tag, env.environment, env.application)
 
-            txt_record_name = '{}.{}'.format(txt_arn_record, zone_name)
             txt_record_value = '"{}"'.format(r53_conn.get_record(zone_name, zone_id, txt_arn_record, 'TXT'))
 
             logger.info("Deleting '{}' from '{}' ({}) ...".format(txt_arn_record, zone_name, zone_id))
-            r53_conn.delete_dns_record(zone_id, txt_record_name, 'TXT', txt_record_value)
+            r53_conn.delete_dns_record(zone_name, zone_id, txt_arn_record, 'TXT', txt_record_value)
         except boto.route53.exception.DNSServerError:
             pass
 
@@ -650,6 +655,7 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
                 if e.code == 'ValidationError':
                     pass
                 raise e
+            return True
         else:
             print 'Running in an non-blocking mode.'
 
@@ -675,8 +681,20 @@ def get_env_tag():
 
 
 def get_env_application():
-    return env.application
+    try:
+        app = env.application
+    except AttributeError:
+        print red("Stack tag is not specified, please put application:[app-name]")
+        exit(1)
+    return app
 
+
+def get_env_blocking():
+    '''
+    for the convenience of using mock.patch in unittest
+    Returns:
+
+    '''
 
 def isactive():
     try:
@@ -885,7 +903,7 @@ def set_active_stack(stack_tag, force=False):
         force: if True, set it to active stack directly
     """
     # helloworld.active.dsd.io
-    active_record = get_tag_record_name('active')
+    active_record = get_txt_record_name('active')
     r53_conn = get_connection(R53)
     zone_name = get_zone_name()
     zone_id = get_zone_id()
@@ -894,7 +912,7 @@ def set_active_stack(stack_tag, force=False):
     if stack_tag is None:
         print red("Stack tag cannot be 'None', please specify it")
         sys.exit(1)
-    tag_record = get_tag_record_name(stack_tag)
+    tag_record = get_txt_record_name(stack_tag)
 
     tag_stack_id = r53_conn.get_record(zone_name, zone_id, tag_record, 'TXT')
     if not tag_stack_id:
@@ -907,7 +925,10 @@ def set_active_stack(stack_tag, force=False):
 
     try:
         set_active_deployarn(stack_tag)
-        r53_conn.update_dns_record(zone_id, "{}.{}".format(active_record, get_zone_name()), 'TXT',
+    except Exception:
+        raise UpdateDeployarnRecordError()
+    try:
+        r53_conn.update_dns_record(zone_name, zone_id, active_record, 'TXT',
                                    '"{}"'.format(tag_stack_id))
         logger.info("fab_tasks::set_active_stack: Successfully updated DNS "
                     "alias record for stack: %s", tag_stack_id)
@@ -918,7 +939,6 @@ def set_active_stack(stack_tag, force=False):
     logger.info('fab_tasks::set_active_stack: Found ELBs matching the stack: %s',
                 ', '.join(elbs))
     for elb in elbs:
-        main_record_name = "{}.{}".format(elb, zone_name)
         record_name = "{}-{}".format(elb, tag_stack_id)
         try:
             record_object = r53_conn.get_full_record(zone_name, zone_id, record_name, 'A')
@@ -926,7 +946,7 @@ def set_active_stack(stack_tag, force=False):
                             record_object.alias_dns_name,
                             record_object.alias_evaluate_target_health]
             try:
-                r53_conn.update_dns_record(zone_id, main_record_name, 'A',
+                r53_conn.update_dns_record(zone_name, zone_id, elb, 'A',
                                            record_value, is_alias=True)
                 logger.info("fab_tasks::set_active_stack: Successfully "
                             "updated DNS alias record for ELB: %s", elb)
@@ -934,11 +954,9 @@ def set_active_stack(stack_tag, force=False):
                 raise UpdateDNSRecordError
         except Exception:
             raise StackRecordNotFoundError(record_name)
-    try:
-        print green("Active stack switched to '{}' ({}).".format(tag_record, tag_stack_id))
-        return True
-    except:
-        raise UpdateDeployarnRecordError
+
+    print green("Active stack switched to '{}' ({}).".format(tag_record, tag_stack_id))
+    return True
 
 
 def set_active_deployarn(stack_tag):
@@ -952,30 +970,29 @@ def set_active_deployarn(stack_tag):
         (String) AWS arn value
     """
     zone_name = get_zone_name()
-    tag_arn_record = arn_record_name(stack_tag, zone_name)
-    active_arn_record = arn_record_name('active', zone_name)
+    tag_arn_record = arn_record_name(stack_tag)
+    active_arn_record = arn_record_name('active')
+    zone_id = get_zone_id()
     r53 = get_connection(R53)
     try:
-        tag_arn_value = r53.get_deployarn_record(get_zone_id(), tag_arn_record, 'TXT')
+        tag_arn_value = r53.get_deployarn_record(zone_name, zone_id, tag_arn_record, 'TXT')
         if tag_arn_value is None:
             raise StackRecordNotFoundError('{}. Make sure you run "set_deploy_arn" on {}'
                                            ' before set_active_stack'.format(tag_arn_value), stack_tag)
-        zone_id = get_zone_id()
         try:
-            r53.update_dns_record(zone_id, active_arn_record, 'TXT', '"{0}"'.format(tag_arn_value))
+            ret = r53.update_dns_record(zone_name, zone_id, active_arn_record, 'TXT', '"{0}"'.format(tag_arn_value))
             print "Active deployarn was set to: {0}".format(tag_arn_value)
         except:
             raise UpdateDeployarnRecordError
     except:
         raise StackRecordNotFoundError(tag_arn_record)
-    return tag_arn_value
+    return ret
 
 
-def arn_record_name(stack_tag, zone_name):
-    tag_arn_record = 'deployarn.{0}.{1}.{2}.{3}.'.format(stack_tag,
-                                                         env.environment,
-                                                         env.application,
-                                                         zone_name)
+def arn_record_name(stack_tag):
+    tag_arn_record = 'deployarn.{0}.{1}.{2}'.format(stack_tag,
+                                                    env.environment,
+                                                    env.application)
     return tag_arn_record
 
 
@@ -993,7 +1010,7 @@ def get_active_stack():
     try:
         zone_id = get_zone_id()
         zone_name = get_zone_name()
-        active_record = get_tag_record_name('active')
+        active_record = get_txt_record_name('active')
         active_stack_id = r53_conn.get_record(zone_name, zone_id, active_record, 'TXT')
 
         records = []
@@ -1033,13 +1050,13 @@ def get_all_elbs(f=None):
     return filter(f, elbs) if f else elbs
 
 
-def get_public_elbs(f=None):
+def get_public_elbs(stack, f=None):
     """
     Returns a list of internet-facing ELBs from the CloudFormation
     configuration containing items for which the filter function f
     returns True, or everything.
     """
-    cfn_config = get_config()
+    cfn_config = get_config(stack_name=stack)
     elbs = [x.get('name') for x in cfn_config.data.get('elb', {}) if x.get('scheme') == 'internet-facing']
     return filter(f, elbs) if f else elbs
 
@@ -1083,3 +1100,98 @@ def get_stack_list():
     print yellow("{} | {}".format("Leftover DNS Record".ljust(50), "Stack Tag".ljust(50)))
     print '\n'.join(l for l in leftover_dns)
     return stack_count
+
+
+@task(alias='oldfriendly')
+def support_old_bootstrap_cfn(stack_name=None):
+    '''
+    Add DNS records for old stacks to support 1.x.x bootstrap-cfn
+
+    If stack exists but no active records, add active records(TXT & ELB) and continue;
+    If stack and active records exists, add sub records if they don't
+
+    Args:
+        stack_name: the stack you want to upgrade boootstrap-cfn. we don't use get_stack_name()
+        as it requires the stack record which doesn't exist.
+    Returns:
+        True:
+        Exceptions:
+
+    '''
+    # list stacks
+    get_stack_list()
+    if stack_name is None:
+        stack_name = raw_input("Please specify the stack name: [q/n] to exit\n")
+        if stack_name in ['q','n']:
+            exit(1)
+
+    try:
+        stack_tag = get_env_tag()
+    except AttributeError:
+        stack_tag = raw_input("Give this stack a tag, or [q/n] to exit \n")
+        if stack_name in ['q','n']:
+            exit(1)
+        print green("{} is tagged as {}".format(stack_name, stack_tag))
+    stack_id = stack_name.split('-')[-1]
+    r53_conn = get_connection(R53)
+    zone_name = get_zone_name()
+    zone_id = get_zone_id()
+    cfn_conn = get_connection(Cloudformation)
+
+    # if stack doesn't exist
+    if cfn_conn.stack_missing(stack_name):
+        print red("Stack '{}' does not exist".format(stack_name))
+        return False
+
+    # if stack exists:
+    active_record_name = get_txt_record_name("active")
+    stack_record_name = get_txt_record_name(stack_tag)
+    try:
+        active_record_value = r53_conn.get_record(zone_name, zone_id, active_record_name, 'TXT')
+    except boto.exception:
+        raise DNSRecordNotFoundError("%s", active_record_name)
+    if active_record_value is None:
+        # if active records don't exist, create both active and sub records
+        for record in [active_record_name, stack_record_name]:
+            r53_conn.update_dns_record(zone_name, zone_id, record, 'TXT', '"{0}"'.format(stack_id))
+    # check if stack records exist already
+    # create one if doesn't
+    try:
+        stack_record_value = r53_conn.get_record(zone_name, zone_id, stack_record_name, 'TXT')
+    except boto.exception:
+        raise DNSRecordNotFoundError("%s", stack_record_name)
+    if stack_record_value is None:
+        r53_conn.update_dns_record(zone_name, zone_id, stack_record_name, 'TXT', '"{0}"'.format(stack_id))
+
+    # Alias records
+    active_elb_names = get_public_elbs(stack_name)
+    for active_elb_name in active_elb_names:
+        try:
+            active_elb_value_object = r53_conn.get_full_record(zone_name,
+                                                               zone_id,
+                                                               active_elb_name,
+                                                               'A')
+        except:
+            raise DNSRecordNotFoundError("%s", active_elb_name)
+        try:
+            # if active elb exists
+            active_elb_value = [active_elb_value_object.alias_hosted_zone_id,
+                                active_elb_value_object.alias_dns_name,
+                                active_elb_value_object.alias_evaluate_target_health]
+        except AttributeError:
+            # if active_elb_value_object is None
+            raise DNSRecordNotFoundError("%s", active_elb_name)
+        stack_elb_name = "{}-{}".format(active_elb_name, stack_id)
+        # check if stack elb exists already
+        # create one if doesn't
+        try:
+            stack_elb_value = r53_conn.get_full_record(zone_name, zone_id, stack_elb_name, 'A')
+            if stack_elb_value is None:
+                r53_conn.update_dns_record(zone_name, zone_id, stack_elb_name, 'A',
+                                           active_elb_value, is_alias=True)
+                logger.info("fab_tasks::support_old_bootstrap_cfn: Successfully "
+                            "updated DNS alias record for ELB: %s", stack_elb_name)
+        except boto.exception:
+            raise UpdateDNSRecordError("%s", stack_elb_name)
+    return True
+

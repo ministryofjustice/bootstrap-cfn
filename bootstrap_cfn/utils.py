@@ -132,7 +132,10 @@ def get_events(stack, stack_name):
         except:
             break
         event_list.append(events)
-        if events.next_token is None:
+        try:
+            if events.next_token is None:
+                break
+        except AttributeError:
             break
         next = events.next_token
         time.sleep(1)
