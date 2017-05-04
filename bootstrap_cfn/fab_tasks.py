@@ -9,7 +9,6 @@ import uuid
 import boto.exception
 
 import boto3
-import pdb
 
 from fabric.api import env, task
 from fabric.colors import green, red, yellow
@@ -500,11 +499,13 @@ def get_hosted_name():
     cfn_config = get_config()
 
     r53_conn = get_connection(R53)
-    import pdb;
     for elb in cfn_config.data['elb']:
-        pdb.set_trace()
-        record = "{name}.{hosted_zone}".format(**elb)
-        zone_id = r53_conn.get_hosted_zone_id(elb['hosted_zone'])
+        try:
+            record = "{name}.{hosted_zone}".format(**elb)
+            zone_id = r53_conn.get_hosted_zone_id(elb['hosted_zone'])
+        except KeyError:
+            raise CfnConfigError("No hosted_zone in yaml, unable to find hosted zone")
+        logger.info("fab_tasks::get_hosted_name: Found hosted zone id '%s' in config...", zone_id)
         return elb['hosted_zone']
 
 @task
@@ -512,11 +513,13 @@ def get_hosted_id():
     cfn_config = get_config()
 
     r53_conn = get_connection(R53)
-    import pdb;
     for elb in cfn_config.data['elb']:
-        pdb.set_trace()
-        record = "{name}.{hosted_zone}".format(**elb)
-        zone_id = r53_conn.get_hosted_zone_id(elb['hosted_zone'])
+        try:
+            record = "{name}.{hosted_zone}".format(**elb)
+            zone_id = r53_conn.get_hosted_zone_id(elb['hosted_zone'])
+        except KeyError:
+            raise CfnConfigError("No hosted_zone in yaml, unable to find hosted zone_id")
+        logger.info("fab_tasks::get_hosted_id: Found hosted zone id '%s' in config...", zone_id)
         return zone_id
 
 
@@ -941,7 +944,6 @@ def set_active_stack(stack_tag, force=False):
     logger.info('fab_tasks::set_active_stack: Found ELBs matching the stack: %s',
                 ', '.join(elbs))
 
-    pdb.set_trace()
     for elb in elbs:
         main_record_name = "{}.{}".format(elb, zone_name)
         record_name = "{}-{}".format(elb, tag_stack_id)
