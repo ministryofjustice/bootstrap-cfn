@@ -1,3 +1,4 @@
+import datadiff
 import copy
 import json
 import logging
@@ -187,10 +188,10 @@ class ConfigParser(object):
 
         # Copy new entries on top of the old ones
         temp = copy.deepcopy(pristine)
-        for i in template['Resources']:
+        for i in template.get('Resources', []):
             temp['Resources'][i] = template['Resources'][i]
 
-        for i in template['Outputs']:
+        for i in template.get('Outputs', []):
             temp['Outputs'][i] = template['Outputs'][i]
 
         #
@@ -231,14 +232,18 @@ class ConfigParser(object):
         logging.debug('Resources to be removed: {}'.format(deleted_resources, dns_cleanup, policy_cleanup, ec2_sg_resources))
         logging.debug('Outputs to be removed: {}'.format(deleted_resources))
 
-        # convert the result to json
-        result = json.dumps(temp, sort_keys=True, indent=None, separators=(',', ': '))
-
-
+        # Diff method 1
         # print a non cloudformation context diff
         changes = diff.diff(pristine, temp)
-        logging.debug(changes)
+        logging.info(changes)
 
+
+        # Diff method 2
+        changes = datadiff.diff(pristine, temp)
+        logging.info(changes)
+
+        # convert the result to json
+        result = json.dumps(temp, sort_keys=True, indent=None, separators=(',', ': '))
         return result
 
     def process(self):
