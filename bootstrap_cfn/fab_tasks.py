@@ -494,34 +494,35 @@ def get_zone_id():
                 "for zone name '%s'...", zone_id, zone_name)
     return zone_id
 
-@task
 def get_hosted_name():
     cfn_config = get_config()
-
     r53_conn = get_connection(R53)
-    for elb in cfn_config.data['elb']:
-        try:
-            record = "{name}.{hosted_zone}".format(**elb)
-            zone_id = r53_conn.get_hosted_zone_id(elb['hosted_zone'])
-        except KeyError:
-            raise CfnConfigError("No hosted_zone in yaml, unable to find hosted zone")
-        logger.info("fab_tasks::get_hosted_name: Found hosted zone id '%s' in config...", zone_id)
-        return elb['hosted_zone']
+    try:
+        for elb in cfn_config.data['elb']:
+            try:
+                record = "{name}.{hosted_zone}".format(**elb)
+                zone_id = r53_conn.get_hosted_zone_id(elb['hosted_zone'])
+            except KeyError:
+                raise CfnConfigError("No hosted_zone in yaml, unable to find hosted zone")
+            logger.info("fab_tasks::get_hosted_name: Found hosted zone name '%s' in config...", elb['hosted_zone'])
+            return elb['hosted_zone']
+    except KeyError:
+        raise CfnConfigError("No elb in yaml, unable to find elb")
 
-@task
 def get_hosted_id():
     cfn_config = get_config()
-
     r53_conn = get_connection(R53)
-    for elb in cfn_config.data['elb']:
-        try:
-            record = "{name}.{hosted_zone}".format(**elb)
-            zone_id = r53_conn.get_hosted_zone_id(elb['hosted_zone'])
-        except KeyError:
-            raise CfnConfigError("No hosted_zone in yaml, unable to find hosted zone_id")
-        logger.info("fab_tasks::get_hosted_id: Found hosted zone id '%s' in config...", zone_id)
-        return zone_id
-
+    try:
+        for elb in cfn_config.data['elb']:
+            try:
+                record = "{name}.{hosted_zone}".format(**elb)
+                zone_id = r53_conn.get_hosted_zone_id(elb['hosted_zone'])
+            except KeyError:
+                raise CfnConfigError("No hosted_zone in yaml, unable to find hosted zone_id")
+            logger.info("fab_tasks::get_hosted_id: Found hosted zone id '%s' in config...", zone_id)
+            return zone_id
+    except KeyError:
+        raise CfnConfigError("No elb in yaml, unable to find elb")
 
 def get_legacy_name():
     legacy_name = "{0}-{1}".format(env.application, env.environment)
