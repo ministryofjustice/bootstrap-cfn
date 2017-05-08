@@ -505,7 +505,10 @@ def get_hosted_name():
             except KeyError:
                 raise CfnConfigError("No hosted_zone in yaml, unable to find hosted zone")
             logger.info("fab_tasks::get_hosted_name: Found hosted zone name '%s' in config...", elb['hosted_zone'])
-            return elb['hosted_zone']
+            if elb['hosted_zone'].endswith('.'): 
+                return elb['hosted_zone'][:-1]
+            else:
+                return elb['hosted_zone']
     except KeyError:
         raise CfnConfigError("No elb in yaml, unable to find elb")
 
@@ -948,7 +951,7 @@ def set_active_stack(stack_tag, force=False):
     for elb in elbs:
         main_record_name = "{}.{}".format(elb, zone_name)
         record_name = "{}-{}".format(elb, tag_stack_id)
-        zone_name = get_hosted_name()[:-1]
+        zone_name = get_hosted_name()
         zone_id = get_hosted_id()
         try:
             record_object = r53_conn.get_full_record(zone_name, zone_id, record_name, 'A')
