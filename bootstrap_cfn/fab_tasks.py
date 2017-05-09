@@ -501,14 +501,14 @@ def get_hosted_name():
         for elb in cfn_config.data['elb']:
             try:
                 record = "{name}.{hosted_zone}".format(**elb)
-                zone_id = r53_conn.get_hosted_zone_id(elb['hosted_zone'])
+                zone_name = elb['hosted_zone']
             except KeyError:
                 raise CfnConfigError("No hosted_zone in yaml, unable to find hosted zone")
             logger.info("fab_tasks::get_hosted_name: Found hosted zone name '%s' in config...", elb['hosted_zone'])
-            if elb['hosted_zone'].endswith('.'): 
-                return elb['hosted_zone'][:-1]
+            if zone_name.endswith('.'): 
+                return zone_name[:-1]
             else:
-                return elb['hosted_zone']
+                return zone_name
     except KeyError:
         raise CfnConfigError("No elb in yaml, unable to find elb")
 
