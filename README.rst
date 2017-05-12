@@ -68,21 +68,25 @@ If your ``$CWD`` is anywhere else, you need to pass in a path to particular fabr
 Multiple Stacks
 ===============
 
-If you want to bring up a new stack as active stack, you will need to run the following fab tasks which we will explain later:
+Multiple stacks feature is supported in bootstrap-cfn version greater than 1.0.0. It is similar to Blue/Green deploy.
+For each application and each environment of the application, we could have more than one stack independently running on AWS differentiated by tags we give.
+Any existing stack of same application in same environment can be switched to 'active' via operations on R53 records, which is used as actioning stack.
 
-- **fab-env keyname:keyops tag:test cfn_create:** create a new stack with a tag and keyname specified.
-- **fab-env -u ubuntu salt.wait_for_minions:** check if creation is done
-- **fab-env -i ~/.ssh/id_your_ssh_private_key -u ubuntu update:** install salt on the stack, add admins from keys.sls
-- **fab-env -u [your-ssh-name] update:** remove `ubuntu` user for security reason
+Here are the steps to create a new stack, we will explain them one by one later:
+
+- **fab-env keyname:keyops tag:mytag cfn_create:** create a new stack with a tag and keyname specified.
+- **fab-env -u ubuntu salt.wait_for_minions:** (optional) wait until instances are ready
+- **fab-env -i ~/.ssh/id_your_ssh_private_key -u ubuntu update:** install salt on the stack, add admins from keys.sls, to make the stack ready
+- **fab-env -u [your-ssh-name] update:** remove `ubuntu` user from the instances for security reason
 
 Here `fab-env` refers to `fab application:courtfinder aws:prod environment:dev config:/path/to/courtfinder-dev.yaml passwords:/path/to/courfinder-dev-secrets.yaml`.
 
-So far A new stack should be created. You may want to set it to active stack of that environment:
+If you would like to set the stack you just created as the active stack of that environment, run the following:
 
-**fab-env set_active_stack:[stack_tag]:** set active dns records in R53 
+- **fab-env set_active_stack:mytag** to switch DNS entry to this stack
 
 
-NB: If you want to run multiple stacks with the same name and environment place the following in the yaml configuration
+NB: If you want to have your multiple stacks under the same zone, make sure specify it in the yaml configuration
 
 .. code:: yaml
 
@@ -96,24 +100,25 @@ This is to create a stack based on your yaml configuration.
 
 .. code:: bash
 
-    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml tag:active cfn_create
+    fab application:app aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml tag:mytag cfn_create
 
 
-After running the task, a stack name like `app-dev-e21e5110` should be created, along with two DNS records in Route 53 look like:
+After running the above, stack `app-dev-e21e5110` should be created, where 'e21e5110' is an auto-generated stack-id,
+along with two DNS records in Route 53 that looks like:
 
 +------------------------------+------------+------------------------------------------------------------------------------------------------+
 | Name                         | Type       | Value                                                                                          |
 +==============================+============+================================================================================================+
-| stack.test.blah-dev.dsd.io.  | **TXT**    | "e21e5110"                                                                                     |
+| stack.mytag.blah-dev.dsd.io.  | **TXT**    | "e21e5110"                                                                                     |
 +------------------------------+------------+------------------------------------------------------------------------------------------------+
 | elbname-e21e5110.dsd.io.     | **A**      | ALIAS app-dev-elbname-1ocl2znar6wtc-1854012795.eu-west-1.elb.amazonaws.com. (z32o12xqlntsw2)   |
 +------------------------------+------------+------------------------------------------------------------------------------------------------+
 
 Note that:
 
-- `test` in **TXT** record name is the stack tag you defined. An auto-generated stack id will be assigned to tag name if not specified.
-- `active` tag is **preserved** for setting the main entry point, so you should not use it as custom tag. 
-- If the tag you specified already exists (may due to improper clean up in last creation), you could manually run `fab tag:[tag-name] cfn_delete` to remove them.
+- `mytag` in **TXT** record name is the tag for the stack. An auto-generated stack id that's saved in Value is used as the tag if it's not specified.
+- `active` tag is **preserved** for setting the main entry point, so you should not use it as a customised tag.
+- If the tag you specified already exists (may due to improper clean up in last creation), you could manually run `fab tag:[tag-name] cfn_delete` to remove the leftover.
 
 NB fab task `get_stack_list` returns all stacks of that application in case if you forgot your tag name :)
 
@@ -122,9 +127,9 @@ NB fab task `get_stack_list` returns all stacks of that application in case if y
 set_active_stack(tag_name)
 --------------------------
 
-An app's DNS entry is what your active stack at
+Active records indicate where an app's DNS entry is.
 
-After having created a new stack, you can set it to be the active stack simply by changing DNS records using ``set_active_stack(tag_name)``
+you can set whichever existing stack to be the active stack simply by specifying the tag name in ``set_active_stack(tag_name)``
 
 .. code:: bash
 
@@ -137,23 +142,36 @@ NB this process will also automatically set deployarn record accordingly.
 cfn_delete
 ----------
 
-You can also delete any stack you want no more by specifying the tag
+You can also delete any stack you want no more by specifying the tag, or remove active records (entry points) by putting active as the tag.
 
 .. code:: bash
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml tag:[tag_name] cfn_delete
 
-NB ``tag_name`` can be any created tag. `active` is the default. 
-When deleting an active stack, only active DNS records will be removed. Otherwise the whole stack along with dns records are being removed.
+NB ``tag_name`` can be any existing tag. It defaults to `active`.
+When deleting an active stack, only active DNS records will be removed without harming any existing stacks. Otherwise the whole stack along with dns records are being removed.
 
 get_stack_list
-++++++++++++++
+---------------
 
 This returns a list of all available stacks for specified application.
 
 .. code:: bash
 
     fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml get_stack_list
+
+support_old_bootstrap_cfn
+-------------------------
+
+After bootstrap-cfn 1.0.0, we suggest multiple stacks which add another set of R53 records to each stack.
+For stacks created by old bootstrap-cfn which possibly only has active records, `support_old_bootstrap_cfn` adds what's missing in R53
+so that you are able to use other commands in bootstrap-cfn>=v1.0.0. It basically automates the manual operations of adding missing R53 records.
+
+.. code:: bash
+
+    fab application:courtfinder aws:my_project_prod environment:dev config:/path/to/courtfinder-dev.yaml support_old_bootstrap_cfn
+
+NB: after running this command, you will be asked to give the name of the stack you would like to operate on and also give a tag to the stack.
 
 swap_tags
 +++++++++

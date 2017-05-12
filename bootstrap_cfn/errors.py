@@ -50,9 +50,9 @@ class ZoneRoute53RecordNotFoundError(BootstrapCfnError):
 
 
 class DNSRecordNotFoundError(BootstrapCfnError):
-    def __init__(self, zone_name):
+    def __init__(self, record):
         msg = ("Could not find a dns record for zone name '{}'. "
-               "Please check that this record exists".format(zone_name))
+               "Please check that this record exists".format(record))
         super(DNSRecordNotFoundError, self).__init__(msg)
 
 

@@ -41,7 +41,7 @@ class R53(object):
             zone = zone['GetHostedZoneResponse']['HostedZone']['Id']
             return zone.replace('/hostedzone/', '')
 
-    def update_dns_record(self, zone, record, record_type, record_value, is_alias=False, dry_run=False):
+    def update_dns_record(self, zone_name, zone_id, record, record_type, record_value, is_alias=False, dry_run=False):
         """
         Updates a dns record in route53
         Args:
@@ -55,8 +55,9 @@ class R53(object):
             dry_run:
         Returns True if update successful or raises an exception if not
         """
-        changes = boto.route53.record.ResourceRecordSets(self.conn_r53, zone)
-        change = changes.add_change("UPSERT", record, record_type, ttl=60)
+        record_name = "{}.{}".format(record, zone_name)
+        changes = boto.route53.record.ResourceRecordSets(self.conn_r53, zone_id)
+        change = changes.add_change("UPSERT", record_name, record_type, ttl=60)
         if is_alias:
             # provide list of params as needed by function set_alias
             # http://boto.readthedocs.org/en/latest/ref/route53.html#boto.route53.record.Record.set_alias
@@ -69,7 +70,7 @@ class R53(object):
             changes.commit()
         return True
 
-    def delete_dns_record(self, zone_id, record_name, record_type, record_value, is_alias=False, dry_run=False):
+    def delete_dns_record(self, zone_name, zone_id, record, record_type, record_value, is_alias=False, dry_run=False):
         """
         Delete a dns record in route53
         Args:
@@ -84,6 +85,7 @@ class R53(object):
         Returns:
              True if update successful or raises an exception if not
         """
+        record_name = "{}.{}".format(record, zone_name)
         changes = boto.route53.record.ResourceRecordSets(self.conn_r53, zone_id)
         change = changes.add_change("DELETE", record_name, record_type, ttl=60)
         if is_alias:
@@ -101,11 +103,10 @@ class R53(object):
     def delete_txt_record(self, zone_name, zone_id, txt_tag_record):
 
         # delete TXT record
-        txt_record_name = "{}.{}".format(txt_tag_record, zone_name)
         txt_record_value = '"{}"'.format(self.get_record(
                 zone_name, zone_id, txt_tag_record, 'TXT'))
         if txt_record_value:
-            self.delete_dns_record(zone_id, txt_record_name, 'TXT', txt_record_value)
+            self.delete_dns_record(zone_name, zone_id, txt_tag_record, 'TXT', txt_record_value)
         return True
 
     def delete_alias_record(self, zone_name, zone_id, elb_name, stack_id, stack_tag):
@@ -138,8 +139,7 @@ class R53(object):
                 active_alias_record_value = [active_alias_record_object.alias_hosted_zone_id,
                                              active_alias_record_object.alias_dns_name,
                                              active_alias_record_object.alias_evaluate_target_health]
-                active_alias_record_name = "{}.{}".format(active_elb_name, zone_name)
-                self.delete_dns_record(zone_id, active_alias_record_name, 'A', active_alias_record_value, is_alias=True)
+                self.delete_dns_record(zone_name, zone_id, active_elb_name, 'A', active_alias_record_value, is_alias=True)
 
     def get_record(self, zone_name, zone_id, record_name, record_type):
         """
@@ -164,7 +164,7 @@ class R53(object):
                 return rr.resource_records[0]
         return None
 
-    def get_deployarn_record(self, zone_id, record_name, record_type):
+    def get_deployarn_record(self, zone_name, zone_id, record, record_type):
         """
         Returns the value of specified deployarn record
         Args:
@@ -173,6 +173,7 @@ class R53(object):
         Returns:
             String: AWS arn id
         """
+        record_name = "{}.{}".format(record, zone_name)
         rrsets = self.conn_r53.get_all_rrsets(zone_id, type=record_type, name=record_name)
         for rr in rrsets:
             if rr.type == record_type and rr.name == record_name:

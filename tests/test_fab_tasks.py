@@ -47,15 +47,18 @@ class TestFabTasks(unittest.TestCase):
         cf_mock = Mock()
         cf_connect_result = Mock(name='cf_connect')
         cf_mock.return_value = cf_connect_result
-        stack = "cfn_mock-dev-12345678"
+        stack = "unittest-dev-12345678"
         example_return = {'DeleteStackResponse': {'ResponseMetadata': {'RequestId': 'someuuid'}}}
-        stack_mock = Mock(stack_name=stack)
-        stack_mock.resource_status = 'CREATE_COMPLETE'
+        stack_mock1 = Mock(stack_name=stack)
+        stack_mock1.resource_status = 'CREATE_COMPLETE'
+        stack_mock1.resource_type = 'AWS::CloudFormation::Stack'
+        mock_stack_list = [stack_mock1]
+
         mock_config = {'delete_stack.return_value': example_return,
                        'create_stack.return_value': stack,
-                       'describe_stacks.return_value': [stack_mock],
+                       'describe_stacks.return_value': mock_stack_list,
                        'stack_done.return_value': True,
-                       'describe_stack_events.return_value': [stack_mock]}
+                       'describe_stack_events.return_value': mock_stack_list}
         cf_connect_result.configure_mock(**mock_config)
         boto.cloudformation.connect_to_region = cf_mock
         cf = cloudformation.Cloudformation("profile_name")
@@ -241,8 +244,8 @@ class TestFabTasks(unittest.TestCase):
         ret = fab_tasks.set_active_stack("test", force=True)
         self.assertTrue(ret)
 
-    def arn_record_name_side_effect(self, stack_tag, zone_name):
-        return 'deployarn.{}.unittest-dev.dsd.io.'.format(stack_tag)
+    def arn_record_name_side_effect(self, stack_tag):
+        return 'deployarn.{}.unittest-dev'.format(stack_tag)
 
     @patch('bootstrap_cfn.fab_tasks.isactive', return_value=True)
     @patch('bootstrap_cfn.fab_tasks.get_connection')
@@ -384,7 +387,7 @@ class TestFabTasks(unittest.TestCase):
         self.assertTrue(ret)
 
     @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
-    def test_get_tag_record_name(self, get_legacy_name_function):
+    def test_get_txt_record_name(self, get_legacy_name_function):
         '''
         Check if it returns tagged record name
         Args:
@@ -394,9 +397,10 @@ class TestFabTasks(unittest.TestCase):
         Returns:
 
         '''
-        record_name = fab_tasks.get_tag_record_name("test")
+        record_name = fab_tasks.get_txt_record_name("test")
         self.assertEqual(record_name, "stack.test.unittest-dev")
 
+    @patch('bootstrap_cfn.fab_tasks.get_env_tag', return_value="test")
     @patch('bootstrap_cfn.fab_tasks.get_connection')
     @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
     @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
@@ -406,7 +410,8 @@ class TestFabTasks(unittest.TestCase):
                             get_zone_id_function,
                             get_legacy_name_function,
                             get_zone_name_function,
-                            get_connection_function):
+                            get_connection_function,
+                            get_env_tag_function):
         '''
         test if it returns correct stack name
         Args:
@@ -508,3 +513,32 @@ class TestFabTasks(unittest.TestCase):
         get_connection_function.side_effect = self.connection_side_effect
         stack_count = fab_tasks.get_stack_list()
         self.assertEqual(stack_count, 2)
+
+    @patch('bootstrap_cfn.fab_tasks.get_env_tag', return_value='dev')
+    @patch('bootstrap_cfn.fab_tasks.get_input', return_value="unittest-dev-12345678")
+    @patch('bootstrap_cfn.fab_tasks.get_env_application', return_value="unittest-dev")
+    @patch('bootstrap_cfn.config.ConfigParser.process', return_value="test")
+    @patch('bootstrap_cfn.fab_tasks.get_config')
+    @patch('bootstrap_cfn.fab_tasks.get_connection')
+    @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
+    @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
+    @patch('bootstrap_cfn.fab_tasks.get_zone_id', return_value="ASDAKSLDK")
+    @patch('bootstrap_cfn.fab_tasks.get_public_elbs', return_value=["unittest_elb"])
+    @patch('bootstrap_cfn.fab_tasks.get_stack_name', return_value="unittest-dev-12345678")
+    def test_support_old_bootstrap_cfn(self, get_stack_name_function,
+                                       get_public_elbs_fucntion,
+                                       get_zone_id_function,
+                                       get_legacy_name_function,
+                                       get_zone_name_function,
+                                       get_connection_function,
+                                       get_config_function,
+                                       get_config_process_function,
+                                       get_env_application_function,
+                                       get_input_function,
+                                       get_env_tag_function):
+        get_connection_function.side_effect = self.connection_side_effect
+        basic_config_mock = yaml.load(set_up_basic_config())
+        get_config_function.return_value = config.ConfigParser(
+            basic_config_mock, "unittest-dev-12345678", "dev", "test", "default")
+        ret = fab_tasks.support_old_bootstrap_cfn()
+        self.assertTrue(ret)

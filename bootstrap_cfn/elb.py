@@ -136,7 +136,7 @@ class ELB:
         """
         lb_name_dns = []
         load_balancer_resources = self.cfn.get_stack_load_balancers(stack_name)
-        lb_ids = [l.physical_resource_id for l in load_balancer_resources]
+        lb_ids = [l.get('PhysicalResourceId') for l in load_balancer_resources]
         if not lb_ids:
             raise BootstrapCfnError("No ELBs found for stack %s" % stack_name)
         lbs_details = self.conn_elb.get_all_load_balancers(load_balancer_names=lb_ids)
@@ -144,3 +144,37 @@ class ELB:
             raise BootstrapCfnError("No ELBs details returned by AWS")
         lb_name_dns = [{'elb_name': l.name, 'dns_name': l.dns_name} for l in lbs_details]
         return lb_name_dns
+
+    def list_public_domain_names(self, stack_name):
+        '''
+        Similar to list_domain_names, only that it gets filters out internal load balancers
+        Args:
+            stack_name:
+
+        Returns:
+
+        '''
+        lb_name_dns = []
+        load_balancer_resources = self.cfn.get_stack_load_balancers(stack_name)
+        lb_ids = [l.get('PhysicalResourceId') for l in load_balancer_resources]
+        if not lb_ids:
+            raise BootstrapCfnError("No ELBs found for stack %s" % stack_name)
+        lbs_details = self.conn_elb.get_all_load_balancers(load_balancer_names=lb_ids)
+        if not lbs_details:
+            raise BootstrapCfnError("No ELBs details returned by AWS")
+        lb_name_dns = [{'elb_name': l.name, 'dns_name': l.dns_name}
+                       for l in lbs_details if l.scheme == 'internet-facing']
+        return lb_name_dns
+
+    def get_ELB_record_value_by_lb_name(self, lb_name):
+        '''
+
+        Args:
+            lb_name: load balancer name
+
+        Returns: ELB record value in the format of
+                list[ alias_hosted_zone_id, alias_dns_name, alias_evaluate_target_health]
+
+        '''
+        lb_info = self.conn_elb.get_all_load_balancers(load_balancer_names=lb_name)[0]
+        return [lb_info.canonical_hosted_zone_name_id, lb_info.dns_name, False]
