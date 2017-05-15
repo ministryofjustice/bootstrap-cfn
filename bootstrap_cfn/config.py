@@ -1,3 +1,5 @@
+import datadiff
+import copy
 import json
 import logging
 import os
@@ -28,7 +30,7 @@ from troposphere.s3 import Bucket, BucketPolicy, LifecycleConfiguration, \
 
 import yaml
 
-from bootstrap_cfn import errors, mime_packer, utils, vpc
+from bootstrap_cfn import errors, mime_packer, utils, vpc, diff
 
 
 class ProjectConfig:
@@ -123,6 +125,126 @@ class ConfigParser(object):
         self.environment = environment
         self.application = application
         self.keyname = keyname
+
+    def process_update(self, templatebody):
+        pristine = json.loads(templatebody)
+
+        #
+        # Prepare the new template.
+        #
+        #
+        # Here be dragons!
+        #
+        # the gateway attachment referencing the InternetGateway and
+        # VPC needs to exist before calling ec2() and elb() on the
+        # template.
+        #
+        # If you change the name of the VPC or the IGW on the CF
+        # template, the below will need to change to reflect the
+        # change.
+        #
+        template = Template()
+        gw_attachment = VPCGatewayAttachment(
+            "AttachGateway",
+            VpcId=Ref('VPC'),
+            InternetGatewayId=Ref('InternetGateway'),
+            DependsOn='InternetGateway'
+        )
+        template.add_resource(gw_attachment)
+
+        if pristine['Resources'].get("DatabaseSG", None):
+            database_sg = SecurityGroup(
+                "DatabaseSG",
+                SecurityGroupIngress=[
+                    {"ToPort": 5432,
+                     "FromPort": 5432,
+                     "IpProtocol": "tcp",
+                     "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")},
+                    {"ToPort": 1433,
+                     "FromPort": 1433,
+                     "IpProtocol": "tcp",
+                     "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")},
+                    {"ToPort": 3306,
+                     "FromPort": 3306,
+                     "IpProtocol": "tcp",
+                     "CidrIp": FindInMap("SubnetConfig", "VPC", "CIDR")}
+                ],
+                VpcId=Ref("VPC"),
+                GroupDescription="SG for EC2 Access to RDS",
+                # translates to DependsOn=["AttachGateway"],
+                # but if not, ensure the tests have been updated too
+                DependsOn=[
+                    r.title
+                    for r in self._find_resources(
+                        template, "AWS::EC2::VPCGatewayAttachment")],
+            )
+            template.add_resource(database_sg)
+
+        ec2 = self.ec2()
+        map(template.add_resource, ec2)
+
+        self.elb(template)
+        template = json.loads(template.to_json())
+
+        # Copy new entries on top of the old ones
+        temp = copy.deepcopy(pristine)
+        for i in template.get('Resources', []):
+            temp['Resources'][i] = template['Resources'][i]
+
+        for i in template.get('Outputs', []):
+            temp['Outputs'][i] = template['Outputs'][i]
+
+        #
+        # Delete stale LoadBalancer (ELBname) entries and
+        # SecurityGroups (name is configued on yaml) from CF Resources
+        #
+        # This cover cases where we rename elbs and security groups.
+        #
+        deleted_resources = utils.delete_stale_types(temp['Resources'], template['Resources'],
+                                                     'AWS::ElasticLoadBalancing::LoadBalancer')
+        ec2_sg_resources = utils.delete_stale_types(temp['Resources'], template['Resources'],
+                                                    'AWS::EC2::SecurityGroup')
+
+        # Manual cleanup
+        #
+        # Each old ELBname had a Policyname and a DNSname entry
+        # attached to the CFN but not directly referenced with
+        # 'Ref'. Remove them as well.
+        #
+        if deleted_resources is not None:
+            dns_cleanup = map(lambda i:i.replace('ELB', 'DNS'),  deleted_resources)
+            policy_cleanup = map(lambda i:i.replace('ELB', 'Policy'),  deleted_resources)
+
+            # Deleting resources.
+            for i in dns_cleanup + policy_cleanup:
+                try:
+                    del temp['Resources'][i]
+                except:
+                    logging.debug('{0} not found in Resources section'.format(i))
+
+            # Deleting outputs
+            for i in deleted_resources:
+                try:
+                    del temp['Outputs'][i]
+                except:
+                    logging.debug('{0} not found in Outputs section'.format(i))
+
+        logging.debug('Resources to be removed: {}'.format(deleted_resources, dns_cleanup, policy_cleanup, ec2_sg_resources))
+        logging.debug('Outputs to be removed: {}'.format(deleted_resources))
+
+        # Diff method 1
+        # print a non cloudformation context diff
+        changes = diff.diff(pristine, temp)
+        logging.info(changes)
+
+
+        # Diff method 2
+        changes = datadiff.diff(pristine, temp)
+        logging.info(changes)
+
+        # convert the result to json
+        result = json.dumps(temp, sort_keys=True, indent=None, separators=(',', ': '))
+        return result
 
     def process(self):
         template = self.base_template()
@@ -1104,6 +1226,7 @@ class ConfigParser(object):
         else:
             default_health_check_grace_period = 300
         health_check_grace_period = auto_scaling_config.get('health_check_grace_period', default_health_check_grace_period)
+
         scaling_group = AutoScalingGroup(
             "ScalingGroup",
             VPCZoneIdentifier=self._get_subnet_refs(env.aws_region),

@@ -1,4 +1,3 @@
-
 import boto.cloudformation
 
 import boto3
@@ -24,6 +23,16 @@ class Cloudformation:
                                            tags=tags)
         return stack
 
+    def update(self, stack_name, template_body):
+        try:
+            stack = self.conn_cfn.update_stack(stack_name=stack_name,
+                                               template_body=template_body,
+                                               capabilities=['CAPABILITY_IAM'])
+        except boto.exception.BotoServerError:
+            return None
+
+        return stack
+
     def delete(self, stack_name):
         stack = self.conn_cfn.delete_stack(stack_name)
         return stack
@@ -31,7 +40,7 @@ class Cloudformation:
     def stack_done(self, stack_id):
         stack_events = self.conn_cfn.describe_stack_events(stack_id)
         if stack_events[0].resource_type == 'AWS::CloudFormation::Stack'\
-                and stack_events[0].resource_status in ['CREATE_COMPLETE', 'CREATE_FAILED', 'ROLLBACK_COMPLETE']:
+                and stack_events[0].resource_status in ['CREATE_COMPLETE', 'CREATE_FAILED', 'ROLLBACK_COMPLETE', 'UPDATE_COMPLETE']:
             return True
         return False
 

@@ -121,6 +121,26 @@ def tail(stack, stack_name):
             seen.add(e.event_id)
         time.sleep(2)
 
+def delete_stale_types(old, new, cfn_type):
+    '''
+    Given two dicts and a type, remove the keys that don't exist in
+    new from old.
+    '''
+    test = lambda x: True if x.get('Type', None) == cfn_type else False
+    old_outs = [k for k,v in old.iteritems() if test(v)]
+    new_outs = [k for k,v in new.iteritems() if test(v)]
+
+    old_outs = set(old_outs)
+    new_outs = set(new_outs)
+
+    # only in old means they are stale and needs to be deleted
+    diff = old_outs - new_outs
+
+    # Delete the actual things referenced...
+    for i in diff:
+        del old[i]
+    return diff
+
 
 def get_events(stack, stack_name):
     """Get the events in batches and return in chronological order"""

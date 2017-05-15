@@ -705,6 +705,34 @@ def isactive():
 
 
 @task
+def cfn_update(test=False):
+    """
+    Update the AWS cloudformation stack.
+    """
+    _validate_fabric_env()
+    stack_name = get_stack_name(new=False)
+    cfn_config = get_config(called_by_cfn_create=True)
+
+    cfn = get_connection(Cloudformation)
+    # Get online template
+    response = cfn.conn_cfn.get_template(stack_name)
+    body = response['GetTemplateResponse']['GetTemplateResult']['TemplateBody']
+    new_body = cfn_config.process_update(body)
+
+    x = raw_input("Are you sure you want to update the stack {}!? (y/n)\n".format(stack_name))
+    if x not in ['y', 'Y', 'Yes', 'yes']:
+        sys.exit(1)
+
+    rc = cfn.update(stack_name, cfn_config.process_update(body))
+    if not rc:
+        logger.critical("cfn_update: please check the logs for BotoServerError criticals")
+        logger.critical("cfn_update: this usually happens when cfn_update is ran but no changes are needed")
+        return
+
+    tail(cfn, stack_name)
+    return True
+
+@task
 def cfn_create(test=False):
     """
     Create the AWS cloudformation stack.
