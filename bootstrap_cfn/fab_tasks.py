@@ -10,13 +10,13 @@ import boto.exception
 
 import boto3
 
-
 from fabric.api import env, task
 from fabric.colors import green, red, yellow
 from fabric.utils import abort
 
 import pkg_resources
 
+from bootstrap_cfn import cloudformation
 from bootstrap_cfn.autoscale import Autoscale
 from bootstrap_cfn.cloudformation import Cloudformation
 from bootstrap_cfn.config import ConfigParser, ProjectConfig
@@ -696,6 +696,7 @@ def get_env_blocking():
 
     '''
 
+
 def isactive():
     try:
         if env.tag == 'active':
@@ -1110,6 +1111,7 @@ def get_stack_list():
     stack_count = 0
     stacks_list = []
     leftover_dns = []
+    stacks = cloudformation.get_all_stacks_by_attribute()
     for rr in rrsets:
         if re.match(regex, rr.name):
             stack_id = rr.resource_records[0][1:-1]
@@ -1119,15 +1121,21 @@ def get_stack_list():
             stack_tag = dns_record_name.split('.')[1]
             stack_name = "{0}-{1}".format(stack_name_prefix, stack_id)
             stack_count += 1
-            if not cfn.stack_missing(stack_name):
-                stacks_list.append("{} | {}".format(dns_record_name.ljust(50), stack_name.ljust(50)))
+            stack_exists = [stack for stack in stacks if stack.get('StackName', None) == stack_name]
+            if len(stack_exists) > 0:
+                stacks_list.append("{} {} {}".format(dns_record_name.ljust(50),
+                                                     stack_exists[0].get('StackName', None).ljust(50),
+                                                     stack_exists[0].get('StackStatus', None).ljust(50)))
             else:
                 leftover_dns.append("{} | {}".format(dns_record_name.ljust(50), stack_tag.ljust(50)))
-    print green("{} | {}".format("DNS Record".ljust(50), "Stack Name".ljust(50)))
-    print '\n'.join(s for s in stacks_list)
-    print yellow("{} | {}".format("Leftover DNS Record".ljust(50), "Stack Tag".ljust(50)))
-    print '\n'.join(l for l in leftover_dns)
-    return stack_count
+
+    if len(stacks_list) > 0:
+        print green("{} {} {}".format("DNS Record".ljust(50), "Stack Name".ljust(50), "Stack Status".ljust(50)))
+        print '\n'.join(s for s in stacks_list)
+    if len(leftover_dns) > 0:
+        print yellow("{} | {}".format("Leftover DNS Record".ljust(50), "Stack Tag".ljust(50)))
+        print '\n'.join(l for l in leftover_dns)
+    return True
 
 
 @task(alias='oldfriendly')

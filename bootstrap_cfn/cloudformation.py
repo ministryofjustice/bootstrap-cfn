@@ -135,3 +135,28 @@ def get_stack_ids_by_name(stack_name_search_term):
     all_stacks = client.describe_stacks()
     stacks = [stack for stack in all_stacks['Stacks'] if stack_name_search_term in stack['StackId']]
     return stacks
+
+
+def get_all_stacks_by_attribute(attribute=None):
+    """
+    Get all the stacks in this connection
+    Handle the pagination of results to make sure we get them all
+    Return the specific attribute of stacks for example StackName
+    Or the stack object if attribute=None
+
+    Args:
+        attribute (string): the attribute of stacks, e.g StackName or StackId
+
+    Returns:
+        all stacks with the attribute list, for example stack name list
+    """
+    client = boto3.client('cloudformation')
+    response = client.describe_stacks()
+    all_stacks = response.get('Stacks', None)
+    while response.get('NextToken', None):
+        response = client.describe_stacks(NextToken=response.get('NextToken', None))
+        all_stacks += response.get('Stacks', None)
+    if attribute is not None:
+        return [stack.get(attribute) for stack in all_stacks]
+    else:
+        return all_stacks
