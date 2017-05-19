@@ -1122,17 +1122,17 @@ def get_stack_list():
             stack_name = "{0}-{1}".format(stack_name_prefix, stack_id)
             stack_count += 1
             stack_exists = [stack for stack in stacks if stack.get('StackName', None) == stack_name]
-            if len(stack_exists) > 0:
+            if stack_exists:
                 stacks_list.append("{} {} {}".format(dns_record_name.ljust(50),
                                                      stack_exists[0].get('StackName', None).ljust(50),
                                                      stack_exists[0].get('StackStatus', None).ljust(50)))
             else:
                 leftover_dns.append("{} | {}".format(dns_record_name.ljust(50), stack_tag.ljust(50)))
 
-    if len(stacks_list) > 0:
+    if stacks_list:
         print green("{} {} {}".format("DNS Record".ljust(50), "Stack Name".ljust(50), "Stack Status".ljust(50)))
         print '\n'.join(s for s in stacks_list)
-    if len(leftover_dns) > 0:
+    if leftover_dns:
         print yellow("{} | {}".format("Leftover DNS Record".ljust(50), "Stack Tag".ljust(50)))
         print '\n'.join(l for l in leftover_dns)
     return True
