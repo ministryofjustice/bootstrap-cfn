@@ -55,6 +55,7 @@ class R53(object):
             dry_run:
         Returns True if update successful or raises an exception if not
         """
+        zone_name = consistent_zone_name(zone_name)
         record_name = "{}.{}".format(record, zone_name)
         changes = boto.route53.record.ResourceRecordSets(self.conn_r53, zone_id)
         change = changes.add_change("UPSERT", record_name, record_type, ttl=60)
@@ -85,6 +86,7 @@ class R53(object):
         Returns:
              True if update successful or raises an exception if not
         """
+        zone_name = consistent_zone_name(zone_name)
         record_name = "{}.{}".format(record, zone_name)
         changes = boto.route53.record.ResourceRecordSets(self.conn_r53, zone_id)
         change = changes.add_change("DELETE", record_name, record_type, ttl=60)
@@ -102,6 +104,7 @@ class R53(object):
 
     def delete_txt_record(self, zone_name, zone_id, txt_tag_record):
 
+        zone_name = consistent_zone_name(zone_name)
         # delete TXT record
         txt_record_value = '"{}"'.format(self.get_record(
                 zone_name, zone_id, txt_tag_record, 'TXT'))
@@ -121,6 +124,7 @@ class R53(object):
         Returns:
 
         '''
+        zone_name = consistent_zone_name(zone_name)
         active_elb_name = "{}-{}".format(elb_name, stack_id)
         active_alias_record_object = self.get_full_record(zone_name, zone_id, active_elb_name, 'A')
         # delete Alias record
@@ -152,7 +156,8 @@ class R53(object):
         Returns:
             String or None, in the event of there being no A or TXT record
         """
-        record_fqdn = "{0}.{1}.".format(record_name, zone_name)
+        zone_name = consistent_zone_name(zone_name)
+        record_fqdn = "{0}.{1}".format(record_name, zone_name)
         rrsets = self.conn_r53.get_all_rrsets(zone_id, type=record_type, name=record_fqdn)
         for rr in rrsets:
             if rr.type == record_type and rr.name == record_fqdn:
@@ -173,6 +178,7 @@ class R53(object):
         Returns:
             String: AWS arn id
         """
+        zone_name = consistent_zone_name(zone_name)
         record_name = "{}.{}".format(record, zone_name)
         rrsets = self.conn_r53.get_all_rrsets(zone_id, type=record_type, name=record_name)
         for rr in rrsets:
@@ -191,7 +197,8 @@ class R53(object):
         Returns:
             RecordObject
         """
-        record_fqdn = "{0}.{1}.".format(record_name, zone_name)
+        zone_name = consistent_zone_name(zone_name)
+        record_fqdn = "{0}.{1}".format(record_name, zone_name)
         rrsets = self.conn_r53.get_all_rrsets(zone_id, type=record_type, name=record_fqdn)
         for rr in rrsets:
             if rr.type == record_type and rr.name == record_fqdn:
@@ -209,6 +216,7 @@ class R53(object):
             String if stack exists
             None if not.
         """
+        zone_name = consistent_zone_name(zone_name)
         hasrecord = self.get_record(zone_name, zone_id, record_name, 'TXT')
         return hasrecord
 
@@ -221,3 +229,6 @@ class R53(object):
         """
         rrsets = self.conn_r53.get_all_rrsets(zone_id)
         return rrsets
+
+def consistent_zone_name(zone_name):
+    return zone_name if zone_name.endswith('.') else zone_name + '.'
