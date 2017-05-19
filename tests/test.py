@@ -307,5 +307,6 @@ class CfnTestCase(unittest.TestCase):
         x = i.delete_ssl_certificate({}, self.stack_name)
         self.assertTrue(x)
 
+
 if __name__ == '__main__':
     unittest.main()

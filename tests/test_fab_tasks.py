@@ -542,7 +542,6 @@ class TestFabTasks(unittest.TestCase):
         self.assertEqual(stack_count, 2)
 
     @patch('bootstrap_cfn.fab_tasks.get_env_tag', return_value='dev')
-    @patch('bootstrap_cfn.fab_tasks.get_input', return_value="unittest-dev-12345678")
     @patch('bootstrap_cfn.fab_tasks.get_env_application', return_value="unittest-dev")
     @patch('bootstrap_cfn.config.ConfigParser.process', return_value="test")
     @patch('bootstrap_cfn.fab_tasks.get_config')
@@ -561,11 +560,10 @@ class TestFabTasks(unittest.TestCase):
                                        get_config_function,
                                        get_config_process_function,
                                        get_env_application_function,
-                                       get_input_function,
                                        get_env_tag_function):
         get_connection_function.side_effect = self.connection_side_effect
         basic_config_mock = yaml.load(set_up_basic_config())
         get_config_function.return_value = config.ConfigParser(
             basic_config_mock, "unittest-dev-12345678", "dev", "test", "default")
-        ret = fab_tasks.support_old_bootstrap_cfn()
+        ret = fab_tasks.support_old_bootstrap_cfn("unittest-dev-12345678")
         self.assertTrue(ret)
