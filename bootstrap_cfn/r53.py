@@ -178,7 +178,7 @@ class R53(object):
         for rr in rrsets:
             if rr.type == record_type and rr.name == record_name:
                 return rr.resource_records[0][1:-1]
-        return False
+        return None
 
     def get_full_record(self, zone_name, zone_id, record_name, record_type):
         """
