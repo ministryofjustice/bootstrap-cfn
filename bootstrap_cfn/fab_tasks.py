@@ -973,18 +973,18 @@ def set_active_deployarn(stack_tag):
     active_arn_record = arn_record_name('active')
     zone_id = get_zone_id()
     r53 = get_connection(R53)
+    tag_arn_value = r53.get_deployarn_record(zone_name, zone_id, tag_arn_record, 'TXT')
     try:
-        tag_arn_value = r53.get_deployarn_record(zone_name, zone_id, tag_arn_record, 'TXT')
         if tag_arn_value is None:
-            raise StackRecordNotFoundError('{}. Make sure you run "set_deploy_arn" on {}'
-                                           ' before set_active_stack'.format(tag_arn_value, stack_tag))
-        try:
-            ret = r53.update_dns_record(zone_name, zone_id, active_arn_record, 'TXT', '"{0}"'.format(tag_arn_value))
-            print "Active deployarn was set to: {0}".format(tag_arn_value)
-        except boto.exception:
-            raise UpdateDeployarnRecordError
-    except:
-        raise StackRecordNotFoundError(tag_arn_record)
+            raise StackRecordNotFoundError('{}: {}. Make sure you run "set_deploy_arn" on tag:{}'
+                                           ' before set_active_stack'.format(tag_arn_record, tag_arn_value, stack_tag))
+    except StackRecordNotFoundError:
+        exit(1)
+    try:
+        ret = r53.update_dns_record(zone_name, zone_id, active_arn_record, 'TXT', '"{0}"'.format(tag_arn_value))
+        print "Active deployarn was set to: {0}".format(tag_arn_value)
+    except boto.exception:
+        raise UpdateDeployarnRecordError
     return ret
 
 
