@@ -252,7 +252,7 @@ def swap_tags(tag1, tag2):
     stack_suffix1 = r53_conn.get_record(zone_name, zone_id, record1, 'TXT')
     stack_suffix2 = r53_conn.get_record(zone_name, zone_id, record2, 'TXT')
     r53_conn.update_dns_record(zone_name, zone_id, record1, 'TXT', '"{0}"'.format(stack_suffix2))
-    r53_conn.update_dns_record(zone_id, record2, 'TXT', '"{0}"'.format(stack_suffix1))
+    r53_conn.update_dns_record(zone_name, zone_id, record2, 'TXT', '"{0}"'.format(stack_suffix1))
 
 
 def apply_maintenance_criteria(elb):
@@ -280,8 +280,8 @@ def enter_maintenance(maintenance_ip, dry_run=False):
             continue
         zone_id = get_cached_zone_id(r53_conn, cached_zone_ids, elb['hosted_zone'])
         zone_name = get_zone_name()
-        print green("Attempting to update: \"{0}\":\"{1}\"".format(elb, maintenance_ip))
-        r53_conn.update_dns_record(zone_name, zone_id, elb, 'A', maintenance_ip, dry_run=dry_run)
+        print green("Attempting to update: \"{0}\":\"{1}\"".format(elb['name'], maintenance_ip))
+        r53_conn.update_dns_record(zone_name, zone_id, elb['name'], 'A', maintenance_ip, dry_run=dry_run)
 
 
 @task
@@ -348,8 +348,8 @@ def exit_maintenance(dry_run=False):
             # alias_evaluate_target_health (True/False)
             False
         ]
-        print green("Attempting to update: \"{0}\":{1}".format(elb, record_value))
-        r53_conn.update_dns_record(zone_name, zone_id, elb, 'A', record_value, is_alias=True, dry_run=dry_run)
+        print green("Attempting to update: \"{0}\":{1}".format(elb['name'], record_value))
+        r53_conn.update_dns_record(get_zone_name(), zone_id, elb['name'], 'A', record_value, is_alias=True, dry_run=dry_run)
 
 
 def get_cached_zone_id(r53_conn, zone_dict, zone_name):
@@ -410,18 +410,17 @@ def get_stack_name(new=False):
         logger.info("fab_tasks::get_stack_name: Found master zone '%s' in config...", zone_name)
         # get record name in the format of: stack.[stack_tag].[app]-[env]
         record_name = get_txt_record_name(stack_tag)
-        dns_name = "{}.{}".format(record_name, zone_name)
         r53_conn = get_connection(R53)
         try:
             # get stack id
             stack_suffix = r53_conn.get_record(zone_name, zone_id, record_name, 'TXT').replace('"', "")
             logger.info("fab_tasks::get_stack_name: Found stack suffix '%s' "
-                        "for dns record '%s'... ", stack_suffix, dns_name)
+                        "for dns record '%s'... ", stack_suffix, record_name)
             legacy_name = get_legacy_name()
             env.stack_name = "{0}-{1}".format(legacy_name, stack_suffix)
             logger.info("fab_tasks::get_stack_name: Found stack name '%s'...", env.stack_name)
         except Exception:
-            raise DNSRecordNotFoundError(dns_name)
+            raise DNSRecordNotFoundError(record_name)
 
     return env.stack_name
 
@@ -1002,18 +1001,18 @@ def set_active_deployarn(stack_tag):
     active_arn_record = arn_record_name('active')
     zone_id = get_zone_id()
     r53 = get_connection(R53)
+    tag_arn_value = r53.get_deployarn_record(zone_name, zone_id, tag_arn_record, 'TXT')
     try:
-        tag_arn_value = r53.get_deployarn_record(zone_name, zone_id, tag_arn_record, 'TXT')
         if tag_arn_value is None:
-            raise StackRecordNotFoundError('{}. Make sure you run "set_deploy_arn" on {}'
-                                           ' before set_active_stack'.format(tag_arn_value), stack_tag)
-        try:
-            ret = r53.update_dns_record(zone_name, zone_id, active_arn_record, 'TXT', '"{0}"'.format(tag_arn_value))
-            print "Active deployarn was set to: {0}".format(tag_arn_value)
-        except:
-            raise UpdateDeployarnRecordError
-    except:
-        raise StackRecordNotFoundError(tag_arn_record)
+            raise StackRecordNotFoundError('{}: {}. Make sure you run "set_deploy_arn" on tag:{}'
+                                           ' before set_active_stack'.format(tag_arn_record, tag_arn_value, stack_tag))
+    except StackRecordNotFoundError:
+        exit(1)
+    try:
+        ret = r53.update_dns_record(zone_name, zone_id, active_arn_record, 'TXT', '"{0}"'.format(tag_arn_value))
+        print "Active deployarn was set to: {0}".format(tag_arn_value)
+    except boto.exception:
+        raise UpdateDeployarnRecordError
     return ret
 
 
