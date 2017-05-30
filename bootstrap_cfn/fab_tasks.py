@@ -481,8 +481,9 @@ def get_zone_name():
     return zone_name
 
 
-def get_zone_id():
-    zone_name = get_zone_name()
+def get_zone_id(zone_name=None):
+    if zone_name is None:
+        zone_name = get_zone_name()
     r53_conn = get_connection(R53)
     try:
         zone_id = r53_conn.get_hosted_zone_id(zone_name)
@@ -491,6 +492,18 @@ def get_zone_id():
     logger.info("fab_tasks::get_zone_id: Found zone id '%s' "
                 "for zone name '%s'...", zone_id, zone_name)
     return zone_id
+
+
+def get_elb_details(elb):
+    """
+    return (name, hosted_zone, hosted_id) of an elb
+    Args:
+        elb: (dict) elb object from yaml
+
+    Returns:
+        (tuple): elb name, hosted zone name, hosted zone id
+    """
+    return elb.get('name'), elb.get('hosted_zone'), get_zone_id(elb.get('hosted_zone'))
 
 
 def get_legacy_name():
@@ -624,17 +637,15 @@ def cfn_delete(force=False, pre_delete_callbacks=None):
             pass
 
     for elb in get_all_elbs():
-        logger.info("Deleting '{}-{}' from '{}' ({})...".format(elb, stack_id, zone_name, zone_id))
+        (elb_name, hosted_zone_name, hosted_zone_id) = get_elb_details(elb)
         try:
-            print green("\nDELETING Alias RECORDS {}-{}-{}...\n".format(elb, stack_id, zone_name))
-            r53_conn.delete_alias_record(zone_name, zone_id, elb, stack_id, stack_tag)
+            print green("\nDELETING Alias RECORDS {}-{}-{}...\n".format(elb_name, stack_id, hosted_zone_name))
+            r53_conn.delete_alias_record(hosted_zone_name, hosted_zone_id, elb_name, stack_id, stack_tag)
         except boto.route53.exception.DNSServerError:
             pass
 
     if not isactive():
         print green("\nSTACK {0} DELETING...\n").format(stack_name)
-        logger.info("Deleting inactive stack '{}' ({})...".format(stack_name, stack_tag))
-
         try:
             txt_arn_record = 'deployarn.{0}.{1}.{2}'.format(stack_tag, env.environment, env.application)
 
@@ -964,24 +975,23 @@ def set_active_stack(stack_tag, force=False):
         raise UpdateDNSRecordError
 
     elbs = get_all_elbs()
-    logger.info('fab_tasks::set_active_stack: Found ELBs matching the stack: %s',
-                ', '.join(elbs))
     for elb in elbs:
-        record_name = "{}-{}".format(elb, tag_stack_id)
+        (elb_name, hosted_zone_name, hosted_zone_id) = get_elb_details(elb)
+        record_name = "{}-{}".format(elb_name, tag_stack_id)
         try:
-            record_object = r53_conn.get_full_record(zone_name, zone_id, record_name, 'A')
+            record_object = r53_conn.get_full_record(hosted_zone_name, hosted_zone_id, record_name, 'A')
             record_value = [record_object.alias_hosted_zone_id,
                             record_object.alias_dns_name,
                             record_object.alias_evaluate_target_health]
             try:
-                r53_conn.update_dns_record(zone_name, zone_id, elb, 'A',
+                r53_conn.update_dns_record(hosted_zone_name, hosted_zone_id, elb_name, 'A',
                                            record_value, is_alias=True)
                 logger.info("fab_tasks::set_active_stack: Successfully "
                             "updated DNS alias record for ELB: %s", elb)
-            except Exception:
-                raise UpdateDNSRecordError
-        except Exception:
-            raise StackRecordNotFoundError(record_name)
+            except boto.route53.exception.DNSServerError:
+                raise UpdateDNSRecordError(elb_name+'.'+hosted_zone_name)
+        except boto.route53.exception.DNSServerError:
+            raise StackRecordNotFoundError(record_name+'.'+hosted_zone_name)
 
     print green("Active stack switched to '{}' ({}).".format(tag_record, tag_stack_id))
     return True
@@ -1043,10 +1053,11 @@ def get_active_stack():
 
         records = []
         for elb in get_all_elbs():
-            dns_record_name = '{}-{}'.format(elb, active_stack_id)
+            (elb_name, hosted_zone_name, hosted_zone_id) = get_elb_details(elb)
+            dns_record_name = '{}-{}'.format(elb_name, active_stack_id)
 
-            main_record_value = r53_conn.get_record(zone_name, zone_id, elb, 'A')
-            dns_record_value = r53_conn.get_record(zone_name, zone_id, dns_record_name, 'A')
+            main_record_value = r53_conn.get_record(hosted_zone_name, hosted_zone_id, elb_name, 'A')
+            dns_record_value = r53_conn.get_record(hosted_zone_name, hosted_zone_id, dns_record_name, 'A')
 
             if re.match(suffix, main_record_value):
                 main_record_value = strip_prefix(main_record_value, prefix)
@@ -1058,13 +1069,14 @@ def get_active_stack():
 
     except Exception:
         print yellow("No active stack exists.")
-        return
+        return None
 
     if active_stack_id and all(records):
         print green("Active stack id is: {}".format(active_stack_id))
         return active_stack_id
     else:
         print yellow("No active stack exists.")
+        return None
 
 
 def get_all_elbs(f=None):
@@ -1074,8 +1086,12 @@ def get_all_elbs(f=None):
     returns True, or everything.
     """
     cfn_config = get_config()
-    elbs = [x.get('name') for x in cfn_config.data.get('elb', {}) if x.get('scheme') in ['internet-facing', 'internal']]
-    return filter(f, elbs) if f else elbs
+    elbs = cfn_config.data.get('elb', {})
+    if f:
+        elb_names = [elb.get("name") for elb in elbs]
+        return filter(f, elb_names)
+    else:
+        return elbs
 
 
 def get_public_elbs(stack, f=None):
