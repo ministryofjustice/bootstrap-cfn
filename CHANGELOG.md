@@ -1,3 +1,10 @@
+## v1.5.0
+
+Fixes:
+* ELB records are put under 'hosted_zone' it defines in yaml
+* Format R53 API calls -- contain zone_name in each call
+* Fix 'get_deploy_arn' bug -- updated return:False to return:None
+
 ## v1.4.1
 
 Fixes:
