@@ -1,3 +1,7 @@
+## v1.5.2
+
+* Re-release due to duplicate error from pypi while uploading as zip
+
 ## v1.5.1
 
 * Add datadiff requirement in setup.py
