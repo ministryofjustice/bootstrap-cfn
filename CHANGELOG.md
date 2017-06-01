@@ -1,4 +1,4 @@
-## UNRELEASED
+## v1.5.1
 
 * Add datadiff requirement in setup.py
 
