@@ -1,3 +1,7 @@
+## UNRELEASED
+
+* Add datadiff requirement in setup.py
+
 ## v1.5.0
 
 Fixes:

@@ -25,6 +25,7 @@ setup(
         'dnspython>=1.12.0',
         'netaddr>=0.7.18',
         'troposphere>=1.0.0',
+        'datadiff==2.0.0',
     ],
     setup_requires=[
         'mock>=1.0.1',
