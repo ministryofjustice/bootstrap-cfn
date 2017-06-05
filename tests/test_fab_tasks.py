@@ -108,10 +108,34 @@ class TestFabTasks(unittest.TestCase):
         m5.type = 'TXT'
         m5.alias_hosted_zone_id = "ASDAKSLSA"
         m5.alias_evaluate_target_health = False
-        response = [m1, m2, m3, m4, m5]
+
+        m6 = Mock(resource_records=['"12345678"'])
+        m6.name = 'unittest.unittest.dsd.io.'
+        m6.type = 'A'
+        m6.alias_hosted_zone_id = "Z3P5QSUBK4POTI"
+        m6.alias_evaluate_target_health = False
+        m7 = Mock(resource_records=['"12345678"'])
+        m7.name = 'unittest-12345678.unittest.dsd.io.'
+        m7.type = 'A'
+        m7.alias_hosted_zone_id = "Z3P5QSUBK4POTI"
+        m7.alias_evaluate_target_health = False
+
+        response = [m1, m2, m3, m4, m5, m6, m7]
+
+        hosted_name = {
+            "GetHostedZoneResponse":
+                {
+                    "HostedZone":
+                        {
+                            "Id": "/hostedzone/Z3P5QSUBK4POTI",
+                            "Name": "www.example.com."
+                        }
+                }
+        }
         mock_config = {'update_dns_record.return_value': True,
                        'get_all_rrsets.return_value': response,
-                       'delete_dns_record.return_value': True}
+                       'delete_dns_record.return_value': True,
+                       'get_hosted_zone_by_name.return_value': hosted_name}
         r53_connect_result.configure_mock(**mock_config)
         boto.route53.connect_to_region = r53_mock
         r = r53.R53("profile_name")
@@ -147,7 +171,7 @@ class TestFabTasks(unittest.TestCase):
             basic_config_mock, "unittest_stack_name", "dev", "test")
 
         all_elbs = fab_tasks.get_all_elbs()
-        self.assertEqual(all_elbs, ["unittest"])
+        self.assertEqual(all_elbs, basic_config_mock['elb'])
 
     @patch('bootstrap_cfn.fab_tasks.get_config')
     def test_get_all_elbs_with_filter(self, get_config_function):
@@ -185,8 +209,8 @@ class TestFabTasks(unittest.TestCase):
     @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
     @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
     @patch('bootstrap_cfn.fab_tasks.get_zone_id', return_value="ASDAKSLDK")
-    @patch('bootstrap_cfn.fab_tasks.get_all_elbs', return_value=["unittest_elb"])
-    def test_get_active_stack(self, get_public_elbs_function,
+    @patch('bootstrap_cfn.fab_tasks.get_all_elbs')
+    def test_get_active_stack(self, get_all_elbs_function,
                               get_zone_id_function,
                               get_legacy_name_function,
                               get_zone_name_function,
@@ -203,22 +227,22 @@ class TestFabTasks(unittest.TestCase):
         Returns:
 
         '''
+        basic_config_mock = yaml.load(set_up_basic_config())
+        get_all_elbs_function.return_value = basic_config_mock['elb']
         get_connection_function.side_effect = self.connection_side_effect
         # fab_tasks.get_connection = Mock(return_value=r)
-
         res = fab_tasks.get_active_stack()
-        self.assertTrue(res)
-        self.assertEqual(res, "12345678")
+        self.assertIsNone(res)
 
     @patch('bootstrap_cfn.fab_tasks.arn_record_name')
     @patch('bootstrap_cfn.fab_tasks.get_connection')
     @patch('bootstrap_cfn.fab_tasks.get_zone_name', return_value="dsd.io")
     @patch('bootstrap_cfn.fab_tasks.get_legacy_name', return_value="unittest-dev")
     @patch('bootstrap_cfn.fab_tasks.get_zone_id', return_value="ASDAKSLDK")
-    @patch('bootstrap_cfn.fab_tasks.get_all_elbs', return_value=["unittest_elb"])
+    @patch('bootstrap_cfn.fab_tasks.get_all_elbs')
     @patch('bootstrap_cfn.fab_tasks.get_first_public_elb', return_value="unittest_elb")
-    def test_set_active_stack(self, get_public_elbs_function,
-                              get_first_public_elb_function,
+    def test_set_active_stack(self, get_first_public_elb_function,
+                              get_all_elbs_function,
                               get_zone_id_function,
                               get_legacy_name_function,
                               get_zone_name_function,
@@ -238,9 +262,12 @@ class TestFabTasks(unittest.TestCase):
         Returns:
 
         '''
+        basic_config_mock = yaml.load(set_up_basic_config())
+        get_all_elbs_function.return_value = basic_config_mock['elb']
         arn_record_name_mock.side_effect = self.arn_record_name_side_effect
         get_connection_function.side_effect = self.connection_side_effect
         # fab_tasks.get_connection = Mock(return_value=r)
+        import pdb;pdb.set_trace()
         ret = fab_tasks.set_active_stack("test", force=True)
         self.assertTrue(ret)
 
@@ -515,7 +542,6 @@ class TestFabTasks(unittest.TestCase):
         self.assertEqual(stack_count, 2)
 
     @patch('bootstrap_cfn.fab_tasks.get_env_tag', return_value='dev')
-    @patch('bootstrap_cfn.fab_tasks.get_input', return_value="unittest-dev-12345678")
     @patch('bootstrap_cfn.fab_tasks.get_env_application', return_value="unittest-dev")
     @patch('bootstrap_cfn.config.ConfigParser.process', return_value="test")
     @patch('bootstrap_cfn.fab_tasks.get_config')
@@ -534,11 +560,10 @@ class TestFabTasks(unittest.TestCase):
                                        get_config_function,
                                        get_config_process_function,
                                        get_env_application_function,
-                                       get_input_function,
                                        get_env_tag_function):
         get_connection_function.side_effect = self.connection_side_effect
         basic_config_mock = yaml.load(set_up_basic_config())
         get_config_function.return_value = config.ConfigParser(
             basic_config_mock, "unittest-dev-12345678", "dev", "test", "default")
-        ret = fab_tasks.support_old_bootstrap_cfn()
+        ret = fab_tasks.support_old_bootstrap_cfn("unittest-dev-12345678")
         self.assertTrue(ret)
