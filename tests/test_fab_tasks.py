@@ -267,7 +267,6 @@ class TestFabTasks(unittest.TestCase):
         arn_record_name_mock.side_effect = self.arn_record_name_side_effect
         get_connection_function.side_effect = self.connection_side_effect
         # fab_tasks.get_connection = Mock(return_value=r)
-        import pdb;pdb.set_trace()
         ret = fab_tasks.set_active_stack("test", force=True)
         self.assertTrue(ret)
 
