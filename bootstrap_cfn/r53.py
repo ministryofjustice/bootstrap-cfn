@@ -41,7 +41,8 @@ class R53(object):
             zone = zone['GetHostedZoneResponse']['HostedZone']['Id']
             return zone.replace('/hostedzone/', '')
 
-    def update_dns_record(self, zone_name, zone_id, record, record_type, record_value, is_alias=False, dry_run=False):
+    def update_dns_record(self, zone_id, record, record_type, record_value,
+                          is_alias=False, zone_name=None, dry_run=False):
         """
         Updates a dns record in route53
         Args:
@@ -55,8 +56,10 @@ class R53(object):
             dry_run:
         Returns True if update successful or raises an exception if not
         """
-        zone_name = conform_with_fqdn(zone_name)
-        record_name = "{}.{}".format(record, zone_name)
+        if zone_name:
+            record_name = conform_with_fqdn("{}.{}".format(record, zone_name))
+        else:
+            record_name = conform_with_fqdn(record)
         changes = boto.route53.record.ResourceRecordSets(self.conn_r53, zone_id)
         change = changes.add_change("UPSERT", record_name, record_type, ttl=60)
         if is_alias:

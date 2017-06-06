@@ -26,7 +26,7 @@ class BootstrapCfnR53TestCase(unittest.TestCase):
         r53_mock.return_value = r53_connect_result
         boto.route53.connect_to_region = r53_mock
         r = r53.R53(self.env.aws_profile)
-        x = r.update_dns_record('zone_name', 'blah/blah', 'x.y', 'A', '1.1.1.1')
+        x = r.update_dns_record('blah/blah', 'x.y', 'A', '1.1.1.1', zone_name='zone_name')
         self.assertTrue(x)
 
     def test_delete_dns_record(self):
