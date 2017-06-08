@@ -251,8 +251,10 @@ def swap_tags(tag1, tag2):
     record2 = "stack.{0}.{1}".format(tag2, legacy_name)
     stack_suffix1 = r53_conn.get_record(zone_name, zone_id, record1, 'TXT')
     stack_suffix2 = r53_conn.get_record(zone_name, zone_id, record2, 'TXT')
-    r53_conn.update_dns_record(zone_name, zone_id, record1, 'TXT', '"{0}"'.format(stack_suffix2))
-    r53_conn.update_dns_record(zone_name, zone_id, record2, 'TXT', '"{0}"'.format(stack_suffix1))
+    r53_conn.update_dns_record(zone_id, record1, 'TXT', '"{0}"'.format(stack_suffix2),
+                               zone_name=zone_name)
+    r53_conn.update_dns_record(zone_id, record2, 'TXT', '"{0}"'.format(stack_suffix1),
+                               zone_name=zone_name)
 
 
 def apply_maintenance_criteria(elb):
@@ -270,6 +272,7 @@ def enter_maintenance(maintenance_ip, dry_run=False):
     Puts stack into maintenance mode
 
     Sets all internet facing elb hostnames to resolve to given maintenance_ip
+    NOTE: This task may be incompatible with parallel stacks
     '''
     cfn_config = get_config()
     r53_conn = get_connection(R53)
@@ -279,9 +282,10 @@ def enter_maintenance(maintenance_ip, dry_run=False):
         if not apply_maintenance_criteria(elb):
             continue
         zone_id = get_cached_zone_id(r53_conn, cached_zone_ids, elb['hosted_zone'])
-        zone_name = get_zone_name()
+        zone_name = elb['hosted_zone']
         print green("Attempting to update: \"{0}\":\"{1}\"".format(elb['name'], maintenance_ip))
-        r53_conn.update_dns_record(zone_name, zone_id, elb['name'], 'A', maintenance_ip, dry_run=dry_run)
+        r53_conn.update_dns_record(zone_id, elb['name'], 'A', maintenance_ip,
+                                   dry_run=dry_run, zone_name=zone_name)
 
 
 @task
@@ -349,7 +353,8 @@ def exit_maintenance(dry_run=False):
             False
         ]
         print green("Attempting to update: \"{0}\":{1}".format(elb['name'], record_value))
-        r53_conn.update_dns_record(get_zone_name(), zone_id, elb['name'], 'A', record_value, is_alias=True, dry_run=dry_run)
+        r53_conn.update_dns_record(zone_id, elb['name'], 'A', record_value, is_alias=True,
+                                   dry_run=dry_run, zone_name=elb['hosted_zone'])
 
 
 def get_cached_zone_id(r53_conn, zone_dict, zone_name):
@@ -463,7 +468,9 @@ def set_stack_name():
                 "in zone id '%s'...", stack_suffix, record, zone_id)
     # Let DNS update DNSServerError propogate
     try:
-        r53_conn.update_dns_record(zone_name, zone_id, record, 'TXT', '"{0}"'.format(stack_suffix))
+        r53_conn.update_dns_record(zone_id, record,
+                                   'TXT', '"{0}"'.format(stack_suffix),
+                                   zone_name=zone_name)
         env.stack_name = "{0}-{1}".format(get_legacy_name(), stack_suffix)
     except Exception:
         raise UpdateDNSRecordError
@@ -705,6 +712,7 @@ def get_env_blocking():
     Returns:
 
     '''
+
 
 def isactive():
     try:
@@ -966,8 +974,8 @@ def set_active_stack(stack_tag, force=False):
     except Exception:
         raise UpdateDeployarnRecordError()
     try:
-        r53_conn.update_dns_record(zone_name, zone_id, active_record, 'TXT',
-                                   '"{}"'.format(tag_stack_id))
+        r53_conn.update_dns_record(zone_id, active_record, 'TXT',
+                                   '"{}"'.format(tag_stack_id), zone_name=zone_name)
         logger.info("fab_tasks::set_active_stack: Successfully updated DNS "
                     "alias record for stack: %s", tag_stack_id)
     except Exception:
@@ -983,8 +991,9 @@ def set_active_stack(stack_tag, force=False):
                             record_object.alias_dns_name,
                             record_object.alias_evaluate_target_health]
             try:
-                r53_conn.update_dns_record(hosted_zone_name, hosted_zone_id, elb_name, 'A',
-                                           record_value, is_alias=True)
+                r53_conn.update_dns_record(hosted_zone_id, elb_name, 'A',
+                                           record_value, is_alias=True,
+                                           zone_name=hosted_zone_name)
                 logger.info("fab_tasks::set_active_stack: Successfully "
                             "updated DNS alias record for ELB: %s", elb)
             except boto.route53.exception.DNSServerError:
@@ -1019,7 +1028,9 @@ def set_active_deployarn(stack_tag):
     except StackRecordNotFoundError:
         exit(1)
     try:
-        ret = r53.update_dns_record(zone_name, zone_id, active_arn_record, 'TXT', '"{0}"'.format(tag_arn_value))
+        ret = r53.update_dns_record(zone_id, active_arn_record,
+                                    'TXT', '"{0}"'.format(tag_arn_value),
+                                    zone_name=zone_name)
         print "Active deployarn was set to: {0}".format(tag_arn_value)
     except boto.exception:
         raise UpdateDeployarnRecordError
@@ -1196,7 +1207,9 @@ def support_old_bootstrap_cfn(stack_name=None):
     if active_record_value is None:
         # if active records don't exist, create both active and sub records
         for record in [active_record_name, stack_record_name]:
-            r53_conn.update_dns_record(zone_name, zone_id, record, 'TXT', '"{0}"'.format(stack_id))
+            r53_conn.update_dns_record(zone_id, record, 'TXT',
+                                       '"{0}"'.format(stack_id),
+                                       zone_name=zone_name)
     # check if stack records exist already
     # create one if doesn't
     try:
@@ -1204,7 +1217,9 @@ def support_old_bootstrap_cfn(stack_name=None):
     except boto.exception:
         raise DNSRecordNotFoundError("%s", stack_record_name)
     if stack_record_value is None:
-        r53_conn.update_dns_record(zone_name, zone_id, stack_record_name, 'TXT', '"{0}"'.format(stack_id))
+        r53_conn.update_dns_record(zone_id, stack_record_name, 'TXT',
+                                   '"{0}"'.format(stack_id),
+                                   zone_name=zone_name)
 
     # Alias records
     active_elb_names = get_public_elbs(stack_name)
@@ -1230,8 +1245,9 @@ def support_old_bootstrap_cfn(stack_name=None):
         try:
             stack_elb_value = r53_conn.get_full_record(zone_name, zone_id, stack_elb_name, 'A')
             if stack_elb_value is None:
-                r53_conn.update_dns_record(zone_name, zone_id, stack_elb_name, 'A',
-                                           active_elb_value, is_alias=True)
+                r53_conn.update_dns_record(zone_id, stack_elb_name, 'A',
+                                           active_elb_value, is_alias=True,
+                                           zone_name=zone_name)
                 logger.info("fab_tasks::support_old_bootstrap_cfn: Successfully "
                             "updated DNS alias record for ELB: %s", stack_elb_name)
         except boto.exception:
