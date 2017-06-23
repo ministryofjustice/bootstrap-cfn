@@ -1,4 +1,3 @@
-import datadiff
 import collections
 import copy
 import json
@@ -7,11 +6,15 @@ import os
 import sys
 import textwrap
 
+import datadiff
+
 from fabric.api import env
 from fabric.colors import green
 
 import netaddr
 
+
+import troposphere.elasticloadbalancingv2 as alb
 from troposphere import Base64, FindInMap, GetAZs, GetAtt, Join, Output, Ref, Tags, Template
 from troposphere.autoscaling import AutoScalingGroup, BlockDeviceMapping, \
     EBSBlockDevice, LaunchConfiguration, Tag
@@ -20,10 +23,8 @@ from troposphere.ec2 import InternetGateway, Route, RouteTable, SecurityGroup, \
     SecurityGroupIngress, Subnet, SubnetRouteTableAssociation, VPC, \
     VPCGatewayAttachment
 from troposphere.elasticache import ReplicationGroup, SubnetGroup
-
 from troposphere.elasticloadbalancing import ConnectionDrainingPolicy, \
     HealthCheck, LoadBalancer, Policy
-import troposphere.elasticloadbalancingv2 as alb
 from troposphere.iam import InstanceProfile, PolicyType, Role
 from troposphere.rds import DBInstance, DBSubnetGroup
 from troposphere.route53 import AliasTarget, RecordSet, RecordSetGroup
@@ -32,7 +33,7 @@ from troposphere.s3 import Bucket, BucketPolicy, LifecycleConfiguration, \
 
 import yaml
 
-from bootstrap_cfn import errors, mime_packer, utils, vpc, diff
+from bootstrap_cfn import diff, errors, mime_packer, utils, vpc
 
 
 class ProjectConfig:
@@ -219,8 +220,8 @@ class ConfigParser(object):
         # 'Ref'. Remove them as well.
         #
         if deleted_resources is not None:
-            dns_cleanup = map(lambda i:i.replace('ELB', 'DNS'),  deleted_resources)
-            policy_cleanup = map(lambda i:i.replace('ELB', 'Policy'),  deleted_resources)
+            dns_cleanup = map(lambda i: i.replace('ELB', 'DNS'),  deleted_resources)
+            policy_cleanup = map(lambda i: i.replace('ELB', 'Policy'),  deleted_resources)
 
             # Deleting resources.
             for i in dns_cleanup + policy_cleanup:
@@ -244,7 +245,6 @@ class ConfigParser(object):
         changes = diff.diff(pristine, temp)
         logging.info(changes)
 
-
         # Diff method 2
         changes = datadiff.diff(pristine, temp)
         logging.info(changes)
@@ -265,8 +265,13 @@ class ConfigParser(object):
         ec2 = self.ec2()
         map(template.add_resource, ec2)
 
-        if 'elb' in self.data:
+        if 'elb' in self.data and 'alb' in self.data:
+            logging.critical('You cannot have both ELBs and ALBs on the same stack. Exiting...')
+            sys.exit(1)
+        elif 'elb' in self.data:
             self.elb(template)
+        elif 'alb' in self.data:
+            self.alb(template)
 
         if 'rds' in self.data:
             self.rds(template)
@@ -954,9 +959,9 @@ class ConfigParser(object):
             'certificate_name': None
         }
 
-        optional_fields = {
-            'target_group': None,
-        }
+        # optional_fields = {
+        #     'target_group': None,
+        # }
 
         for alb in self.data['alb']:
             for i in required_fields.keys():
