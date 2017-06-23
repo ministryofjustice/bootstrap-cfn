@@ -460,6 +460,62 @@ The currently support interpolations are:
 
 an instance created with ``fab application:myproject … cfn_create`` would get a hostname something like ``i-f623cfb9.docker.dev.my-project``.
 
+ALBS (ELBv2)
+------------
+
+AWS Application Load Balancers (ELBv2) are now supported by using a
+very similar configuration scheme to the normal ELBs.
+
+.. code:: yaml
+   staging:
+     alb:
+    - name: tax-tribunals-datacapture-dev
+      # This zone and the ones listed below must exist in the AWS
+      # account you are using.
+      hosted_zone: dsd.io.
+      #
+      # Optional. Self explanatory. If an entry is missing the
+      # hosted_zone key then we automatically create a record set on the
+      # hosted_zone of the main name
+      #
+      additional_hostnames:
+         - name: name1
+           hosted_zone: dsd.io
+         - name: name2
+           hosted_zone: dsd2.service.gov.uk
+	 - name: name3
+      scheme: internet-facing || internal
+      certificate_name: acm_certificate_name
+      listeners:
+        - LoadBalancerPort: 80
+          Protocol: HTTP
+        - LoadBalancerPort: 443
+          Protocol: HTTPS
+      # This section can be omitted. These are the default values.
+      target_group:
+        Port: 80
+	Protocol: HTTP
+	HealthCheckProtocol: HTTP
+	HealthCheckPort: 80
+	HealthCheckPath: /
+        HealthyThresholdCount: 5
+        UnhealthyThresholdCount: 2
+        HealthCheckTimeoutSeconds: 5
+	HealthyHTTPCodes: 200 # 201,202,210-220
+
+When ALBSs are used, a default Target Group is created (expecting port
+80 to be listening by default on the internal hosts, altough this can
+be customized) and a default Rule sending all traffic to this Target
+Group.
+
+If additional_hostnames are defined additional R53 records will be
+created on the specified hosted_zones. In order for this feature to
+work with different applications colocated on the same stack, all
+instances of the ASG/Target Group need to have appropriate nginx
+configuration implementing virtual hosts using the defined hostnames.s
+
+
+
 ELBs
 ----
 By default the ELBs will have a security group opening them to the world on 80 and 443. You can replace this default SG with your own (see example ``ELBSecGroup`` above).
@@ -526,7 +582,7 @@ elements, these are handled internally and are not neccessarily a sign of failur
 ELB Policies
 ++++++++++++
 
-Policies can be defined within an ELB block, and optionally applied to a list of 
+Policies can be defined within an ELB block, and optionally applied to a list of
 instance ports or load balancer ports.
 The below example enable proxy protocol support on instance ports 80 and 443
 
@@ -557,7 +613,7 @@ By specifying an elasticache section, a redis-backed elasticache replication gro
    elasticache:                     # (REQUIRED) Main elasticache key, use {} for all default settings. Defaults are shown
       clusters: 3                   # (OPTIONAL) Number of one-node clusters to create
       node_type: cache.m1.small     # (OPTIONAL) The node type of the clusters nodes
-      port: 6379                    # (OPTIONAL) Port number 
+      port: 6379                    # (OPTIONAL) Port number
       seeds:                        # (OPTIONAL) List of arns to seed the database with
          s3:                        # (OPTIONAL) List of S3 bucket seeds in <bucket>/<filepath> format
             - "test-bucket-947923urhiuy8923d/redis.rdb"
@@ -573,7 +629,7 @@ We can create the static bucket without any arguments, though this requires the 
 ::
 
    s3: {}   # Required if we have no keys and use all defaults
-     
+
 Or we can specify the name, and optionally a custom policy file if we want to to override bootstrap-cfn's default settings.
 For example, the sample custom policy defined in this `json file <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/tests/sample-custom-s3-policy.json>`_ can be configured as follows:
 
@@ -583,8 +639,8 @@ For example, the sample custom policy defined in this `json file <https://github
    s3:
         static-bucket-name: moj-test-dev-static
         policy: tests/sample-custom-s3-policy.json
-    
-We can also supply a list of buckets to create a range of s3 buckets, these require a name. 
+
+We can also supply a list of buckets to create a range of s3 buckets, these require a name.
 These entries can also specify their own policies or use the default, vpc limited one.
 
 .. code:: yaml
@@ -605,7 +661,7 @@ These entries can also specify their own policies or use the default, vpc limite
 
 The outputs of these buckets will be the bucket name postfixed by 'BucketName', ie, mybucketidBucketName. Additionally, and as shown above, one can define a list of Lifecycle rules on a per prefix basis. If a root rule is defined, the rest of the rules are ignored.
 
-Currently, only non-versioned buckets are supported. 
+Currently, only non-versioned buckets are supported.
 
 Includes
 --------
@@ -626,7 +682,7 @@ If you want to include or modify cloudformation resources but need to include so
 Enabling RDS encryption
 -----------------------
 You can enable encryption for your DB by adding the following
- 
+
 .. code:: yaml
 
   rds:
@@ -651,4 +707,3 @@ More info:
 * http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/elb-security-policy-table.html
 
 The policy currently in use by default is: ELBSecurityPolicy-2015-05.
-

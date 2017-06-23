@@ -1,4 +1,5 @@
 import datadiff
+import collections
 import copy
 import json
 import logging
@@ -22,6 +23,7 @@ from troposphere.elasticache import ReplicationGroup, SubnetGroup
 
 from troposphere.elasticloadbalancing import ConnectionDrainingPolicy, \
     HealthCheck, LoadBalancer, Policy
+import troposphere.elasticloadbalancingv2 as alb
 from troposphere.iam import InstanceProfile, PolicyType, Role
 from troposphere.rds import DBInstance, DBSubnetGroup
 from troposphere.route53 import AliasTarget, RecordSet, RecordSetGroup
@@ -182,8 +184,13 @@ class ConfigParser(object):
 
         ec2 = self.ec2()
         map(template.add_resource, ec2)
-
         self.elb(template)
+
+        if 'includes' in self.data:
+            for inc_path in self.data['includes']:
+                inc = json.load(open(inc_path))
+                template = utils.dict_merge(template, inc)
+
         template = json.loads(template.to_json())
 
         # Copy new entries on top of the old ones
@@ -803,6 +810,159 @@ class ConfigParser(object):
             Description="Elasticache Engine",
             Value=self.data['elasticache'].get('engine')
         ))
+
+    def alb(self, template):
+        """
+        Create an ALB resource along with a Target Group ready to point to our already established ASG.
+        """
+
+        for alb in self.data['alb']:
+            cf_resources = self._alb_process(template, alb)
+            template.add_resource(cf_resources)
+
+    def _alb_process(self, template, alb_data):
+        #
+        # list where we store all the computed CF resources, this is what we return at the end
+        resources = []
+        #
+        # Safe name
+        #
+        safe_name = alb_data['name'].replace('-', '').replace('.', '').replace('_', '')
+        #
+        # We create an ALB and then we have to create the Listeners
+        #
+        alb_obj = alb.LoadBalancer(
+            "ALB",
+            Name=safe_name,
+            Scheme=alb_data['scheme'],
+            Subnets=self._get_subnet_refs(env.aws_region),
+            IpAddressType='ipv4'
+        )
+        resources.append(alb_obj)
+        #
+        # Target group is created empty. Target options is not
+        # required. The targets will be acquired when we'll eventually
+        # bind the TG with the ASG.
+        #
+        target_group = alb_data.get('target_group', {})
+        healthy_http_codes = target_group.pop('HealthyHTTPCodes', 200)
+
+        tg = alb.TargetGroup(
+            "TargetGroupASG",
+            Name=self.stack_id,
+            Matcher=alb.Matcher(HttpCode=healthy_http_codes),
+            VpcId=Ref('VPC'),
+            Port=target_group.pop('Port', 80),
+            Protocol=target_group.pop('Protocol', 'HTTP'),
+            **target_group
+        )
+        resources.append(tg)
+
+        listeners = alb_data.get('listeners', None)
+        for i, listener in enumerate(listeners):
+            cf_listener = alb.Listener(
+                "ALB_Listener{}".format(i),
+                Port=listener.get('Port', None),
+                Protocol=listener.get('Protocol', None),
+                LoadBalancerArn=Ref(alb_obj),
+                DefaultActions=[alb.Action(
+                    Type="forward",
+                    TargetGroupArn=Ref(tg)
+                )])
+            # ALB Listeners need a list of Certificates.
+            if cf_listener.Protocol is "HTTPS":
+                certificate_name = alb_data.get('certificate_name', None)
+
+                certificate = alb.Certificate()
+                certificate.CertificateArn = self._get_ssl_certificate(template, certificate_name)
+
+                cf_listener.Certificates = [certificate]
+                cf_listener.SSLPolicy = 'ELBSecurityPolicy-2015-05'
+
+            resources.append(cf_listener)
+
+        hosted_zones = self._alb_sort_dns_additional_hostnames(alb_data.get('name'),
+                                                               alb_data.get('hosted_zone'),
+                                                               alb_data.get('additional_hostnames', []))
+        for zone, hostnames in hosted_zones:
+            dns_records = self._alb_prepare_dns_records(zone, hostnames, alb_obj)
+            resources.append(dns_records)
+
+        return resources
+
+    def _alb_prepare_dns_records(self, zone, hostnames, cf_alb):
+        """
+        zone: a zone name that exists on the aws account currently in use
+        hostnames: a list of hostnames that will be created inside the above zone
+        cf_alb: the alb troposphere object that we want all the records above to point to
+        """
+        safe_zonename = zone.replace('-', '').replace('.', '').replace('_', '')
+
+        dns_record = RecordSetGroup(
+            "DNS" + safe_zonename,
+            HostedZoneName=zone,
+            Comment="Zone apex alias targeted to Application load Balancer.",
+            RecordSets=[RecordSet(
+                "TitleIsIgnoredForThisResource",
+                Name="%s-%s.%s" % (host, self.stack_id, zone),
+                Type="A",
+                AliasTarget=AliasTarget(
+                    GetAtt(cf_alb, "CanonicalHostedZoneNameID"),
+                    GetAtt(cf_alb, "DNSName"),
+                ),
+            ) for host in hostnames])
+
+        return dns_record
+
+    def _alb_sort_dns_additional_hostnames(self, name, zone, additional_hostnames):
+        """
+        Given a list of dicts like the following:
+                [{'name': 'hostname1',
+                  'hosted_zone': 'example.zone.io'},
+                 {'name': 'hostname2',
+                  'hosted_zone': 'example2.zone.io'},
+                 {'name': 'hostname3'}
+                ]
+
+        we return a dict of lists where each key a hosted_zone from
+        the above example and the list containers all the hostnames
+        that share the hosted_zone.
+        """
+        hosted_zones_d = collections.defaultdict(list)
+
+        for entry in additional_hostnames:
+            hosted_zones_d[entry['hosted_zone']].append(entry['name'])
+
+        # also add the main name/zone of the ALB
+        hosted_zones_d[zone].append(name)
+
+        return hosted_zones_d
+
+    def _alb_validate(self):
+        """
+        Checks that self.data() contains an 'alb' section and checks for
+        the existence of any required_fields as defined below.
+        """
+        #
+        # Required and optional fields wit mappings
+        #
+        required_fields = {
+            'name': None,
+            'hosted_zone': None,
+            'scheme': None,
+            'listeners': None,
+            'certificate_name': None
+        }
+
+        optional_fields = {
+            'target_group': None,
+        }
+
+        for alb in self.data['alb']:
+            for i in required_fields.keys():
+                if i not in alb.keys():
+                    logging.critical("\n\n[ERROR] Missing ELB fields [%s]" % i)
+                    sys.exit(1)
 
     def elb(self, template):
         """
