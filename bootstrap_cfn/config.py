@@ -34,7 +34,7 @@ from troposphere.s3 import Bucket, BucketPolicy, LifecycleConfiguration, \
 import yaml
 
 from bootstrap_cfn import diff, errors, mime_packer, utils, vpc
-
+from bootstrap_cfn.r53 import conform_with_fqdn
 
 class ProjectConfig:
 
@@ -850,12 +850,12 @@ class ConfigParser(object):
         # bind the TG with the ASG.
         #
         target_group = alb_data.get('target_group', {})
-        healthy_http_codes = target_group.pop('HealthyHTTPCodes', 200)
+        healthy_http_codes = target_group.pop('HealthyHTTPCodes', '200')
 
         tg = alb.TargetGroup(
             "TargetGroupASG",
             Name=self.stack_id,
-            Matcher=alb.Matcher(HttpCode=healthy_http_codes),
+            Matcher=alb.Matcher(HttpCode=str(healthy_http_codes)),
             VpcId=Ref('VPC'),
             Port=target_group.pop('Port', 80),
             Protocol=target_group.pop('Protocol', 'HTTP'),
@@ -866,7 +866,7 @@ class ConfigParser(object):
         listeners = alb_data.get('listeners', None)
         for i, listener in enumerate(listeners):
             cf_listener = alb.Listener(
-                "ALB_Listener{}".format(i),
+                "ALBListener{}".format(i),
                 Port=listener.get('Port', None),
                 Protocol=listener.get('Protocol', None),
                 LoadBalancerArn=Ref(alb_obj),
@@ -889,7 +889,7 @@ class ConfigParser(object):
         hosted_zones = self._alb_sort_dns_additional_hostnames(alb_data.get('name'),
                                                                alb_data.get('hosted_zone'),
                                                                alb_data.get('additional_hostnames', []))
-        for zone, hostnames in hosted_zones:
+        for zone, hostnames in hosted_zones.iteritems():
             dns_records = self._alb_prepare_dns_records(zone, hostnames, alb_obj)
             resources.append(dns_records)
 
@@ -905,14 +905,14 @@ class ConfigParser(object):
 
         dns_record = RecordSetGroup(
             "DNS" + safe_zonename,
-            HostedZoneName=zone,
+            HostedZoneName=conform_with_fqdn(zone),
             Comment="Zone apex alias targeted to Application load Balancer.",
             RecordSets=[RecordSet(
                 "TitleIsIgnoredForThisResource",
                 Name="%s-%s.%s" % (host, self.stack_id, zone),
                 Type="A",
                 AliasTarget=AliasTarget(
-                    GetAtt(cf_alb, "CanonicalHostedZoneNameID"),
+                    GetAtt(cf_alb, "CanonicalHostedZoneID"),
                     GetAtt(cf_alb, "DNSName"),
                 ),
             ) for host in hostnames])
@@ -935,8 +935,10 @@ class ConfigParser(object):
         """
         hosted_zones_d = collections.defaultdict(list)
 
+        # If an additional hostname doesn't come with a hosted_zone
+        # key, assume the main one
         for entry in additional_hostnames:
-            hosted_zones_d[entry['hosted_zone']].append(entry['name'])
+            hosted_zones_d[entry.get('hosted_zone', zone)].append(entry['name'])
 
         # also add the main name/zone of the ALB
         hosted_zones_d[zone].append(name)

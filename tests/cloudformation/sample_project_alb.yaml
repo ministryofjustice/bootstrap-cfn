@@ -1,0 +1,50 @@
+prod:
+  ec2:
+    tags:
+      Apps: test
+    security_groups:
+      AnotherSG:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupName:
+            Ref: BaseHostSG
+      BaseHostSG:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+  alb:
+    - name: unittest1
+      hosted_zone: platforms-training.dsd.io
+      scheme: internet-facing
+      additional_hostnames:
+         - name: unittest-addname1
+           hosted_zone: integration.dsd.io
+         - name: unittest-addname2
+           hosted_zone: platforms-training.dsd.io
+         - name: unittest-addname3
+      listeners:
+        - Port: 80
+          Protocol: HTTP
+      target_group:
+        Port: 80
+        Protocol: HTTP
+        HealthCheckProtocol: HTTP
+        HealthCheckPort: 80
+        HealthCheckPath: /
+        HealthyThresholdCount: 5
+        UnhealthyThresholdCount: 2
+        HealthCheckTimeoutSeconds: 5
+        HealthyHTTPCodes: 200 # 201,202,210-220
+
+
+  s3: {}
+  rds:
+    db-name: test
+    db-master-username: testuser
+  elasticache: {}
