@@ -586,6 +586,8 @@ For example, the sample custom policy defined in this `json file <https://github
     
 We can also supply a list of buckets to create a range of s3 buckets, these require a name. 
 These entries can also specify their own policies or use the default, vpc limited one.
+Policies for these additional buckets can be provided as an individual policy document the same as
+for the static bucket or a list as in this `example multi-part policy <https://github.com/ministryofjustice/bootstrap-cfn/blob/master/tests/sample-s3-additional-bucket-multi-part-custom-policy.json>`_
 
 .. code:: yaml
 
@@ -602,6 +604,7 @@ These entries can also specify their own policies or use the default, vpc limite
            lifecycles:
              /:
              expirationdays: 5
+           policy: tests/sample-s3-additional-bucket-multi-part-custom-policy.json
 
 The outputs of these buckets will be the bucket name postfixed by 'BucketName', ie, mybucketidBucketName. Additionally, and as shown above, one can define a list of Lifecycle rules on a per prefix basis. If a root rule is defined, the rest of the rules are ignored.
 

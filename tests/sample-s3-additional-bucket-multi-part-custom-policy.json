@@ -1,0 +1,22 @@
+[
+  {
+    "Action": ["s3:Get*", "s3:Put*", "s3:List*", "s3:Delete*"],
+    "Resource": "arn:aws:s3:::testbucket/*",
+    "Effect": "Allow",
+    "Condition": {
+      "StringEquals": {
+        "aws:sourceVpc": {"Ref": "VPC"}
+      }
+    }
+  },
+  {
+    "Action": ["s3:Put*"],
+    "Resource": "arn:aws:s3:::testbucket/*",
+    "Effect": "Deny",
+    "Condition": {
+      "StringNotEquals": {
+        "s3:x-amz-server-side-encryption": "AES256"
+      }
+    }
+  }
+]
