@@ -35,29 +35,34 @@ class TestConfigParser(unittest.TestCase):
             {'Key': 'test_key1', 'Value': 'test_value_1'},
             {'Key': 'test_key2', 'Value': 'test_value_2'}
         ]
-        subject_alternative_names = ['goodbye.test.dsd.io', 'hello_again.test.dsd.io']
+        subject_alternative_names = ['goodbye.test.somewhere.io', 'hello_again.subdomain.dsd.io']
 
+        # The main domain should use validation_domain,
+        # 'goodbye.test.somewhere.io' should use the domain_validation_options
+        # to validate on somewhere.io.
+        # 'hello_again.subdomain.dsd.io' has no validation_options so should
+        # default to the validation_domain
         domain_validation_options = [
             DomainValidationOption(
                 DomainName=domain_name,
                 ValidationDomain=validation_domain
             ),
             DomainValidationOption(
-                DomainName=subject_alternative_names[0],
-                ValidationDomain=validation_domain
+                DomainName='goodbye.test.somewhere.io',
+                ValidationDomain='somewhere.io'
             ),
             DomainValidationOption(
-                DomainName=subject_alternative_names[1],
+                DomainName='hello_again.subdomain.dsd.io',
                 ValidationDomain=validation_domain
             )
         ]
         ACMCertificate = Certificate(
-                certificate_name,
-                DomainName=domain_name,
-                SubjectAlternativeNames=subject_alternative_names,
-                DomainValidationOptions=domain_validation_options,
-                Tags=tags
-            )
+            certificate_name,
+            DomainName=domain_name,
+            SubjectAlternativeNames=subject_alternative_names,
+            DomainValidationOptions=domain_validation_options,
+            Tags=tags
+        )
         certificate_cfg = [config_parser._get_acm_certificate(certificate_name)]
         expected = [ACMCertificate]
         compare(self._resources_to_dict(expected),
@@ -80,12 +85,12 @@ class TestConfigParser(unittest.TestCase):
             ValidationDomain=domain_name
         )
         ACMCertificate = Certificate(
-                parsed_certificate_name,
-                DomainName=domain_name,
-                SubjectAlternativeNames=subject_alternative_names,
-                DomainValidationOptions=[domain_validation_options],
-                Tags=tags
-            )
+            parsed_certificate_name,
+            DomainName=domain_name,
+            SubjectAlternativeNames=subject_alternative_names,
+            DomainValidationOptions=[domain_validation_options],
+            Tags=tags
+        )
         certificate_cfg = [config_parser._get_acm_certificate(certificate_name)]
         expected = [ACMCertificate]
         compare(self._resources_to_dict(expected),

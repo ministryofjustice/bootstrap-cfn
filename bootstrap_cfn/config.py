@@ -1329,10 +1329,33 @@ class ConfigParser(object):
         dnv = [DomainValidationOption(
                     DomainName=domain_name,
                     ValidationDomain=validation_domain)]
-        dnv += [DomainValidationOption(
-            DomainName=d,
-            ValidationDomain=validation_domain)
-         for d in acm_data.get('subject_alternative_names', [])]
+        # Get all subject_alternative_names and set up domain validation options
+        # to default to the validation_domain if there is no specific entry in
+        # domain_validation_options
+        domain_validation_options = acm_data.get('domain_validation_options', [])
+        validated_domains = []
+        for domain_validation_option in domain_validation_options:
+            option_domain_name = domain_validation_option.get("domain_name", None)
+            option_validation_domain = domain_validation_option.get("validation_domain", None)
+            if option_domain_name is None or option_validation_domain is None:
+                raise errors.CfnConfigError("domain_validation_options require domain_name and validation_domain set")
+            # if the domain name validation is overridden in the domain_option,
+            # warn
+            if option_domain_name == domain_name:
+                logging.warning("domain_validation_options overrides the "
+                                "validation option of the main domain. Use "
+                                "validation_domain instead.")
+            dnv += [DomainValidationOption(
+                DomainName=option_domain_name,
+                ValidationDomain=option_validation_domain)
+            ]
+            validated_domains.append(option_domain_name)
+        # If the alternative name is not explicitly set a validation domain,
+        # use the default
+        for subject_alternative_name in acm_data.get('subject_alternative_names', []):
+            if subject_alternative_name not in validated_domains:
+                dnv += [DomainValidationOption(DomainName=subject_alternative_name,
+                                               ValidationDomain=validation_domain)]
 
         certificate = Certificate(
             canonical_certificate_name,

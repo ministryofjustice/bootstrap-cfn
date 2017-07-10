@@ -1,4 +1,5 @@
 # noqa
+---
 dev:
   ec2:
     tags:
@@ -35,9 +36,12 @@ dev:
     mycert:
       domain: helloworld.test.dsd.io
       subject_alternative_names:
-          - goodbye.test.dsd.io
-          - hello_again.test.dsd.io
+        - goodbye.test.somewhere.io
+        - hello_again.subdomain.dsd.io
       validation_domain: dsd.io
+      domain_validation_options:
+        - domain_name: goodbye.test.somewhere.io
+          validation_domain: somewhere.io
       tags:
         test_key1: test_value_1
         test_key2: test_value_2

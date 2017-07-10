@@ -493,6 +493,9 @@ This section defines certificates for the AWS Certificate Manager. For verificat
                     - <alternative_name_1>
                     - <alternative_name_2>
                 validation_domain: <validation_domain>  # (optional) The domain name the verfication email should go to. The default is the domain name.
+                domain_validation_options:              # (optional) override validation_domain for specific domain names
+                  - domain_name: <alternative_name>
+                    validation_domain: <alternative_validation_domain>
                 tags:
                     <key>: <val>                      # (optional) Dictionary of keypairs to tag the resource with.
 
@@ -504,8 +507,11 @@ For example,
           mycert:
             domain: helloworld.test.dsd.io
             subject_alternative_names:
-                - goodbye.test.dsd.io
+                - goodbye.test.somewhere.io
             validation_domain: dsd.io
+            domain_validation_options:
+              - domain_name: goodbye.test.somewhere.io
+                validation_domain: somewhere.io
             tags:
                 site: testsite
 
