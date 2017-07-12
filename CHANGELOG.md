@@ -1,3 +1,7 @@
+## v1.5.3
+
+* Re-release in that v1.5.2 package uploaded to PyPi does not include the latest commits
+
 ## v1.5.2
 
 * Re-release due to duplicate error from pypi while uploading as zip
