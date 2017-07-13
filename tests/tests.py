@@ -249,7 +249,7 @@ class TestConfigParser(unittest.TestCase):
         actual_outputs = self._resources_to_dict(template.outputs.values())
         compare(expected_outputs, actual_outputs)
 
-    def test_custom_s3_policy(self):
+    def test_s3_custom_policy(self):
         resource_value = 'arn:aws:s3:::moj-test-dev-static/*'
         expected_s3 = [
             {
@@ -457,6 +457,86 @@ class TestConfigParser(unittest.TestCase):
         compare(self._resources_to_dict(resources),
                 self._resources_to_dict([static_bp, bucket, bucket1, bucket_policy1,
                                          bucket2, bucket_policy2, bucket3, bucket_policy3]))
+
+    def test_s3_additional_bucket_with_custom_policy(self):
+        conf_under_test = {
+            'buckets': [
+                {
+                    'name': 'testbucket',
+                    'policy': 'tests/sample-s3-additional-bucket-custom-policy.json'
+                }
+            ]
+        }
+
+        # Resources to compare
+        expected_bucket_policy = [
+            {
+                'Action': ['s3:Get*', 's3:Put*', 's3:List*', 's3:Delete*'],
+                'Resource': 'arn:aws:s3:::testbucket/*',
+                'Effect': 'Allow',
+                'Principal': {'AWS': '*'}
+            }
+        ]
+
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        project_config.config['s3'] = conf_under_test
+        config = ConfigParser(project_config.config, 'my-stack-name')
+
+        template = Template()
+        config.s3(template)
+        resources = template.resources.values()
+
+        s3_cfg = self._resources_to_dict(resources)
+        s3_bucket_policy = s3_cfg['testbucketPolicy']['Properties']['PolicyDocument']['Statement']
+
+        compare(expected_bucket_policy, s3_bucket_policy)
+
+    def test_s3_additional_bucket_with_multi_part_custom_policy(self):
+        conf_under_test = {
+            'buckets': [
+                {
+                    'name': 'testbucket',
+                    'policy': 'tests/sample-s3-additional-bucket-multi-part-custom-policy.json'
+                }
+            ]
+        }
+
+        # Resources to compare
+        expected_bucket_policy = [
+            {
+                'Action': ['s3:Get*', 's3:Put*', 's3:List*', 's3:Delete*'],
+                'Resource': 'arn:aws:s3:::testbucket/*',
+                'Effect': 'Allow',
+                'Condition': {
+                    'StringEquals': {
+                        'aws:sourceVpc': {'Ref': 'VPC'}
+                    }
+                }
+            },
+            {
+                'Action': ['s3:Put*'],
+                'Resource': 'arn:aws:s3:::testbucket/*',
+                'Effect': 'Deny',
+                'Condition': {
+                    'StringNotEquals': {
+                        's3:x-amz-server-side-encryption': 'AES256'
+                    }
+                }
+            }
+        ]
+
+        project_config = ProjectConfig('tests/sample-project.yaml', 'dev')
+        project_config.config['s3'] = conf_under_test
+        config = ConfigParser(project_config.config, 'my-stack-name')
+
+        template = Template()
+        config.s3(template)
+        resources = template.resources.values()
+
+        s3_cfg = self._resources_to_dict(resources)
+        s3_bucket_policy = s3_cfg['testbucketPolicy']['Properties']['PolicyDocument']['Statement']
+
+        compare(expected_bucket_policy, s3_bucket_policy)
 
     def test_rds(self):
 

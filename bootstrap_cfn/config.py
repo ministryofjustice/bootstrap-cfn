@@ -546,10 +546,13 @@ class ConfigParser(object):
                     }
                 }
             }
+
+        policy = policy if isinstance(policy, list) else [policy]
+
         bucket_policy = BucketPolicy(
             "{}Policy".format(bucket_name),
             Bucket=Ref(bucket),
-            PolicyDocument={"Statement": [policy]},
+            PolicyDocument={"Statement": policy},
         )
         # Add the bucket name to the list of cloudformation
         # outputs
