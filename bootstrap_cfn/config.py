@@ -1454,12 +1454,12 @@ class ConfigParser(object):
                 recognised
         """
         region = env.aws_region
-        os_default = 'ubuntu-1404'
+        os_default = 'ubuntu-1604'
         if region == 'eu-west-2':
             available_types = {
                 'ubuntu-1604': {
                     'name': 'ubuntu-1604',
-                    'ami': 'ami-57eae033',
+                    'ami': 'ami-cc7066a8',
                     'region': region,
                     'distribution': 'ubuntu',
                     'type': 'linux',
@@ -1486,7 +1486,7 @@ class ConfigParser(object):
             available_types = {
                 'ubuntu-1604': {
                     'name': 'ubuntu-1604',
-                    'ami': 'ami-6f587e1c',
+                    'ami': 'ami-6d48500b',
                     'region': region,
                     'distribution': 'ubuntu',
                     'type': 'linux',
