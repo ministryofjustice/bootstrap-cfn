@@ -1,3 +1,7 @@
+## v1.5.4
+
+* Minor version bump to reinstance this package on PyPi
+
 ## v1.5.3
 
 * Re-release in that v1.5.2 package uploaded to PyPi does not include the latest commits
@@ -89,7 +93,7 @@ addition of the multiple stacks feature.
 ## v0.11.2
 
 Fixes:
-* flake8 import order fix 
+* flake8 import order fix
 
 ## v0.11.1
 
@@ -131,7 +135,7 @@ Fixes:
 
 ## v0.8.4
 
-Fixes: 
+Fixes:
 * Delete server certificates after we've replaced them
 * Make update_certs task use set_ssl_certificates retry logic
 
@@ -146,7 +150,7 @@ Fixes:
 
 ## Version 0.8.1
 
-Features: 
+Features:
 * Add a Name tag to instances
 * Allow the ASG config to use ELB healthchecks
 * Update to latest Ubuntu 14.04 LTS AMI
@@ -164,12 +168,12 @@ Fixes:
 
 Fixes:
  * Fix update_certs fab task.
- 
+
 ## Version 0.7.5
 
 Fixes:
  * Fix settings stack_name in set_stack_name
- 
+
 ## Version 0.7.4
 
 Fixes:
@@ -181,7 +185,7 @@ Fixes:
 
 Fixes:
   * Restore the previous cloudformation_resource_type_for_back_compatibility
-  
+
 ## Version 0.7.2
 
 Fixes:
